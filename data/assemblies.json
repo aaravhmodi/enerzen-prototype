@@ -179,6 +179,16 @@
       "operational_carbon_factor": 0.03
     }
   ],
+  "benchmarks": {
+    "_note": "Approximate industry reference values for Ontario/Canada residential, total site energy per conditioned m2. Sources: NRCan residential end-use intensity; CHBA Net Zero program; Ontario custom-build cost surveys (2025).",
+    "eui_kwh_m2_yr": {
+      "existing_home": 200,
+      "code_built_new": 130
+    },
+    "cost_per_m2": {
+      "conventional_new_build": 2200
+    }
+  },
   "solar": [
     {
       "id": "PV0",

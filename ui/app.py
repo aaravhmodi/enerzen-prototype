@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import json
 import streamlit as st
 import pandas as pd
+import altair as alt
 
 from engine.optimizer import ProjectSpec, optimize
 
@@ -24,6 +25,7 @@ FLOOR_LABELS  = {f["id"]: f["name"] for f in CATALOG["floor_cassettes"]}
 WINDOW_LABELS = {w["id"]: w["name"] for w in CATALOG["windows"]}
 MECH_LABELS   = {m["id"]: m["name"] for m in CATALOG["mechanical"]}
 SOLAR_LABELS  = {s["id"]: s["name"] for s in CATALOG["solar"]}
+BENCH = CATALOG["benchmarks"]
 
 ZONE_LABELS = {
     "6":  "Zone 6 — Toronto / Southern ON",
@@ -173,13 +175,54 @@ rows = [{
 } for r in results[:20]]
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-st.markdown("#### Cost vs. energy")
-st.scatter_chart(
-    pd.DataFrame({
-        "Cost per unit ($)": [r.construction_cost for r in results[:20]],
-        "Net EUI (kWh/m²/yr)": [r.net_eui_kwh_m2_yr for r in results[:20]],
-        "Net Zero": [r.net_zero for r in results[:20]],
-    }),
-    x="Cost per unit ($)", y="Net EUI (kWh/m²/yr)", color="Net Zero",
-    use_container_width=True,
+# ── How EnerZen compares ─────────────────────────────────────────────────────
+st.markdown("#### How this home compares")
+st.caption("Energy use intensity vs. typical Ontario homes. Lower is better.")
+
+bench_eui = BENCH["eui_kwh_m2_yr"]
+compare = pd.DataFrame([
+    {"label": "Typical existing home", "eui": bench_eui["existing_home"], "kind": "Benchmark"},
+    {"label": "New home, built to code", "eui": bench_eui["code_built_new"], "kind": "Benchmark"},
+    {"label": "EnerZen (envelope only)", "eui": top.eui_kwh_m2_yr, "kind": "EnerZen"},
+])
+if top.pv_capacity_kw > 0:
+    compare = pd.concat([compare, pd.DataFrame([
+        {"label": "EnerZen (after solar)", "eui": max(top.net_eui_kwh_m2_yr, 0), "kind": "EnerZen"},
+    ])], ignore_index=True)
+
+bars = alt.Chart(compare).mark_bar(cornerRadiusEnd=4).encode(
+    x=alt.X("eui:Q", title="Energy use intensity (kWh/m²/yr)"),
+    y=alt.Y("label:N", sort=None, title=None),
+    color=alt.Color("kind:N", scale=alt.Scale(
+        domain=["Benchmark", "EnerZen"], range=["#B0BEC5", "#1A5276"]), legend=None),
+    tooltip=["label", "eui"],
 )
+labels = bars.mark_text(align="left", dx=4, color="#666").encode(text=alt.Text("eui:Q", format=".0f"))
+nzr_rule = alt.Chart(pd.DataFrame({"x": [top.energy.nzr_threshold]})).mark_rule(
+    color="#1E8449", strokeDash=[4, 4]).encode(x="x:Q")
+st.altair_chart((bars + labels + nzr_rule).properties(height=180), use_container_width=True)
+
+pct = round((1 - top.eui_kwh_m2_yr / bench_eui["code_built_new"]) * 100)
+st.caption(f"~{pct}% less energy than a new code-built home "
+           f"(green dashed line = Net Zero Ready threshold, {top.energy.nzr_threshold:g}). "
+           "Benchmarks: NRCan residential intensity, CHBA Net Zero program.")
+
+# ── Cost vs. energy trade-off ────────────────────────────────────────────────
+st.markdown("#### Cost vs. energy across options")
+opts = pd.DataFrame({
+    "cost": [r.construction_cost for r in results[:20]],
+    "eui": [r.net_eui_kwh_m2_yr for r in results[:20]],
+    "status": ["Net Zero" if r.net_zero else ("NZR" if r.nzr_compliant else "Below NZR")
+               for r in results[:20]],
+})
+pts = alt.Chart(opts).mark_circle(size=90, opacity=0.75).encode(
+    x=alt.X("cost:Q", title="Cost per unit ($)", axis=alt.Axis(format="$,.0f")),
+    y=alt.Y("eui:Q", title="Net EUI (kWh/m²/yr)"),
+    color=alt.Color("status:N", scale=alt.Scale(
+        domain=["Net Zero", "NZR", "Below NZR"],
+        range=["#1E8449", "#1A5276", "#C0392B"]), title=None),
+    tooltip=["cost", "eui", "status"],
+)
+thresh_rule = alt.Chart(pd.DataFrame({"y": [top.energy.nzr_threshold]})).mark_rule(
+    color="#1E8449", strokeDash=[4, 4]).encode(y="y:Q")
+st.altair_chart((pts + thresh_rule).properties(height=320), use_container_width=True)
