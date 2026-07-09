@@ -16,6 +16,7 @@ from typing import Optional
 from engine.simulator import BuildingSpec, AssemblyConfig, simulate, EnergyResult
 from engine.carbon import calculate_carbon
 from engine.cost import estimate_cost, estimate_schedule
+from engine.solar import calculate_solar
 
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
@@ -32,6 +33,7 @@ class ProjectSpec:
     window_to_wall_ratio: float
     budget_per_unit: float  # CAD
     target_label: str       # "code", "nzr", "passive_house"
+    solar_option_id: str = "PV0"  # from catalog["solar"]; PV0 = none
     num_units: int = 1
 
     # Derived
@@ -53,6 +55,13 @@ class ConfigResult:
     eui_kwh_m2_yr: float
     nzr_compliant: bool
     energuide_score: float
+
+    # Solar / net energy
+    pv_capacity_kw: float = 0.0
+    pv_generation_kwh_yr: float = 0.0
+    net_operational_energy_kwh_yr: float = 0.0
+    net_eui_kwh_m2_yr: float = 0.0
+    net_zero: bool = False
 
     # Details
     energy: EnergyResult = field(repr=False, default=None)
@@ -111,6 +120,13 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     catalog = load_catalog()
     ach50 = _ach50_for_label(spec.target_label)
 
+    solar_option = next(
+        (s for s in catalog["solar"] if s["id"] == spec.solar_option_id),
+        catalog["solar"][0],
+    )
+    climate = catalog["climate_zones"][spec.climate_zone]
+    solar = calculate_solar(solar_option, climate, spec.orientation)
+
     building = BuildingSpec(
         floor_area_m2=spec.floor_area_m2,
         storeys=spec.storeys,
@@ -148,11 +164,17 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         carbon_data = calculate_carbon(spec, wall, roof, floor_c, window, mech, energy)
         schedule = estimate_schedule(spec, wall, roof, floor_c)
 
-        # Skip over budget
-        if cost_data["total_per_unit"] > spec.budget_per_unit:
+        # Net operational energy after on-site PV generation
+        net_operational = energy.total_energy_kwh_yr - solar["annual_generation_kwh"]
+        net_eui = net_operational / spec.floor_area_m2
+
+        total_cost = cost_data["total_per_unit"] + solar["cost"]
+
+        # Skip over budget (envelope + PV)
+        if total_cost > spec.budget_per_unit:
             continue
 
-        # For NZR target, skip non-compliant configs
+        # For NZR target, skip non-compliant configs (envelope-based)
         if spec.target_label == "nzr" and not energy.nzr_compliant:
             continue
 
@@ -162,12 +184,18 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
             floor_id=floor_c["id"],
             window_id=window["id"],
             mechanical_id=mech["id"],
-            construction_cost=cost_data["total_per_unit"],
+            construction_cost=total_cost,
             construction_weeks=schedule["weeks_to_envelope_close"],
-            embodied_carbon_kg_co2e_m2=carbon_data["total_per_m2"],
+            embodied_carbon_kg_co2e_m2=carbon_data["total_per_m2"]
+                + solar["embodied_carbon_kg_co2e"] / spec.floor_area_m2,
             eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
             nzr_compliant=energy.nzr_compliant,
             energuide_score=energy.energuide_score,
+            pv_capacity_kw=solar["capacity_kw"],
+            pv_generation_kwh_yr=solar["annual_generation_kwh"],
+            net_operational_energy_kwh_yr=round(net_operational, 0),
+            net_eui_kwh_m2_yr=round(net_eui, 1),
+            net_zero=net_operational <= 0,
             energy=energy,
             panel_schedule=schedule["panel_counts"],
         )

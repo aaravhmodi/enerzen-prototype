@@ -179,6 +179,36 @@
       "operational_carbon_factor": 0.03
     }
   ],
+  "solar": [
+    {
+      "id": "PV0",
+      "name": "No Solar",
+      "capacity_kw": 0,
+      "cost_per_kw": 0,
+      "embodied_carbon_kg_co2e_per_kw": 0
+    },
+    {
+      "id": "PV1",
+      "name": "Rooftop PV — Small (4 kW)",
+      "capacity_kw": 4,
+      "cost_per_kw": 2900,
+      "embodied_carbon_kg_co2e_per_kw": 1500
+    },
+    {
+      "id": "PV2",
+      "name": "Rooftop PV — Standard (8 kW)",
+      "capacity_kw": 8,
+      "cost_per_kw": 2700,
+      "embodied_carbon_kg_co2e_per_kw": 1500
+    },
+    {
+      "id": "PV3",
+      "name": "Rooftop PV — Large (12 kW)",
+      "capacity_kw": 12,
+      "cost_per_kw": 2500,
+      "embodied_carbon_kg_co2e_per_kw": 1500
+    }
+  ],
   "climate_zones": {
     "6": {
       "name": "Toronto / Southern Ontario",
@@ -189,7 +219,8 @@
       "code_wall_r": 24,
       "code_roof_r": 40,
       "code_window_u": 1.4,
-      "nzr_eui_threshold": 60
+      "nzr_eui_threshold": 60,
+      "solar_yield_kwh_per_kwp": 1250
     },
     "7a": {
       "name": "Ottawa / Eastern Ontario",
@@ -200,7 +231,8 @@
       "code_wall_r": 28,
       "code_roof_r": 50,
       "code_window_u": 1.2,
-      "nzr_eui_threshold": 55
+      "nzr_eui_threshold": 55,
+      "solar_yield_kwh_per_kwp": 1200
     },
     "7b": {
       "name": "Northern Ontario / Sudbury",
@@ -211,7 +243,8 @@
       "code_wall_r": 32,
       "code_roof_r": 60,
       "code_window_u": 1.0,
-      "nzr_eui_threshold": 50
+      "nzr_eui_threshold": 50,
+      "solar_yield_kwh_per_kwp": 1150
     }
   }
 }

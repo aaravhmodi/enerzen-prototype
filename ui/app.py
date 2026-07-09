@@ -1,25 +1,20 @@
 """
-EnerZen Performance Engine — Streamlit prototype UI
+EnerZen Performance Engine — Streamlit UI
 """
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import json
 import streamlit as st
 import pandas as pd
-import json
 
 from engine.optimizer import ProjectSpec, optimize
-from engine.simulator import CLIMATE
 
-st.set_page_config(
-    page_title="EnerZen Performance Engine",
-    page_icon="🏠",
-    layout="wide",
-)
+st.set_page_config(page_title="EnerZen Performance Engine", page_icon="🏠", layout="wide")
 
-# ── Catalog for display labels ──────────────────────────────────────────────
+# ── Catalog for display labels ───────────────────────────────────────────────
 with open(Path(__file__).parent.parent / "data" / "assemblies.json") as f:
     CATALOG = json.load(f)
 
@@ -28,178 +23,163 @@ ROOF_LABELS   = {r["id"]: r["name"] for r in CATALOG["roof_cassettes"]}
 FLOOR_LABELS  = {f["id"]: f["name"] for f in CATALOG["floor_cassettes"]}
 WINDOW_LABELS = {w["id"]: w["name"] for w in CATALOG["windows"]}
 MECH_LABELS   = {m["id"]: m["name"] for m in CATALOG["mechanical"]}
+SOLAR_LABELS  = {s["id"]: s["name"] for s in CATALOG["solar"]}
 
-# ── Header ───────────────────────────────────────────────────────────────────
+ZONE_LABELS = {
+    "6":  "Zone 6 — Toronto / Southern ON",
+    "7a": "Zone 7a — Ottawa / Eastern ON",
+    "7b": "Zone 7b — Northern ON / Sudbury",
+}
+LABEL_NAMES = {
+    "code": "Building Code baseline",
+    "nzr": "Net Zero Ready",
+    "passive_house": "Passive House-inspired",
+}
+
 st.markdown("""
 <style>
-    .main-title { font-size: 2rem; font-weight: 700; color: #1A5276; margin-bottom: 0; }
-    .sub-title  { font-size: 1rem; color: #666; margin-top: 0; margin-bottom: 2rem; }
-    .metric-box { background: #EBF5FB; border-radius: 8px; padding: 1rem; text-align: center; }
-    .metric-val { font-size: 1.6rem; font-weight: 700; color: #1A5276; }
-    .metric-lbl { font-size: 0.8rem; color: #555; }
-    .badge-pass { background: #D5F5E3; color: #1E8449; border-radius: 4px;
-                  padding: 2px 8px; font-size: 0.8rem; font-weight: 600; }
-    .badge-fail { background: #FADBD8; color: #C0392B; border-radius: 4px;
-                  padding: 2px 8px; font-size: 0.8rem; font-weight: 600; }
+    .block-container { padding-top: 2.5rem; max-width: 1100px; }
+    h1 { font-size: 1.6rem !important; color: #1A5276; margin-bottom: 0.2rem; }
+    .caption { color: #888; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    [data-testid="stMetricValue"] { font-size: 1.5rem; color: #1A5276; }
+    .pill { display:inline-block; border-radius: 999px; padding: 3px 12px;
+            font-size: 0.8rem; font-weight: 600; }
+    .pill-pass { background:#D5F5E3; color:#1E8449; }
+    .pill-fail { background:#FADBD8; color:#C0392B; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<p class="main-title">EnerZen Performance Engine</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">Enter your project. Get the optimal assembly configuration.</p>', unsafe_allow_html=True)
+st.markdown("# EnerZen Performance Engine")
+st.markdown('<div class="caption">Describe your project. Get the optimal assembly, costs, and performance.</div>',
+            unsafe_allow_html=True)
 
-# ── Input form ───────────────────────────────────────────────────────────────
-with st.form("project_form"):
-    col1, col2, col3 = st.columns(3)
+# ── Inputs (sidebar) ─────────────────────────────────────────────────────────
+with st.sidebar:
+    st.header("Your project")
 
-    with col1:
-        st.subheader("Project")
-        typology = st.selectbox("Building type", ["single_family", "townhouse", "murb"],
-                                format_func=lambda x: x.replace("_", " ").title())
-        climate_zone = st.selectbox("Climate zone", ["6", "7a", "7b"],
-                                    format_func=lambda z: f"Zone {z} — {CLIMATE[z]}" if False else {
-                                        "6": "Zone 6 — Toronto / Southern ON",
-                                        "7a": "Zone 7a — Ottawa / Eastern ON",
-                                        "7b": "Zone 7b — Northern ON / Sudbury",
-                                    }[z])
-        floor_area = st.number_input("Conditioned floor area (m²)", 80, 500, 150, step=10)
-        storeys = st.selectbox("Storeys", [1, 2, 3])
-        num_units = st.number_input("Number of units", 1, 50, 1)
+    st.markdown("**The building**")
+    typology = st.selectbox("Building type", ["single_family", "townhouse", "murb"],
+                            format_func=lambda x: x.replace("_", " ").title())
+    floor_area = st.number_input("Floor area (m²)", 80, 500, 150, step=10)
+    storeys = st.selectbox("Storeys", [1, 2, 3], index=1)
+    num_units = st.number_input("Number of units", 1, 50, 1)
 
-    with col2:
-        st.subheader("Building")
-        orientation = st.selectbox("Main facade orientation", ["S", "N", "E", "W"],
-                                   format_func=lambda x: {"S": "South", "N": "North",
-                                                           "E": "East",  "W": "West"}[x])
-        wwr = st.slider("Window-to-wall ratio", 0.10, 0.45, 0.20, step=0.05,
-                        help="Fraction of wall area that is glazing")
-        budget = st.number_input("Budget ceiling per unit (CAD $)", 200_000, 1_500_000,
-                                 500_000, step=25_000,
-                                 format="%d")
-        target_label = st.selectbox("Target performance label",
-                                    ["code", "nzr", "passive_house"],
-                                    index=1,
-                                    format_func=lambda x: {
-                                        "code": "Building Code baseline",
-                                        "nzr": "CHBA Net Zero Ready",
-                                        "passive_house": "Passive House-inspired",
-                                    }[x])
+    st.markdown("**The site**")
+    climate_zone = st.selectbox("Climate zone", ["6", "7a", "7b"],
+                                format_func=lambda z: ZONE_LABELS[z])
+    orientation = st.selectbox("Main facade faces", ["S", "N", "E", "W"],
+                               format_func=lambda x: {"S": "South", "N": "North",
+                                                       "E": "East", "W": "West"}[x])
+    wwr = st.slider("Window-to-wall ratio", 0.10, 0.45, 0.20, step=0.05)
 
-    with col3:
-        st.subheader("Priorities")
-        st.caption("Adjust how much each objective is weighted in the ranking.")
-        w_cost   = st.slider("Cost weight",   0, 10, 3)
-        w_speed  = st.slider("Speed weight",  0, 10, 2)
-        w_carbon = st.slider("Carbon weight", 0, 10, 3)
-        w_energy = st.slider("Energy weight", 0, 10, 2)
+    st.markdown("**The target**")
+    target_label = st.selectbox("Performance target", ["code", "nzr", "passive_house"],
+                                index=1, format_func=lambda x: LABEL_NAMES[x])
+    solar_option_id = st.selectbox("Solar (rooftop PV)",
+                                   [s["id"] for s in CATALOG["solar"]],
+                                   format_func=lambda x: SOLAR_LABELS[x])
+    budget = st.number_input("Budget per unit (CAD $)", 200_000, 1_500_000,
+                             500_000, step=25_000, format="%d")
 
-    submitted = st.form_submit_button("Run Engine", use_container_width=True, type="primary")
+    with st.expander("Priorities (advanced)"):
+        st.caption("How much each objective counts in the ranking.")
+        w_cost   = st.slider("Cost",   0, 10, 3)
+        w_speed  = st.slider("Speed",  0, 10, 2)
+        w_carbon = st.slider("Carbon", 0, 10, 3)
+        w_energy = st.slider("Energy", 0, 10, 2)
 
-# ── Run optimizer ─────────────────────────────────────────────────────────────
-if submitted:
-    total_w = w_cost + w_speed + w_carbon + w_energy
-    if total_w == 0:
-        st.error("At least one priority weight must be greater than zero.")
-        st.stop()
+    run = st.button("Run engine", use_container_width=True, type="primary")
 
-    weights = {
-        "cost":   w_cost   / total_w,
-        "speed":  w_speed  / total_w,
-        "carbon": w_carbon / total_w,
-        "energy": w_energy / total_w,
-    }
+# ── Run + results ────────────────────────────────────────────────────────────
+if not run:
+    st.info("Set your project details in the sidebar, then **Run engine**.")
+    st.stop()
 
-    spec = ProjectSpec(
-        typology=typology,
-        climate_zone=climate_zone,
-        floor_area_m2=float(floor_area),
-        storeys=storeys,
-        orientation=orientation,
-        window_to_wall_ratio=wwr,
-        budget_per_unit=float(budget),
-        target_label=target_label,
-        num_units=num_units,
-    )
+total_w = w_cost + w_speed + w_carbon + w_energy
+if total_w == 0:
+    st.error("At least one priority must be greater than zero.")
+    st.stop()
 
-    with st.spinner("Evaluating assembly combinations..."):
-        results = optimize(spec, weights)
+weights = {"cost": w_cost / total_w, "speed": w_speed / total_w,
+           "carbon": w_carbon / total_w, "energy": w_energy / total_w}
 
-    if not results:
-        st.error("No configurations found within the budget and performance constraints. "
-                 "Try increasing the budget or relaxing the target label.")
-        st.stop()
+spec = ProjectSpec(
+    typology=typology, climate_zone=climate_zone, floor_area_m2=float(floor_area),
+    storeys=storeys, orientation=orientation, window_to_wall_ratio=wwr,
+    budget_per_unit=float(budget), target_label=target_label,
+    solar_option_id=solar_option_id, num_units=num_units,
+)
 
-    st.success(f"Found **{len(results)}** feasible configurations. "
-               f"Showing top results ranked by your priorities.")
+with st.spinner("Evaluating assembly combinations…"):
+    results = optimize(spec, weights)
 
-    # ── Top recommendation ─────────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("Recommended Configuration")
+if not results:
+    st.error("No configurations fit the budget and target. Try raising the budget "
+             "or relaxing the target.")
+    st.stop()
 
-    top = results[0]
-    nzr_badge = '<span class="badge-pass">✓ NZR Compliant</span>' if top.nzr_compliant \
-                else '<span class="badge-fail">✗ Not NZR</span>'
+top = results[0]
 
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("Construction Cost", f"${top.construction_cost:,.0f}", help="Per unit")
-    m2.metric("Build Time",  f"{top.construction_weeks:.1f} wks", help="Weeks to envelope close")
-    m3.metric("EUI",  f"{top.eui_kwh_m2_yr} kWh/m²/yr")
-    m4.metric("Embodied Carbon", f"{top.embodied_carbon_kg_co2e_m2} kgCO₂e/m²")
-    m5.metric("EnerGuide", f"{top.energuide_score}/100")
+# ── Headline ─────────────────────────────────────────────────────────────────
+st.markdown("### Recommended configuration")
+status = []
+status.append('<span class="pill pill-pass">✓ Net Zero Ready</span>' if top.nzr_compliant
+              else '<span class="pill pill-fail">Not NZR</span>')
+if top.pv_capacity_kw > 0:
+    status.append('<span class="pill pill-pass">✓ Net Zero</span>' if top.net_zero
+                  else '<span class="pill pill-fail">Not net zero</span>')
+st.markdown(" &nbsp; ".join(status), unsafe_allow_html=True)
 
-    st.markdown(f"**NZR Status:** {nzr_badge} &nbsp;&nbsp; (threshold: {top.energy.nzr_threshold} kWh/m²/yr)",
-                unsafe_allow_html=True)
+c = st.columns(4)
+c[0].metric("Cost / unit", f"${top.construction_cost:,.0f}")
+c[1].metric("Build time", f"{top.construction_weeks:.0f} wks")
+c[2].metric("Net energy use", f"{top.net_eui_kwh_m2_yr:g} kWh/m²/yr",
+            help=f"Before solar: {top.eui_kwh_m2_yr:g}")
+c[3].metric("EnerGuide", f"{top.energuide_score:g}/100")
 
-    st.markdown("**Assembly:**")
-    asm_col1, asm_col2 = st.columns(2)
-    with asm_col1:
-        st.write(f"- **Wall:** {WALL_LABELS[top.wall_id]}")
-        st.write(f"- **Roof:** {ROOF_LABELS[top.roof_id]}")
-        st.write(f"- **Floor:** {FLOOR_LABELS[top.floor_id]}")
-    with asm_col2:
-        st.write(f"- **Windows:** {WINDOW_LABELS[top.window_id]}")
-        st.write(f"- **Mechanical:** {MECH_LABELS[top.mechanical_id]}")
+c = st.columns(4)
+c[0].metric("Embodied carbon", f"{top.embodied_carbon_kg_co2e_m2:.0f} kg/m²")
+c[1].metric("Solar", f"{top.pv_capacity_kw:g} kW" if top.pv_capacity_kw else "None")
+c[2].metric("PV generation", f"{top.pv_generation_kwh_yr:,.0f} kWh/yr")
+c[3].metric("NZR threshold", f"{top.energy.nzr_threshold:g} kWh/m²/yr")
 
-    if top.panel_schedule:
-        ps = top.panel_schedule
-        st.markdown("**Panel Schedule:**")
-        st.write(f"- Wall panels: {ps['wall_panels']} &nbsp;|&nbsp; "
-                 f"Roof cassettes: {ps['roof_panels']} &nbsp;|&nbsp; "
-                 f"Floor cassettes: {ps['floor_panels']} &nbsp;|&nbsp; "
-                 f"Total crane lifts: {ps['crane_lifts']}")
+# ── The assembly ─────────────────────────────────────────────────────────────
+st.markdown("#### Assembly")
+a = st.columns(2)
+a[0].markdown(
+    f"- **Wall** — {WALL_LABELS[top.wall_id]}\n"
+    f"- **Roof** — {ROOF_LABELS[top.roof_id]}\n"
+    f"- **Floor** — {FLOOR_LABELS[top.floor_id]}")
+a[1].markdown(
+    f"- **Windows** — {WINDOW_LABELS[top.window_id]}\n"
+    f"- **Mechanical** — {MECH_LABELS[top.mechanical_id]}\n"
+    f"- **Solar** — {SOLAR_LABELS[solar_option_id]}")
 
-    # ── All results table ──────────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("All Feasible Configurations")
+if top.panel_schedule:
+    ps = top.panel_schedule
+    st.caption(f"Panels — {ps['wall_panels']} wall · {ps['roof_panels']} roof · "
+               f"{ps['floor_panels']} floor · {ps['crane_lifts']} crane lifts")
 
-    rows = []
-    for r in results[:30]:  # cap display at 30
-        rows.append({
-            "Rank": r.pareto_rank,
-            "Wall":       WALL_LABELS[r.wall_id],
-            "Roof":       ROOF_LABELS[r.roof_id],
-            "Floor":      FLOOR_LABELS[r.floor_id],
-            "Windows":    WINDOW_LABELS[r.window_id],
-            "Mechanical": MECH_LABELS[r.mechanical_id],
-            "Cost/unit":  f"${r.construction_cost:,.0f}",
-            "Weeks":      f"{r.construction_weeks:.1f}",
-            "EUI":        f"{r.eui_kwh_m2_yr}",
-            "Carbon":     f"{r.embodied_carbon_kg_co2e_m2}",
-            "NZR":        "✓" if r.nzr_compliant else "✗",
-        })
+# ── Alternatives ─────────────────────────────────────────────────────────────
+st.markdown("#### Other options")
+st.caption(f"{len(results)} feasible configurations ranked by your priorities.")
 
-    df = pd.DataFrame(rows)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+rows = [{
+    "Wall": WALL_LABELS[r.wall_id], "Roof": ROOF_LABELS[r.roof_id],
+    "Windows": WINDOW_LABELS[r.window_id], "Mech": MECH_LABELS[r.mechanical_id],
+    "Cost": f"${r.construction_cost:,.0f}", "Wks": f"{r.construction_weeks:.0f}",
+    "Net EUI": f"{r.net_eui_kwh_m2_yr:g}", "Carbon": f"{r.embodied_carbon_kg_co2e_m2:.0f}",
+    "NZR": "✓" if r.nzr_compliant else "·", "Net Zero": "✓" if r.net_zero else "·",
+} for r in results[:20]]
+st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-    # ── Trade-off chart ────────────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("Cost vs. Energy Trade-off")
-    chart_data = pd.DataFrame({
-        "Cost per unit ($)":    [r.construction_cost for r in results[:30]],
-        "EUI (kWh/m²/yr)":     [r.eui_kwh_m2_yr for r in results[:30]],
-        "NZR Compliant":        [r.nzr_compliant for r in results[:30]],
-    })
-    st.scatter_chart(chart_data, x="Cost per unit ($)", y="EUI (kWh/m²/yr)",
-                     color="NZR Compliant", use_container_width=True)
-
-else:
-    st.info("Fill in the project details above and click **Run Engine** to see results.")
+st.markdown("#### Cost vs. energy")
+st.scatter_chart(
+    pd.DataFrame({
+        "Cost per unit ($)": [r.construction_cost for r in results[:20]],
+        "Net EUI (kWh/m²/yr)": [r.net_eui_kwh_m2_yr for r in results[:20]],
+        "Net Zero": [r.net_zero for r in results[:20]],
+    }),
+    x="Cost per unit ($)", y="Net EUI (kWh/m²/yr)", color="Net Zero",
+    use_container_width=True,
+)
