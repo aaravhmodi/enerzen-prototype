@@ -17,6 +17,7 @@ from engine.simulator import BuildingSpec, AssemblyConfig, simulate, EnergyResul
 from engine.carbon import calculate_carbon
 from engine.cost import estimate_cost, estimate_schedule
 from engine.solar import calculate_solar
+from engine.finance import monthly_utility, lifecycle_cost
 
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
@@ -63,9 +64,15 @@ class ConfigResult:
     net_eui_kwh_m2_yr: float = 0.0
     net_zero: bool = False
 
+    # Utility + lifecycle
+    annual_utility_cost: float = 0.0
+    avg_monthly_utility: float = 0.0
+    lifecycle_cost_60yr: float = 0.0
+
     # Details
     energy: EnergyResult = field(repr=False, default=None)
     panel_schedule: dict = field(repr=False, default=None)
+    utility: dict = field(repr=False, default=None)
 
     # Pareto rank (1 = non-dominated)
     pareto_rank: int = 0
@@ -127,6 +134,9 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     climate = catalog["climate_zones"][spec.climate_zone]
     solar = calculate_solar(solar_option, climate, spec.orientation)
 
+    rates = catalog["energy_rates"]
+    solar_rebate = rates.get("solar_rebate_cad", 0) if solar["capacity_kw"] > 0 else 0
+
     building = BuildingSpec(
         floor_area_m2=spec.floor_area_m2,
         storeys=spec.storeys,
@@ -178,6 +188,9 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         if spec.target_label == "nzr" and not energy.nzr_compliant:
             continue
 
+        utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
+        lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate)
+
         result = ConfigResult(
             wall_id=wall["id"],
             roof_id=roof["id"],
@@ -196,8 +209,12 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
             net_operational_energy_kwh_yr=round(net_operational, 0),
             net_eui_kwh_m2_yr=round(net_eui, 1),
             net_zero=net_operational <= 0,
+            annual_utility_cost=utility["annual_total"],
+            avg_monthly_utility=utility["avg_monthly"],
+            lifecycle_cost_60yr=lcc["total"],
             energy=energy,
             panel_schedule=schedule["panel_counts"],
+            utility=utility,
         )
         all_configs.append(result)
 
