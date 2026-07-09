@@ -7,6 +7,7 @@ module gets replaced with a wrapper around the actual software — the interface
 stays the same.
 """
 
+import random
 from dataclasses import dataclass
 from typing import Optional
 
@@ -60,10 +61,20 @@ SURFACE_RATIOS = {
 }
 
 
-def simulate(spec: BuildingSpec, config: AssemblyConfig) -> EnergyResult:
+def simulate(spec: BuildingSpec, config: AssemblyConfig,
+             weather_factor: float = 1.0, infiltration_factor: float = 1.0,
+             plug_factor: float = 1.0, cop_factor: float = 1.0) -> EnergyResult:
+    """
+    The *_factor arguments perturb uncertain real-world inputs and default to
+    1.0 (deterministic). They are used by nzr_probability() for Monte Carlo:
+      weather_factor      — weather-year severity (scales degree days)
+      infiltration_factor — as-built airtightness vs. target
+      plug_factor         — occupant plug/appliance loads
+      cop_factor          — real-world mechanical efficiency derate
+    """
     climate = CLIMATE[spec.climate_zone]
-    hdd = climate["hdd"]
-    cdd = climate["cdd"]
+    hdd = climate["hdd"] * weather_factor
+    cdd = climate["cdd"] * weather_factor
     nzr_threshold = climate["nzr_eui"]
 
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
@@ -80,7 +91,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig) -> EnergyResult:
     ua_windows = window_area      * config.window_u
 
     # Infiltration losses — convert ACH50 to natural infiltration (÷ 20 rule of thumb)
-    ach_natural = spec.infiltration_ach50 / 20
+    ach_natural = spec.infiltration_ach50 * infiltration_factor / 20
     volume_m3 = spec.floor_area_m2 * 2.7 * spec.storeys
     ua_infiltration = (ach_natural * volume_m3 * 0.33)  # W/K, 0.33 = air heat capacity factor
 
@@ -94,7 +105,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig) -> EnergyResult:
     # Solar gains reduce heating demand — south-facing captures more
     solar_factor = {"S": 0.82, "N": 0.95, "E": 0.90, "W": 0.90}.get(spec.orientation, 0.90)
     heating_demand = (ua_total * hdd * 24 / 1000) * solar_factor
-    heating_demand /= config.mechanical_cop
+    heating_demand /= config.mechanical_cop * cop_factor
 
     # Cooling demand (simplified — smaller fraction for Canadian climate)
     cooling_demand = (ua_windows * config.window_shgc * cdd * 24 / 1000) * 0.4
@@ -104,7 +115,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig) -> EnergyResult:
     hot_water = 15 * spec.floor_area_m2 / spec.storeys  # kWh/yr, scales with units
 
     # Appliances and lighting (fixed, not assembly-dependent)
-    appliances = 25 * spec.floor_area_m2  # kWh/yr
+    appliances = 25 * spec.floor_area_m2 * plug_factor  # kWh/yr
 
     total_energy = heating_demand + cooling_demand + hot_water + appliances
     eui = total_energy / spec.floor_area_m2
@@ -122,3 +133,35 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig) -> EnergyResult:
         nzr_compliant=eui <= nzr_threshold,
         nzr_threshold=nzr_threshold,
     )
+
+
+def nzr_probability(spec: BuildingSpec, config: AssemblyConfig,
+                    pv_offset_eui: float = 0.0, n: int = 400, seed: int = 42) -> float:
+    """
+    Probability the home meets its Net Zero Ready EUI threshold once real-world
+    variance is accounted for. Monte Carlo: sample the uncertain inputs, run the
+    model, and return the fraction of runs at or below threshold.
+
+    pv_offset_eui: EUI offset from on-site PV (kWh/m²/yr) subtracted from each
+    sampled result — lets solar improve the odds.
+
+    Distributions reflect typical as-built construction variance:
+      weather-year severity   ~ Normal(1.00, 0.06)
+      as-built airtightness   ~ Normal(1.00, 0.20), floored (tighter is better,
+                                but blower-door results scatter above target)
+      occupant plug loads     ~ Normal(1.00, 0.20)
+      mechanical COP derate   ~ Normal(0.97, 0.05)
+    """
+    rng = random.Random(seed)
+    threshold = CLIMATE[spec.climate_zone]["nzr_eui"]
+    hits = 0
+    for _ in range(n):
+        weather = max(0.7, rng.gauss(1.00, 0.06))
+        infil   = max(0.5, rng.gauss(1.00, 0.20))
+        plug    = max(0.4, rng.gauss(1.00, 0.20))
+        cop     = max(0.6, rng.gauss(0.97, 0.05))
+        r = simulate(spec, config, weather_factor=weather, infiltration_factor=infil,
+                     plug_factor=plug, cop_factor=cop)
+        if r.eui_kwh_m2_yr - pv_offset_eui <= threshold:
+            hits += 1
+    return round(hits / n, 3)

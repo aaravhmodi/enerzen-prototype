@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from engine.simulator import BuildingSpec, AssemblyConfig, simulate, EnergyResult
+from engine.simulator import BuildingSpec, AssemblyConfig, simulate, EnergyResult, nzr_probability
 from engine.carbon import calculate_carbon
 from engine.cost import estimate_cost, estimate_schedule
 from engine.solar import calculate_solar
@@ -55,6 +55,7 @@ class ConfigResult:
     embodied_carbon_kg_co2e_m2: float
     eui_kwh_m2_yr: float
     nzr_compliant: bool
+    nzr_probability: float
     energuide_score: float
 
     # Solar / net energy
@@ -190,6 +191,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
 
         utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
         lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate)
+        nzr_prob = nzr_probability(building, assembly)
 
         result = ConfigResult(
             wall_id=wall["id"],
@@ -203,6 +205,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 + solar["embodied_carbon_kg_co2e"] / spec.floor_area_m2,
             eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
             nzr_compliant=energy.nzr_compliant,
+            nzr_probability=nzr_prob,
             energuide_score=energy.energuide_score,
             pv_capacity_kw=solar["capacity_kw"],
             pv_generation_kwh_yr=solar["annual_generation_kwh"],

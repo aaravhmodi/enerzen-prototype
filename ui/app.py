@@ -47,6 +47,7 @@ st.markdown("""
     .pill { display:inline-block; border-radius: 999px; padding: 3px 12px;
             font-size: 0.8rem; font-weight: 600; }
     .pill-pass { background:#D5F5E3; color:#1E8449; }
+    .pill-warn { background:#FCF3CF; color:#B7950B; }
     .pill-fail { background:#FADBD8; color:#C0392B; }
 </style>
 """, unsafe_allow_html=True)
@@ -124,9 +125,9 @@ top = results[0]
 
 # ── Headline ─────────────────────────────────────────────────────────────────
 st.markdown("### Recommended configuration")
-status = []
-status.append('<span class="pill pill-pass">✓ Net Zero Ready</span>' if top.nzr_compliant
-              else '<span class="pill pill-fail">Not NZR</span>')
+nzr_p = top.nzr_probability
+nzr_cls = "pill-pass" if nzr_p >= 0.8 else ("pill-warn" if nzr_p >= 0.5 else "pill-fail")
+status = [f'<span class="pill {nzr_cls}">Net Zero Ready — {nzr_p:.0%} likely</span>']
 if top.pv_capacity_kw > 0:
     status.append('<span class="pill pill-pass">✓ Net Zero</span>' if top.net_zero
                   else '<span class="pill pill-fail">Not net zero</span>')
@@ -137,7 +138,10 @@ c[0].metric("Cost / unit", f"${top.construction_cost:,.0f}")
 c[1].metric("Build time", f"{top.construction_weeks:.0f} wks")
 c[2].metric("Net energy use", f"{top.net_eui_kwh_m2_yr:g} kWh/m²/yr",
             help=f"Before solar: {top.eui_kwh_m2_yr:g}")
-c[3].metric("EnerGuide", f"{top.energuide_score:g}/100")
+c[3].metric("Net Zero Ready", f"{top.nzr_probability:.0%}",
+            help="Probability of meeting the NZR threshold across as-built variance "
+                 "(airtightness, weather, occupancy, mechanical) — 400-run Monte Carlo. "
+                 f"EnerGuide {top.energuide_score:g}/100.")
 
 c = st.columns(4)
 c[0].metric("Embodied carbon", f"{top.embodied_carbon_kg_co2e_m2:.0f} kg/m²")
@@ -147,6 +151,9 @@ c[2].metric("60-yr lifecycle cost", f"${top.lifecycle_cost_60yr:,.0f}",
             help="Upfront (less solar rebate) + present value of energy bills")
 c[3].metric("Solar", f"{top.pv_capacity_kw:g} kW ({top.pv_generation_kwh_yr:,.0f} kWh/yr)"
             if top.pv_capacity_kw else "None")
+
+st.caption(f"EnerGuide estimate ~{top.energuide_score:g}/100  ·  "
+           f"NZR threshold {top.energy.nzr_threshold:g} kWh/m²/yr for this climate zone.")
 
 # ── The assembly ─────────────────────────────────────────────────────────────
 st.markdown("#### Assembly")
@@ -175,7 +182,7 @@ rows = [{
     "Cost": f"${r.construction_cost:,.0f}", "Wks": f"{r.construction_weeks:.0f}",
     "Net EUI": f"{r.net_eui_kwh_m2_yr:g}", "Carbon": f"{r.embodied_carbon_kg_co2e_m2:.0f}",
     "Bill/mo": f"${r.avg_monthly_utility:,.0f}", "60yr LCC": f"${r.lifecycle_cost_60yr:,.0f}",
-    "NZR": "✓" if r.nzr_compliant else "·", "Net Zero": "✓" if r.net_zero else "·",
+    "NZR likely": f"{r.nzr_probability:.0%}", "Net Zero": "✓" if r.net_zero else "·",
 } for r in results[:20]]
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
