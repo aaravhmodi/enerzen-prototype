@@ -165,7 +165,7 @@
       "cooling_cop": 3.5,
       "cost": 16000,
       "embodied_carbon_kg_co2e": 650,
-      "operational_carbon_factor": 0.03
+      "operational_carbon_factor": 0.074
     },
     {
       "id": "M3",
@@ -176,18 +176,35 @@
       "hrv_efficiency": 0.80,
       "cost": 20000,
       "embodied_carbon_kg_co2e": 720,
-      "operational_carbon_factor": 0.03
+      "operational_carbon_factor": 0.074
     }
   ],
   "benchmarks": {
-    "_note": "Approximate industry reference values for Ontario/Canada residential, total site energy per conditioned m2. Sources: NRCan residential end-use intensity; CHBA Net Zero program; Ontario custom-build cost surveys (2025).",
+    "_note": "Approximate industry reference values for Ontario/Canada residential, total site energy per conditioned m2. Sources below are as-of 2024-2025.",
     "eui_kwh_m2_yr": {
       "existing_home": 200,
-      "code_built_new": 130
+      "code_built_new": 130,
+      "_source": "NRCan residential end-use intensity; CHBA Net Zero program"
     },
     "cost_per_m2": {
-      "conventional_new_build": 2200
+      "conventional_new_build": 2200,
+      "_source": "Ontario custom-build cost surveys 2025 (~$205/sqft avg)"
+    },
+    "embodied_carbon_kg_co2e_m2": {
+      "conventional_new_build": 184,
+      "_source": "Cradle-to-gate mean for new low-rise residential (Living Materials Lab / ScienceDirect, 2024)"
     }
+  },
+  "energy_rates": {
+    "_note": "Ontario residential all-in retail energy prices, 2025. Used for utility bill and lifecycle cost estimates.",
+    "electricity_cad_per_kwh": 0.16,
+    "electricity_source": "OEB TOU/tiered ~12c/kWh energy + delivery/regulatory; blended all-in Nov 2025",
+    "natural_gas_cad_per_kwh": 0.055,
+    "natural_gas_source": "Enbridge Ontario all-in ~$0.50/m3 / 10.35 kWh per m3",
+    "grid_intensity_kg_co2e_per_kwh": 0.074,
+    "grid_intensity_source": "The Atmospheric Fund, Ontario Emissions Factors 2024 (73.8 gCO2e/kWh)",
+    "solar_rebate_cad": 5000,
+    "solar_rebate_source": "Ontario Home Renovation Savings Program (HRS), ~$5k toward rooftop PV"
   },
   "solar": [
     {

@@ -5,8 +5,10 @@ Embodied carbon uses EPD-based values stored in the assembly catalog.
 Operational carbon uses Ontario grid emission factor (kgCO2e/kWh).
 """
 
-ONTARIO_GRID_FACTOR = 0.03   # kgCO2e/kWh (Ontario's low-carbon grid, 2024)
-GAS_FACTOR          = 0.19   # kgCO2e/kWh equivalent for natural gas
+# Ontario grid intensity: 73.8 gCO2e/kWh in 2024 (up 25% YoY as gas generation
+# grew) — The Atmospheric Fund, Ontario Emissions Factors 2024.
+ONTARIO_GRID_FACTOR = 0.074  # kgCO2e/kWh
+GAS_FACTOR          = 0.19   # kgCO2e/kWh equivalent for natural gas combustion
 
 
 # Surface area ratios relative to floor area (mirrors simulator.py)
