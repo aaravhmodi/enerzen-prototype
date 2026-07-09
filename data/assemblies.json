@@ -1,0 +1,217 @@
+{
+  "wall_panels": [
+    {
+      "id": "W1",
+      "name": "2x6 Wood Frame + R22 Batt",
+      "description": "Standard 2x6 stud wall with R22 fibreglass batt, no exterior insulation",
+      "r_value": 22,
+      "u_value": 0.045,
+      "cost_per_m2": 85,
+      "embodied_carbon_kg_co2e_m2": 18.5,
+      "install_hours_per_m2": 0.9,
+      "thermal_bridging_factor": 0.65,
+      "air_tightness_contribution": "low"
+    },
+    {
+      "id": "W2",
+      "name": "2x6 Wood Frame + R22 Batt + R10 Exterior Mineral Wool",
+      "description": "2x6 stud wall with R22 batt plus 2.5\" mineral wool continuous exterior insulation",
+      "r_value": 32,
+      "u_value": 0.031,
+      "cost_per_m2": 120,
+      "embodied_carbon_kg_co2e_m2": 22.1,
+      "install_hours_per_m2": 1.1,
+      "thermal_bridging_factor": 0.85,
+      "air_tightness_contribution": "medium"
+    },
+    {
+      "id": "W3",
+      "name": "Panelized SIP Wall (R28)",
+      "description": "Structural Insulated Panel, 7\" EPS core, factory-built",
+      "r_value": 28,
+      "u_value": 0.036,
+      "cost_per_m2": 140,
+      "embodied_carbon_kg_co2e_m2": 28.4,
+      "install_hours_per_m2": 0.5,
+      "thermal_bridging_factor": 0.95,
+      "air_tightness_contribution": "high"
+    },
+    {
+      "id": "W4",
+      "name": "EnerZen Panelized Wall — Standard (R40)",
+      "description": "EnerZen factory panel: 2x8 frame, R28 batt + R12 exterior mineral wool, integrated air barrier",
+      "r_value": 40,
+      "u_value": 0.025,
+      "cost_per_m2": 155,
+      "embodied_carbon_kg_co2e_m2": 24.8,
+      "install_hours_per_m2": 0.45,
+      "thermal_bridging_factor": 0.90,
+      "air_tightness_contribution": "high"
+    },
+    {
+      "id": "W5",
+      "name": "EnerZen Panelized Wall — High Performance (R50)",
+      "description": "EnerZen factory panel: 2x8 frame, R34 batt + R16 exterior mineral wool, triple-layer air barrier",
+      "r_value": 50,
+      "u_value": 0.020,
+      "cost_per_m2": 185,
+      "embodied_carbon_kg_co2e_m2": 27.3,
+      "install_hours_per_m2": 0.45,
+      "thermal_bridging_factor": 0.92,
+      "air_tightness_contribution": "very_high"
+    }
+  ],
+  "roof_cassettes": [
+    {
+      "id": "R1",
+      "name": "Conventional Attic (R40)",
+      "description": "Site-built attic with blown cellulose insulation to R40",
+      "r_value": 40,
+      "u_value": 0.025,
+      "cost_per_m2": 65,
+      "embodied_carbon_kg_co2e_m2": 12.0,
+      "install_hours_per_m2": 1.2,
+      "air_tightness_contribution": "low"
+    },
+    {
+      "id": "R2",
+      "name": "EnerZen Roof Cassette (R60)",
+      "description": "Factory-built cassette, 400mm depth, blown cellulose + rigid mineral wool, integrated vapour control",
+      "r_value": 60,
+      "u_value": 0.017,
+      "cost_per_m2": 110,
+      "embodied_carbon_kg_co2e_m2": 15.8,
+      "install_hours_per_m2": 0.4,
+      "air_tightness_contribution": "very_high"
+    },
+    {
+      "id": "R3",
+      "name": "EnerZen Roof Cassette (R80)",
+      "description": "Factory-built cassette, 500mm depth, premium insulation stack, triple-layer air barrier",
+      "r_value": 80,
+      "u_value": 0.012,
+      "cost_per_m2": 145,
+      "embodied_carbon_kg_co2e_m2": 18.2,
+      "install_hours_per_m2": 0.4,
+      "air_tightness_contribution": "very_high"
+    }
+  ],
+  "floor_cassettes": [
+    {
+      "id": "F1",
+      "name": "Slab on Grade (R10 under)",
+      "description": "Concrete slab with R10 rigid foam below, standard construction",
+      "r_value": 10,
+      "u_value": 0.100,
+      "cost_per_m2": 55,
+      "embodied_carbon_kg_co2e_m2": 32.0,
+      "install_hours_per_m2": 0.8,
+      "air_tightness_contribution": "medium"
+    },
+    {
+      "id": "F2",
+      "name": "EnerZen Floor Cassette (R30)",
+      "description": "Factory-built floor cassette, 300mm depth with integrated services chase, R30 mineral wool",
+      "r_value": 30,
+      "u_value": 0.033,
+      "cost_per_m2": 95,
+      "embodied_carbon_kg_co2e_m2": 14.5,
+      "install_hours_per_m2": 0.35,
+      "air_tightness_contribution": "high"
+    }
+  ],
+  "windows": [
+    {
+      "id": "GL1",
+      "name": "Double-Pane Low-E (U=1.8)",
+      "u_value": 1.8,
+      "shgc": 0.40,
+      "cost_per_m2": 420,
+      "embodied_carbon_kg_co2e_m2": 65.0
+    },
+    {
+      "id": "GL2",
+      "name": "Triple-Pane Low-E (U=0.8)",
+      "u_value": 0.8,
+      "shgc": 0.35,
+      "cost_per_m2": 680,
+      "embodied_carbon_kg_co2e_m2": 82.0
+    },
+    {
+      "id": "GL3",
+      "name": "Triple-Pane Passive House (U=0.6)",
+      "u_value": 0.6,
+      "shgc": 0.50,
+      "cost_per_m2": 820,
+      "embodied_carbon_kg_co2e_m2": 88.0
+    }
+  ],
+  "mechanical": [
+    {
+      "id": "M1",
+      "name": "Gas Furnace + Central AC",
+      "type": "gas",
+      "heating_cop": 0.92,
+      "cooling_cop": 3.0,
+      "cost": 12000,
+      "embodied_carbon_kg_co2e": 850,
+      "operational_carbon_factor": 0.19
+    },
+    {
+      "id": "M2",
+      "name": "Cold Climate Air Source Heat Pump",
+      "type": "electric",
+      "heating_cop": 2.5,
+      "cooling_cop": 3.5,
+      "cost": 16000,
+      "embodied_carbon_kg_co2e": 650,
+      "operational_carbon_factor": 0.03
+    },
+    {
+      "id": "M3",
+      "name": "Cold Climate ASHP + HRV",
+      "type": "electric",
+      "heating_cop": 2.5,
+      "cooling_cop": 3.5,
+      "hrv_efficiency": 0.80,
+      "cost": 20000,
+      "embodied_carbon_kg_co2e": 720,
+      "operational_carbon_factor": 0.03
+    }
+  ],
+  "climate_zones": {
+    "6": {
+      "name": "Toronto / Southern Ontario",
+      "hdd": 3520,
+      "cdd": 320,
+      "design_temp_heating": -18,
+      "design_temp_cooling": 33,
+      "code_wall_r": 24,
+      "code_roof_r": 40,
+      "code_window_u": 1.4,
+      "nzr_eui_threshold": 60
+    },
+    "7a": {
+      "name": "Ottawa / Eastern Ontario",
+      "hdd": 4440,
+      "cdd": 220,
+      "design_temp_heating": -25,
+      "design_temp_cooling": 30,
+      "code_wall_r": 28,
+      "code_roof_r": 50,
+      "code_window_u": 1.2,
+      "nzr_eui_threshold": 55
+    },
+    "7b": {
+      "name": "Northern Ontario / Sudbury",
+      "hdd": 5500,
+      "cdd": 130,
+      "design_temp_heating": -30,
+      "design_temp_cooling": 28,
+      "code_wall_r": 32,
+      "code_roof_r": 60,
+      "code_window_u": 1.0,
+      "nzr_eui_threshold": 50
+    }
+  }
+}

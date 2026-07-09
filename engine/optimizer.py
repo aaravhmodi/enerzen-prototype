@@ -1,0 +1,198 @@
+"""
+Multi-objective optimizer for EnerZen assembly selection.
+
+Takes a building spec and budget constraint, evaluates all feasible combinations
+from the assembly catalog, and returns Pareto-optimal configurations ranked by
+a weighted score. The Pareto frontier is returned so the user can choose their
+preferred trade-off.
+"""
+
+import json
+import itertools
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+from engine.simulator import BuildingSpec, AssemblyConfig, simulate, EnergyResult
+from engine.carbon import calculate_carbon
+from engine.cost import estimate_cost, estimate_schedule
+
+
+DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
+
+
+@dataclass
+class ProjectSpec:
+    # Project info
+    typology: str           # "single_family", "townhouse", "murb"
+    climate_zone: str       # "6", "7a", "7b"
+    floor_area_m2: float
+    storeys: int
+    orientation: str        # "N", "S", "E", "W"
+    window_to_wall_ratio: float
+    budget_per_unit: float  # CAD
+    target_label: str       # "code", "nzr", "passive_house"
+    num_units: int = 1
+
+    # Derived
+    infiltration_ach50: float = 3.0  # default target; tightens for higher labels
+
+
+@dataclass
+class ConfigResult:
+    wall_id: str
+    roof_id: str
+    floor_id: str
+    window_id: str
+    mechanical_id: str
+
+    # Scores
+    construction_cost: float
+    construction_weeks: float
+    embodied_carbon_kg_co2e_m2: float
+    eui_kwh_m2_yr: float
+    nzr_compliant: bool
+    energuide_score: float
+
+    # Details
+    energy: EnergyResult = field(repr=False, default=None)
+    panel_schedule: dict = field(repr=False, default=None)
+
+    # Pareto rank (1 = non-dominated)
+    pareto_rank: int = 0
+    weighted_score: float = 0.0
+
+
+def load_catalog() -> dict:
+    with open(DATA_PATH) as f:
+        return json.load(f)
+
+
+def _ach50_for_label(label: str) -> float:
+    return {"code": 5.0, "nzr": 3.0, "passive_house": 1.5}.get(label, 3.0)
+
+
+def _is_dominated(a: ConfigResult, b: ConfigResult) -> bool:
+    """Return True if b dominates a (b is better or equal on all 4 objectives)."""
+    return (
+        b.construction_cost       <= a.construction_cost and
+        b.construction_weeks      <= a.construction_weeks and
+        b.embodied_carbon_kg_co2e_m2 <= a.embodied_carbon_kg_co2e_m2 and
+        b.eui_kwh_m2_yr           <= a.eui_kwh_m2_yr and
+        (
+            b.construction_cost < a.construction_cost or
+            b.construction_weeks < a.construction_weeks or
+            b.embodied_carbon_kg_co2e_m2 < a.embodied_carbon_kg_co2e_m2 or
+            b.eui_kwh_m2_yr < a.eui_kwh_m2_yr
+        )
+    )
+
+
+def pareto_rank(results: list[ConfigResult]) -> list[ConfigResult]:
+    for i, a in enumerate(results):
+        rank = 1
+        for j, b in enumerate(results):
+            if i != j and _is_dominated(a, b):
+                rank += 1
+        a.pareto_rank = rank
+    return sorted(results, key=lambda r: (r.pareto_rank, r.weighted_score))
+
+
+def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigResult]:
+    """
+    Run optimization over all feasible assembly combinations.
+
+    weights: dict with keys cost, speed, carbon, energy (must sum to 1.0)
+             defaults to equal weighting
+    """
+    if weights is None:
+        weights = {"cost": 0.25, "speed": 0.25, "carbon": 0.25, "energy": 0.25}
+
+    catalog = load_catalog()
+    ach50 = _ach50_for_label(spec.target_label)
+
+    building = BuildingSpec(
+        floor_area_m2=spec.floor_area_m2,
+        storeys=spec.storeys,
+        climate_zone=spec.climate_zone,
+        orientation=spec.orientation,
+        window_to_wall_ratio=spec.window_to_wall_ratio,
+        infiltration_ach50=ach50,
+    )
+
+    results = []
+
+    combos = itertools.product(
+        catalog["wall_panels"],
+        catalog["roof_cassettes"],
+        catalog["floor_cassettes"],
+        catalog["windows"],
+        catalog["mechanical"],
+    )
+
+    all_configs = []
+    for wall, roof, floor_c, window, mech in combos:
+        assembly = AssemblyConfig(
+            wall_u=wall["u_value"],
+            roof_u=roof["u_value"],
+            floor_u=floor_c["u_value"],
+            window_u=window["u_value"],
+            window_shgc=window["shgc"],
+            mechanical_cop=mech.get("heating_cop", 1.0),
+            mechanical_type=mech["type"],
+            hrv_efficiency=mech.get("hrv_efficiency", 0.0),
+        )
+
+        energy = simulate(building, assembly)
+        cost_data = estimate_cost(spec, wall, roof, floor_c, window, mech)
+        carbon_data = calculate_carbon(spec, wall, roof, floor_c, window, mech, energy)
+        schedule = estimate_schedule(spec, wall, roof, floor_c)
+
+        # Skip over budget
+        if cost_data["total_per_unit"] > spec.budget_per_unit:
+            continue
+
+        # For NZR target, skip non-compliant configs
+        if spec.target_label == "nzr" and not energy.nzr_compliant:
+            continue
+
+        result = ConfigResult(
+            wall_id=wall["id"],
+            roof_id=roof["id"],
+            floor_id=floor_c["id"],
+            window_id=window["id"],
+            mechanical_id=mech["id"],
+            construction_cost=cost_data["total_per_unit"],
+            construction_weeks=schedule["weeks_to_envelope_close"],
+            embodied_carbon_kg_co2e_m2=carbon_data["total_per_m2"],
+            eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
+            nzr_compliant=energy.nzr_compliant,
+            energuide_score=energy.energuide_score,
+            energy=energy,
+            panel_schedule=schedule["panel_counts"],
+        )
+        all_configs.append(result)
+
+    if not all_configs:
+        return []
+
+    # Normalize objectives for weighted scoring
+    costs   = [r.construction_cost for r in all_configs]
+    weeks   = [r.construction_weeks for r in all_configs]
+    carbons = [r.embodied_carbon_kg_co2e_m2 for r in all_configs]
+    euis    = [r.eui_kwh_m2_yr for r in all_configs]
+
+    def norm(val, vals):
+        lo, hi = min(vals), max(vals)
+        return (val - lo) / (hi - lo) if hi > lo else 0.0
+
+    for r in all_configs:
+        r.weighted_score = (
+            weights["cost"]   * norm(r.construction_cost, costs) +
+            weights["speed"]  * norm(r.construction_weeks, weeks) +
+            weights["carbon"] * norm(r.embodied_carbon_kg_co2e_m2, carbons) +
+            weights["energy"] * norm(r.eui_kwh_m2_yr, euis)
+        )
+
+    ranked = pareto_rank(all_configs)
+    return ranked

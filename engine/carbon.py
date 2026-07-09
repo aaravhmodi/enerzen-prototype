@@ -1,0 +1,59 @@
+"""
+Embodied and operational carbon calculations.
+
+Embodied carbon uses EPD-based values stored in the assembly catalog.
+Operational carbon uses Ontario grid emission factor (kgCO2e/kWh).
+"""
+
+ONTARIO_GRID_FACTOR = 0.03   # kgCO2e/kWh (Ontario's low-carbon grid, 2024)
+GAS_FACTOR          = 0.19   # kgCO2e/kWh equivalent for natural gas
+
+
+# Surface area ratios relative to floor area (mirrors simulator.py)
+SURFACE_RATIOS = {
+    1: {"wall": 1.8, "roof": 1.05, "floor": 1.0},
+    2: {"wall": 1.4, "roof": 0.55, "floor": 0.52},
+    3: {"wall": 1.2, "roof": 0.40, "floor": 0.38},
+}
+
+
+def calculate_carbon(spec, wall, roof, floor_c, window, mech, energy_result) -> dict:
+    ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
+    wall_area   = spec.floor_area_m2 * ratios["wall"]
+    roof_area   = spec.floor_area_m2 * ratios["roof"]
+    floor_area  = spec.floor_area_m2 * ratios["floor"]
+    window_area = wall_area * spec.window_to_wall_ratio
+    opaque_wall = wall_area - window_area
+
+    embodied = (
+        opaque_wall * wall["embodied_carbon_kg_co2e_m2"] +
+        roof_area   * roof["embodied_carbon_kg_co2e_m2"] +
+        floor_area  * floor_c["embodied_carbon_kg_co2e_m2"] +
+        window_area * window["embodied_carbon_kg_co2e_m2"] +
+        mech["embodied_carbon_kg_co2e"]
+    )
+
+    grid_factor = GAS_FACTOR if mech["type"] == "gas" else ONTARIO_GRID_FACTOR
+    operational_annual = energy_result.total_energy_kwh_yr * grid_factor
+    operational_60yr   = operational_annual * 60
+
+    total_embodied_per_m2 = embodied / spec.floor_area_m2
+    total_60yr_per_m2     = (embodied + operational_60yr) / spec.floor_area_m2
+
+    return {
+        "embodied_kg_co2e":       round(embodied, 1),
+        "embodied_per_m2":        round(total_embodied_per_m2, 1),
+        "operational_annual":     round(operational_annual, 1),
+        "operational_60yr":       round(operational_60yr, 1),
+        "total_60yr":             round(embodied + operational_60yr, 1),
+        "total_per_m2":           round(total_embodied_per_m2, 1),
+        "total_60yr_per_m2":      round(total_60yr_per_m2, 1),
+        "carbon_hotspot": max(
+            [("Wall", opaque_wall * wall["embodied_carbon_kg_co2e_m2"]),
+             ("Roof", roof_area * roof["embodied_carbon_kg_co2e_m2"]),
+             ("Floor", floor_area * floor_c["embodied_carbon_kg_co2e_m2"]),
+             ("Windows", window_area * window["embodied_carbon_kg_co2e_m2"]),
+             ("Mechanical", mech["embodied_carbon_kg_co2e"])],
+            key=lambda x: x[1]
+        )[0]
+    }
