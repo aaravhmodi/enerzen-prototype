@@ -141,9 +141,12 @@ c[3].metric("EnerGuide", f"{top.energuide_score:g}/100")
 
 c = st.columns(4)
 c[0].metric("Embodied carbon", f"{top.embodied_carbon_kg_co2e_m2:.0f} kg/m²")
-c[1].metric("Solar", f"{top.pv_capacity_kw:g} kW" if top.pv_capacity_kw else "None")
-c[2].metric("PV generation", f"{top.pv_generation_kwh_yr:,.0f} kWh/yr")
-c[3].metric("NZR threshold", f"{top.energy.nzr_threshold:g} kWh/m²/yr")
+c[1].metric("Utility bill", f"${top.avg_monthly_utility:,.0f}/mo",
+            help=f"${top.annual_utility_cost:,.0f}/yr")
+c[2].metric("60-yr lifecycle cost", f"${top.lifecycle_cost_60yr:,.0f}",
+            help="Upfront (less solar rebate) + present value of energy bills")
+c[3].metric("Solar", f"{top.pv_capacity_kw:g} kW ({top.pv_generation_kwh_yr:,.0f} kWh/yr)"
+            if top.pv_capacity_kw else "None")
 
 # ── The assembly ─────────────────────────────────────────────────────────────
 st.markdown("#### Assembly")
@@ -171,6 +174,7 @@ rows = [{
     "Windows": WINDOW_LABELS[r.window_id], "Mech": MECH_LABELS[r.mechanical_id],
     "Cost": f"${r.construction_cost:,.0f}", "Wks": f"{r.construction_weeks:.0f}",
     "Net EUI": f"{r.net_eui_kwh_m2_yr:g}", "Carbon": f"{r.embodied_carbon_kg_co2e_m2:.0f}",
+    "Bill/mo": f"${r.avg_monthly_utility:,.0f}", "60yr LCC": f"${r.lifecycle_cost_60yr:,.0f}",
     "NZR": "✓" if r.nzr_compliant else "·", "Net Zero": "✓" if r.net_zero else "·",
 } for r in results[:20]]
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
@@ -206,6 +210,46 @@ pct = round((1 - top.eui_kwh_m2_yr / bench_eui["code_built_new"]) * 100)
 st.caption(f"~{pct}% less energy than a new code-built home "
            f"(green dashed line = Net Zero Ready threshold, {top.energy.nzr_threshold:g}). "
            "Benchmarks: NRCan residential intensity, CHBA Net Zero program.")
+
+# Embodied carbon vs. benchmark
+bench_ec = BENCH["embodied_carbon_kg_co2e_m2"]["conventional_new_build"]
+ec = pd.DataFrame([
+    {"label": "Conventional new build", "ec": bench_ec, "kind": "Benchmark"},
+    {"label": "EnerZen (this config)", "ec": top.embodied_carbon_kg_co2e_m2, "kind": "EnerZen"},
+])
+ec_bars = alt.Chart(ec).mark_bar(cornerRadiusEnd=4).encode(
+    x=alt.X("ec:Q", title="Embodied carbon (kgCO₂e/m²)"),
+    y=alt.Y("label:N", sort=None, title=None),
+    color=alt.Color("kind:N", scale=alt.Scale(
+        domain=["Benchmark", "EnerZen"], range=["#B0BEC5", "#1A5276"]), legend=None),
+    tooltip=["label", "ec"],
+)
+ec_labels = ec_bars.mark_text(align="left", dx=4, color="#666").encode(
+    text=alt.Text("ec:Q", format=".0f"))
+st.altair_chart((ec_bars + ec_labels).properties(height=100), use_container_width=True)
+st.caption(f"Benchmark {bench_ec} kgCO₂e/m² — cradle-to-gate mean for new low-rise residential "
+           "(Living Materials Lab, 2024).")
+
+# ── Monthly utility bill ─────────────────────────────────────────────────────
+st.markdown("#### Estimated monthly utility bill")
+util = pd.DataFrame(top.utility["months"])
+util_long = util.melt(id_vars="month", value_vars=["electricity", "gas"],
+                      var_name="Energy", value_name="cost")
+util_long["month"] = pd.Categorical(util_long["month"],
+                                    categories=[m["month"] for m in top.utility["months"]],
+                                    ordered=True)
+util_chart = alt.Chart(util_long).mark_bar().encode(
+    x=alt.X("month:N", sort=None, title=None),
+    y=alt.Y("cost:Q", title="Cost ($)", stack="zero"),
+    color=alt.Color("Energy:N", scale=alt.Scale(
+        domain=["electricity", "gas"], range=["#1A5276", "#E67E22"]),
+        legend=alt.Legend(title=None, orient="top")),
+    tooltip=["month", "Energy", "cost"],
+).properties(height=240)
+st.altair_chart(util_chart, use_container_width=True)
+st.caption(f"~${top.annual_utility_cost:,.0f}/yr total"
+           + (" — PV net-metering credits offset summer electricity." if top.pv_capacity_kw else "")
+           + " Rates: OEB electricity ~$0.16/kWh, Enbridge gas ~$0.055/kWh (2025).")
 
 # ── Cost vs. energy trade-off ────────────────────────────────────────────────
 st.markdown("#### Cost vs. energy across options")
