@@ -84,6 +84,10 @@ Interaction colors use semantic roles (primary, selected, hover, focus,
 success, warning, error and disabled). Selected states use a restrained sage
 surface with dark text, while keyboard focus uses a separate high-contrast
 yellow outline so selection and focus are never communicated by the same cue.
+The interface uses one sans-serif family stack across headings, body copy,
+metrics, controls, tables and chart labels. Weight, size and spacing establish
+hierarchy; typeface changes do not. The Streamlit theme, custom controls and
+Altair charts share the same neutral, primary and semantic color tokens.
 
 The search is exhaustive. The catalog holds 5 wall panels, 3 roof cassettes,
 2 floor cassettes, 3 window packages and 3 mechanical systems, so the engine

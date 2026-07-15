@@ -73,8 +73,14 @@ st.markdown("""
         --sage: #dfe9df;
         --selected: #d8e6dc;
         --selected-hover: #c9dccc;
+        --hover: #edf2ed;
+        --control-border: #aeb7b0;
         --focus: #f1c453;
         --disabled: #eceeea;
+        --disabled-text: #707873;
+        --success-bg: #e5eee5;
+        --warning-bg: #f4eadb;
+        --error-bg: #f2e2df;
         --amber: #7b4d18;
         --red: #9f3f35;
     }
@@ -106,12 +112,12 @@ st.markdown("""
                       font-weight:750; letter-spacing:.14em; text-transform:uppercase; }
     .result-intro { border-top:1px solid var(--line); border-bottom:1px solid var(--line);
                     padding:1.25rem 0; margin:1.2rem 0 1.6rem; color:var(--muted); }
-    [data-testid="stSidebar"] { background:#e9ece6; border-right:1px solid #cfd5cf; }
+    [data-testid="stSidebar"] { background:#e9ece6; border-right:1px solid var(--line); }
     [data-testid="stSidebar"] .block-container { padding:1.8rem 1.35rem 3rem; }
     [data-testid="stSidebar"] h2 { font-size:1.45rem !important; margin-bottom:.2rem; }
     [data-testid="stSidebar"] .stMarkdown p { margin-bottom:.35rem; }
     .side-step { color:var(--forest); font-size:.68rem; font-weight:800; letter-spacing:.12em;
-                 text-transform:uppercase; border-top:1px solid #cfd5cf; padding-top:1.15rem;
+                 text-transform:uppercase; border-top:1px solid var(--line); padding-top:1.15rem;
                  margin-top:1.15rem; }
     div[data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line);
                                   border-radius:3px; padding:1rem 1.05rem; min-height:108px; }
@@ -123,9 +129,9 @@ st.markdown("""
     .pill { display:inline-flex; align-items:center; border:1px solid currentColor;
             border-radius:2px; padding:5px 9px; font-size:.7rem; font-weight:750;
             letter-spacing:.04em; text-transform:uppercase; }
-    .pill-pass { background:#e5eee5; color:var(--forest); }
-    .pill-warn { background:#f4eadb; color:var(--amber); }
-    .pill-fail { background:#f2e2df; color:var(--red); }
+    .pill-pass { background:var(--success-bg); color:var(--forest); }
+    .pill-warn { background:var(--warning-bg); color:var(--amber); }
+    .pill-fail { background:var(--error-bg); color:var(--red); }
     .stButton > button { border-radius:2px; min-height:46px; font-weight:750; letter-spacing:.02em; }
     .stButton > button[kind="primary"] { background:var(--forest); border-color:var(--forest); }
     .stButton > button[kind="primary"]:hover { background:var(--forest-dark); border-color:var(--forest-dark); }
@@ -133,7 +139,7 @@ st.markdown("""
     [tabindex="0"]:focus-visible { outline:3px solid var(--focus) !important;
                                   outline-offset:2px !important; box-shadow:none !important; }
     div[data-baseweb="select"] > div, div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextInput"] input { background:var(--surface); border:1px solid #aeb7b0;
+    div[data-testid="stTextInput"] input { background:var(--surface); border:1px solid var(--control-border);
                                            border-radius:2px; color:var(--ink); }
     div[data-baseweb="select"] > div:hover { border-color:var(--forest); }
     div[data-baseweb="select"] [aria-selected="true"] { background:var(--selected) !important;
@@ -141,14 +147,14 @@ st.markdown("""
     [data-baseweb="popover"] { color:var(--ink); }
     [data-baseweb="popover"] ul { background:var(--surface) !important; border:1px solid var(--line); }
     [data-baseweb="popover"] [role="option"] { color:var(--ink) !important; }
-    [data-baseweb="popover"] [role="option"]:hover { background:#edf2ed !important; }
+    [data-baseweb="popover"] [role="option"]:hover { background:var(--hover) !important; }
     [data-baseweb="popover"] [role="option"][aria-selected="true"] {
         background:var(--selected) !important; color:var(--forest-dark) !important; font-weight:700;
     }
     div[role="radiogroup"] { gap:.35rem; flex-wrap:wrap; }
-    div[role="radiogroup"] label { background:var(--surface); border:1px solid #bbc2bc;
+    div[role="radiogroup"] label { background:var(--surface); border:1px solid var(--control-border);
                                     border-radius:2px; padding:.38rem .55rem; margin:0; }
-    div[role="radiogroup"] label:hover { background:#edf2ed; border-color:var(--forest); }
+    div[role="radiogroup"] label:hover { background:var(--hover); border-color:var(--forest); }
     div[role="radiogroup"] label:has(input:checked) { background:var(--selected);
                                                      border-color:var(--forest); color:var(--forest-dark); }
     div[role="radiogroup"] label:has(input:checked) p { color:var(--forest-dark) !important;
@@ -156,7 +162,8 @@ st.markdown("""
     label[data-baseweb="checkbox"]:hover p { color:var(--ink) !important; }
     [data-testid="stSlider"] [role="slider"] { box-shadow:0 0 0 1px var(--surface); }
     [data-testid="stSlider"] [role="slider"]:focus-visible { outline:3px solid var(--focus) !important; }
-    input:disabled, button:disabled { background:var(--disabled) !important; color:#8b928d !important; }
+    input:disabled, button:disabled { background:var(--disabled) !important;
+                                     color:var(--disabled-text) !important; }
     div[data-testid="stExpander"] { background:var(--surface); border:1px solid var(--line);
                                     border-radius:3px; margin:.6rem 0; }
     div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:3px; }
@@ -477,7 +484,7 @@ util_chart = alt.Chart(util_long).mark_bar().encode(
     x=alt.X("month:N", sort=None, title=None),
     y=alt.Y("cost:Q", title="Cost ($)", stack="zero"),
     color=alt.Color("Energy:N", scale=alt.Scale(
-        domain=["electricity", "gas"], range=["#214E3B", "#A96820"]),
+        domain=["electricity", "gas"], range=["#214E3B", "#7B4D18"]),
         legend=alt.Legend(title=None, orient="top")),
     tooltip=["month", "Energy", "cost"],
 ).properties(height=240)
