@@ -89,17 +89,20 @@ class AssemblyOption:
     kind: str                       # "wall" | "roof" | "floor"
     build: Callable                 # signature depends on kind
     sweep: list                     # thickness options to search
+    install_hours_per_m2: float     # fabrication/install labour (panelized = low)
 
 
+# install_hours_per_m2: EnerZen panelized/cassette assemblies install fast;
+# site-built slab is slower. Defaults — refine with real crew data.
 WALLS = [
-    AssemblyOption("WA1", "2x6 frame + ext. mineral wool", "wall", _wall_2x6, WALL_EXT_RIGID_IN),
-    AssemblyOption("WA2", "2x8 frame + ext. mineral wool", "wall", _wall_2x8, WALL_EXT_RIGID_IN),
+    AssemblyOption("WA1", "2x6 frame + ext. mineral wool", "wall", _wall_2x6, WALL_EXT_RIGID_IN, 0.50),
+    AssemblyOption("WA2", "2x8 frame + ext. mineral wool", "wall", _wall_2x8, WALL_EXT_RIGID_IN, 0.55),
 ]
 ROOFS = [
-    AssemblyOption("RA1", "Vented cassette — cellulose", "roof", _roof_cellulose, ROOF_DECK_RIGID_IN),
-    AssemblyOption("RA2", "Unvented cassette — mineral wool", "roof", _roof_mineral, ROOF_DECK_RIGID_IN),
+    AssemblyOption("RA1", "Vented cassette — cellulose", "roof", _roof_cellulose, ROOF_DECK_RIGID_IN, 0.45),
+    AssemblyOption("RA2", "Unvented cassette — mineral wool", "roof", _roof_mineral, ROOF_DECK_RIGID_IN, 0.50),
 ]
 FLOORS = [
-    AssemblyOption("FA1", "Slab on grade", "floor", _floor_slab, FLOOR_RIGID_IN),
-    AssemblyOption("FA2", "Raised floor cassette", "floor", _floor_cassette, [0]),
+    AssemblyOption("FA1", "Slab on grade", "floor", _floor_slab, FLOOR_RIGID_IN, 0.80),
+    AssemblyOption("FA2", "Raised floor cassette", "floor", _floor_cassette, [0], 0.40),
 ]
