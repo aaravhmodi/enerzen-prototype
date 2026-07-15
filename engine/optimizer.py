@@ -19,6 +19,7 @@ from engine.cost import estimate_cost, estimate_schedule
 from engine.solar import calculate_solar
 from engine.finance import monthly_utility, lifecycle_cost
 from engine.location import resolve as resolve_location
+from engine.assemblies import WALLS, ROOFS, FLOORS, EnvelopeCombo
 
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
