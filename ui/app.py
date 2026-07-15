@@ -12,6 +12,7 @@ import pandas as pd
 import altair as alt
 
 from engine.optimizer import ProjectSpec, optimize
+from engine.location import resolve as resolve_location, location_names
 
 st.set_page_config(page_title="EnerZen Performance Engine", page_icon="🏠", layout="wide")
 
@@ -26,6 +27,7 @@ WINDOW_LABELS = {w["id"]: w["name"] for w in CATALOG["windows"]}
 MECH_LABELS   = {m["id"]: m["name"] for m in CATALOG["mechanical"]}
 SOLAR_LABELS  = {s["id"]: s["name"] for s in CATALOG["solar"]}
 BENCH = CATALOG["benchmarks"]
+LOCATION_NAMES = location_names()
 
 ZONE_LABELS = {
     "6":  "Zone 6 — Toronto / Southern ON",
