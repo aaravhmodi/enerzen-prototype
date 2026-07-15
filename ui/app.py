@@ -327,8 +327,8 @@ st.download_button(
 
 c = st.columns(4)
 c[0].metric("Cost / unit", f"${top.construction_cost:,.0f}")
-c[1].metric("Build time", f"{top.construction_weeks:.0f} wks")
-c[2].metric("Net energy use", f"{top.net_eui_kwh_m2_yr:g} kWh/m²/yr",
+c[1].metric("Build time · weeks", f"{top.construction_weeks:.0f}")
+c[2].metric("Net energy · kWh/m²·yr", f"{top.net_eui_kwh_m2_yr:g}",
             help=f"Before solar: {top.eui_kwh_m2_yr:g}")
 c[3].metric("Net Zero Ready", f"{top.nzr_probability:.0%}",
             help="Probability of meeting the NZR threshold across as-built variance "
@@ -336,8 +336,8 @@ c[3].metric("Net Zero Ready", f"{top.nzr_probability:.0%}",
                  f"EnerGuide {top.energuide_score:g}/100.")
 
 c = st.columns(4)
-c[0].metric("Embodied carbon", f"{top.embodied_carbon_kg_co2e_m2:.0f} kg/m²")
-c[1].metric("Utility bill", f"${top.avg_monthly_utility:,.0f}/mo",
+c[0].metric("Embodied carbon · kgCO₂e/m²", f"{top.embodied_carbon_kg_co2e_m2:.0f}")
+c[1].metric("Utility bill · monthly", f"${top.avg_monthly_utility:,.0f}",
             help=f"${top.annual_utility_cost:,.0f}/yr")
 c[2].metric("30-yr lifecycle cost", f"${top.lifecycle_cost_30yr:,.0f}",
             help=f"Upfront (less solar rebate) + present value of energy bills. "
@@ -442,15 +442,15 @@ st.caption("Envelope demand and whole-home energy intensity. Lower is better.")
 
 intensity = st.columns(3)
 intensity[0].metric(
-    "TEDI", f"{top.energy.tedi_kwh_m2_yr:g} kWh/m²·yr",
+    "TEDI · kWh/m²·yr", f"{top.energy.tedi_kwh_m2_yr:g}",
     delta=f"{top.energy.tedi_kwh_m2_yr - top.energy.nzr_threshold:+g} vs NZR limit",
     delta_color="inverse",
     help="Thermal Energy Demand Intensity: envelope heating demand before plant efficiency.")
 intensity[1].metric(
-    "MEUI", f"{top.energy.meui_kwh_m2_yr:g} kWh/m²·yr",
+    "MEUI · kWh/m²·yr", f"{top.energy.meui_kwh_m2_yr:g}",
     help="Mechanical Energy Use Intensity: purchased heating, cooling and hot-water energy.")
 intensity[2].metric(
-    "Total site EUI", f"{top.eui_kwh_m2_yr:g} kWh/m²·yr",
+    "Total site EUI · kWh/m²·yr", f"{top.eui_kwh_m2_yr:g}",
     help="All purchased site energy before solar, including appliances and lighting.")
 st.caption(f"This climate zone's Net Zero Ready TEDI threshold is "
            f"{top.energy.nzr_threshold:g} kWh/m²·yr.")
