@@ -119,7 +119,7 @@ outside, over the whole heating season.
 This is a simplified stand-in for HOT2000. The module is designed so it can be
 replaced by a HOT2000 wrapper without changing its interface.
 
-### 2.1 Surface areas
+### 3.1 Surface areas
 
 Areas are derived from floor area using fixed ratios per storey count. These are
 generic residential forms, not EnerZen's actual designed units.
@@ -138,7 +138,7 @@ window_area      = wall_area x window_to_wall_ratio
 opaque_wall_area = wall_area - window_area
 ```
 
-### 2.2 Heat loss coefficient (UA)
+### 3.2 Heat loss coefficient (UA)
 
 UA is the rate of heat loss per degree of temperature difference, in watts per
 kelvin (W/K). For each opaque or glazed surface it is area multiplied by the
@@ -172,13 +172,13 @@ UA_vent  = UA_infiltration x (1 - hrv_efficiency)
 UA_total = UA_wall + UA_roof + UA_floor + UA_windows + UA_vent
 ```
 
-### 2.3 Heating demand
+### 3.3 Heating demand
 
 ```
 heating = UA_total x HDD x 24 / 1000 x solar_factor / COP
 ```
 
-- **HDD** — heating degree days for the climate zone (see section 8). It
+- **HDD** — heating degree days for the climate zone (see section 10). It
   aggregates how cold the year is.
 - **x 24 / 1000** — converts watt-degree-days into kilowatt-hours.
 - **solar_factor** — free solar heat gain reduces the heating that must be
@@ -196,7 +196,7 @@ heating = UA_total x HDD x 24 / 1000 x solar_factor / COP
   converts heat *demand* into *purchased energy*. A gas furnace has a COP below
   1 (0.92), reflecting combustion losses.
 
-### 2.4 Cooling demand
+### 3.4 Cooling demand
 
 Cooling is modelled as solar gain through glazing only, which is a heavy
 simplification appropriate to the modest Canadian cooling season.
@@ -211,7 +211,7 @@ cooling = window_area x window_SHGC x CDD x 24 / 1000 x 0.4 / 3.5
   drives mechanical cooling.
 - **3.5** — assumed cooling COP (hard-coded, not taken from the mechanical entry).
 
-### 2.5 Base loads
+### 3.5 Base loads
 
 ```
 hot_water  = 15 x floor_area / storeys
@@ -221,7 +221,7 @@ appliances = 25 x floor_area
 Both in kWh/yr. Appliance and lighting load is a flat intensity and does not vary
 with the assembly.
 
-### 2.6 EUI and EnerGuide
+### 3.6 EUI and EnerGuide
 
 ```
 total_energy = heating + cooling + hot_water + appliances
@@ -239,7 +239,7 @@ EnerGuide = clamp(0, 100, 100 - (EUI - 30) x 0.8)
 
 This is an estimate for guidance only, not an official rating.
 
-### 2.7 Net Zero Ready probability
+### 3.7 Net Zero Ready probability
 
 A single deterministic EUI hides the fact that real buildings vary. Two homes
 that both model at "compliant" are not equally safe if one sits at the threshold
@@ -278,7 +278,7 @@ Source: `engine/cost.py`
 total = materials + labour + base_cost
 ```
 
-### 3.1 Materials
+### 4.1 Materials
 
 Each surface area multiplied by its catalog unit rate, plus the flat mechanical
 system cost.
@@ -291,7 +291,7 @@ materials = opaque_wall_area x wall_cost_per_m2
           + mechanical_cost
 ```
 
-### 3.2 Labour
+### 4.2 Labour
 
 Only wall, roof and floor installation hours are counted. Window and mechanical
 installation labour is **not** modelled.
@@ -308,7 +308,7 @@ The blended crew rate is **75 CAD/hour**. This is where panelized assemblies pay
 off: they cost more per square metre in materials but need roughly half the
 installation hours.
 
-### 3.3 Base cost
+### 4.3 Base cost
 
 ```
 base_cost = floor_area x 1200
@@ -322,7 +322,7 @@ assemblies only moves the parts that genuinely differ. The consequence is that
 roughly two thirds of the reported cost is a placeholder rather than a modelled
 quantity, and assembly choice only swings the remaining third.
 
-### 3.4 Solar
+### 4.4 Solar
 
 PV is added on top of the construction cost in the optimizer:
 
@@ -330,7 +330,7 @@ PV is added on top of the construction cost in the optimizer:
 total_cost = construction_cost + pv_capacity_kw x pv_cost_per_kw
 ```
 
-### 3.5 Worked example
+### 4.5 Worked example
 
 A 150 m2, two-storey home, 20 percent window-to-wall, with wall W4, roof R2,
 floor F2, windows GL2 and mechanical M3.
@@ -393,7 +393,7 @@ not a project programme.
 
 Source: `engine/carbon.py`
 
-### 5.1 Embodied carbon
+### 6.1 Embodied carbon
 
 Carbon emitted producing the materials, from EPD-based values in the catalog.
 
@@ -410,7 +410,7 @@ PV embodied carbon is added in the optimizer at 1500 kgCO2e per kW installed.
 The module also reports a **carbon hotspot** — whichever single component
 contributes the most embodied carbon.
 
-### 5.2 Operational carbon
+### 6.2 Operational carbon
 
 ```
 grid_factor        = 0.19 if mechanical is gas else 0.074
@@ -469,7 +469,7 @@ exceed consumption over the year.
 
 Source: `engine/finance.py`
 
-### 7.1 Monthly utility bill
+### 8.1 Monthly utility bill
 
 Annual demand is distributed across the year using typical Ontario monthly
 profiles, then priced. Each profile is normalised so its twelve values sum to 1.
@@ -493,7 +493,7 @@ gas_cost     = gas_kwh x gas_rate
 Net metering is modelled within the month, and the bill floors at zero: surplus
 generation offsets consumption but is not paid out or banked across months.
 
-### 7.2 Lifecycle cost
+### 8.2 Lifecycle cost
 
 A 60-year present-value calculation.
 
@@ -522,7 +522,7 @@ residual value are **not** modelled.
 
 Source: `engine/optimizer.py`
 
-### 8.1 Airtightness by target
+### 9.1 Airtightness by target
 
 The performance target sets the blower-door target used by the energy model.
 
@@ -532,13 +532,13 @@ The performance target sets the blower-door target used by the energy model.
 | Net Zero Ready | 3.0 |
 | Passive House | 1.5 |
 
-### 8.2 Filtering
+### 9.2 Filtering
 
 A configuration is discarded if its total cost (envelope plus PV) exceeds the
 budget. If the target is Net Zero Ready, configurations whose deterministic EUI
 misses the threshold are also discarded.
 
-### 8.3 Pareto ranking
+### 9.3 Pareto ranking
 
 Configuration B **dominates** A when B is at least as good as A on all four
 objectives — cost, build time, embodied carbon and EUI — and strictly better on
@@ -551,7 +551,7 @@ rank(A) = 1 + count of configurations that dominate A
 Rank 1 configurations are non-dominated: nothing else beats them on every axis
 simultaneously. They represent the genuine trade-off frontier.
 
-### 8.4 Weighted score
+### 9.4 Weighted score
 
 Within a rank, objectives are min-max normalised across all feasible
 configurations to a 0-1 scale, then combined using the priority weights. Lower is
