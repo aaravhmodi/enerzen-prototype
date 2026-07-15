@@ -172,82 +172,113 @@ UA_vent  = UA_infiltration x (1 - hrv_efficiency)
 UA_total = UA_wall + UA_roof + UA_floor + UA_windows + UA_vent
 ```
 
-### 3.3 Heating demand
+### 3.3 Gross heat loss and internal gains
+
+Heating demand is gross conduction/infiltration loss **less** the useful heat
+already generated inside the building. An earlier version ignored gains and used
+a crude `solar_factor` multiplier, which over-predicted heating badly.
 
 ```
-heating = UA_total x HDD x 24 / 1000 x solar_factor / COP
+gross_loss = UA_total x HDD x 24 / 1000        (kWh/yr)
 ```
 
-- **HDD** — heating degree days for the climate zone (see section 10). It
-  aggregates how cold the year is.
-- **x 24 / 1000** — converts watt-degree-days into kilowatt-hours.
-- **solar_factor** — free solar heat gain reduces the heating that must be
-  purchased. A south-facing home benefits most.
+**Internal gains** — heat from appliances, occupants and hot-water losses, all of
+which end up warming the house during the heating season:
 
-| Orientation | Solar factor |
+```
+gain_internal = appliances x 0.90 x season_fraction
+              + hot_water  x 0.20 x season_fraction
+              + occupants  x 100 W x 0.60 x season_hours / 1000
+```
+
+- `0.90` — fraction of appliance/lighting energy released as heat.
+- `0.20` — tank and pipe losses from hot water released indoors.
+- `100 W` — sensible heat per occupant (ASHRAE); `0.60` presence fraction.
+- `season_fraction` — heating-season days / 365 (zone-dependent, 230-270 days).
+
+**Solar gains** — passive gain through glazing, distributed across facades by
+orientation and priced by each facade's seasonal vertical irradiance:
+
+```
+gain_solar = sum over facades of
+             window_area x facade_fraction x frame_factor x SHGC
+             x irradiance[facade] x shading
+```
+
+| Facade | Seasonal irradiance (kWh/m2) |
 | --- | --- |
-| South | 0.82 |
-| East | 0.90 |
-| West | 0.90 |
-| North | 0.95 |
+| South | 450 |
+| East / West | 260 |
+| North | 160 |
 
-- **COP** — coefficient of performance of the heating plant. A heat pump with a
-  COP of 2.5 delivers 2.5 kWh of heat per kWh of electricity, so dividing by COP
-  converts heat *demand* into *purchased energy*. A gas furnace has a COP below
-  1 (0.92), reflecting combustion losses.
+**Net heating**, then purchased energy after mechanical efficiency:
+
+```
+useful_gains  = 0.90 x (gain_internal + gain_solar)
+heating_net   = max(0, gross_loss - useful_gains)
+heating_purch = heating_net / (COP x cop_factor)
+```
+
+- `0.90` — utilisation factor: in a cold-climate heating season almost all gains
+  are useful.
+- **COP** — plant coefficient of performance. A heat pump at COP 2.5 delivers 2.5
+  kWh of heat per kWh electricity; a gas furnace is 0.92 (combustion losses).
 
 ### 3.4 Cooling demand
 
-Cooling is modelled as solar gain through glazing only, which is a heavy
-simplification appropriate to the modest Canadian cooling season.
+Cooling is modelled as solar gain through glazing only — a heavy simplification
+appropriate to the modest Canadian cooling season.
 
 ```
-cooling = window_area x window_SHGC x CDD x 24 / 1000 x 0.4 / 3.5
+cooling = window_area x SHGC x CDD x 24 / 1000 x 0.4 / 3.5
 ```
 
-- **SHGC** — solar heat gain coefficient of the glazing.
-- **CDD** — cooling degree days.
-- **0.4** — an empirical factor accounting for the fraction of gain that actually
-  drives mechanical cooling.
-- **3.5** — assumed cooling COP (hard-coded, not taken from the mechanical entry).
+`0.4` is an empirical driving fraction; `3.5` is an assumed cooling COP.
 
 ### 3.5 Base loads
 
-```
-hot_water  = 15 x floor_area / storeys
-appliances = 25 x floor_area
-```
-
-Both in kWh/yr. Appliance and lighting load is a flat intensity and does not vary
-with the assembly.
-
-### 3.6 EUI and EnerGuide
+Scaled to derived occupancy, calibrated against NRCan end-use shares (space
+heating ~61%, water heating ~18%, appliances/lighting ~21% of Canadian
+residential energy).
 
 ```
-total_energy = heating + cooling + hot_water + appliances
-EUI          = total_energy / floor_area
+occupants  = max(1, 1 + floor_area / 75)      (~3.0 for a 150 m2 home)
+hot_water  = occupants x 1800                 (kWh/yr)
+appliances = 1500 + 20 x floor_area           (kWh/yr)
 ```
 
-EUI (energy use intensity, kWh/m2/yr) is the headline efficiency figure and the
-basis of the Net Zero Ready test.
+An earlier version divided hot water by storey count, which had no physical basis
+and ran roughly four times too low.
 
-The EnerGuide score is a linear approximation of EUI, clamped to 0-100:
+### 3.6 EUI, TEDI and MEUI
+
+The engine reports three intensities, all kWh/m2/yr, so envelope performance can
+be judged separately from appliances (as BC Step Code and CHBA do):
 
 ```
-EnerGuide = clamp(0, 100, 100 - (EUI - 30) x 0.8)
+EUI  = (heating_purch + cooling + hot_water + appliances) / floor_area
+TEDI = heating_net / floor_area          (envelope heating demand, before COP)
+MEUI = (heating_purch + cooling + hot_water) / floor_area
 ```
 
-This is an estimate for guidance only, not an official rating.
+- **TEDI** (Thermal Energy Demand Intensity) isolates the envelope — it is
+  independent of the mechanical system, so it is the right basis for the Net Zero
+  Ready test. Base plug loads cannot mask a poor envelope, nor sink a good one.
+- **MEUI** (Mechanical EUI) is purchased mechanical energy.
+- **EUI** is total site energy across all end uses.
+
+The EnerGuide score is a linear approximation of EUI, clamped 0-100
+(`100 - (EUI - 30) x 0.8`), for guidance only — not an official rating.
 
 ### 3.7 Net Zero Ready probability
 
-A single deterministic EUI hides the fact that real buildings vary. Two homes
-that both model at "compliant" are not equally safe if one sits at the threshold
-and the other well below it.
+The NZR test is run on **TEDI** against a per-zone threshold (30 / 35 / 40 for
+zones 6 / 7a / 7b). A single deterministic TEDI hides that real buildings vary —
+a home at the threshold is far less safe than one well below it.
 
-The engine therefore runs a **Monte Carlo simulation**: it re-runs the energy
-model 400 times, each time drawing the uncertain real-world inputs from a normal
-distribution, and reports the fraction of runs that meet the threshold.
+The engine runs a **400-run Monte Carlo**: it re-simulates with the uncertain
+inputs drawn from normal distributions and reports the fraction of runs whose
+TEDI meets the threshold.
 
 | Sampled input | Distribution | Represents |
 | --- | --- | --- |
@@ -256,17 +287,16 @@ distribution, and reports the fraction of runs that meet the threshold.
 | Occupant plug loads | Normal(1.00, 0.20) | occupant behaviour |
 | Mechanical COP derate | Normal(0.97, 0.05) | real-world vs. rated efficiency |
 
-Each sample is floored at a physical minimum to avoid nonsensical draws. The run
-is seeded, so results are stable between runs.
+Samples are floored at a physical minimum; the run is seeded for stability. For
+speed the Monte Carlo runs only on the top ~20 ranked configurations.
 
 ```
-NZR probability = (runs with EUI <= threshold) / 400
+NZR probability = (runs with TEDI <= threshold) / 400
 ```
 
-A home with margin scores near 100 percent; one sitting on the threshold scores
-near 50 percent. The probability is envelope-based and deliberately excludes PV,
-matching the CHBA definition where Net Zero *Ready* describes the building
-itself, not its solar array.
+A home with margin scores near 100 percent; one at the threshold near 50. The
+test is envelope-based and excludes PV, matching the CHBA definition where Net
+Zero *Ready* describes the building itself, not its solar array.
 
 ---
 
