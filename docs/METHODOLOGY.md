@@ -314,7 +314,101 @@ Zero *Ready* describes the building itself, not its solar array.
 
 ---
 
-## 4. Construction cost
+## 4. Envelope assemblies, materials and R-values
+
+Sources: `engine/materials.py`, `engine/rvalue.py`, `engine/assemblies.py`
+
+Assembly performance is no longer hand-typed. R-value, cost and embodied carbon
+all derive from one material table, so a change to a build-up moves all three
+outputs together and consistently.
+
+### 4.1 The material table
+
+Each material carries three per-unit properties (`engine/materials.py`):
+
+```
+r_per_in        R-value per inch (imperial)
+cost_per_m2_in  installed cost, CAD per m2 per inch of thickness
+co2_per_m2_in   embodied carbon, kgCO2e per m2 per inch
+```
+
+The full table is listed in section 11. Imperial R converts to metric RSI by
+`RSI = R / 5.678`. (A prior version treated imperial R as if it were metric RSI,
+making every assembly about 5.7x better insulated than reality — that bug is
+fixed here.)
+
+### 4.2 Effective R-value (parallel-path)
+
+Heat takes two routes through a framed assembly: through the insulated cavity and
+through the framing members, which bridge the insulation. Each path's resistance
+is summed, converted to a U-factor, and area-weighted by the framing fraction:
+
+```
+R_cavity_path  = air_films + continuous_layers + cavity_insulation
+R_framing_path = air_films + continuous_layers + framing_member
+U_assembly     = ff x (1 / R_framing_path) + (1 - ff) x (1 / R_cavity_path)
+R_effective    = 1 / U_assembly
+```
+
+- **ff** — framing factor, the fraction of area that is framing (0.23 for 2x6 at
+  16" o.c., lower for deep roof joists). This finally makes thermal bridging
+  explicit: a code 2x6 R22 wall loses ~25% of its nominal R to the studs, landing
+  at ~R16 effective. Adding exterior continuous rigid cuts that loss.
+- Air films (NRCan): exterior 0.03; interior 0.12 wall / 0.11 ceiling / 0.16
+  floor (RSI).
+
+`U_assembly` is what the energy model consumes; `R_nominal` (centre-of-cavity) is
+what marketing quotes.
+
+### 4.3 The six assemblies and the thickness sweep
+
+Two walls, two roofs, two floors, each a layer build-up with a swept insulation
+thickness (section 11 lists them with computed R ranges). The optimizer searches
+the thickness options rather than the user guessing:
+
+- **Walls** — exterior continuous rigid swept 0 / 2 / 4 inches.
+- **Roofs** — cavity depth set by the snow-driven joist (section 5); over-deck
+  rigid swept 0 / 2 / 4 inches.
+- **Floors** — slab-on-grade with sub-slab rigid, or a raised cassette.
+
+Cost and carbon per m2 come from summing the layers (insulation over the cavity
+fraction, framing lumber over its share). Install labour is a fixed hours-per-m2
+per assembly type (panelized assemblies install fastest).
+
+---
+
+## 5. Location, climate and snow
+
+Sources: `engine/location.py`, `data/ontario_locations.json`
+
+A single location choice (one of 227 Ontario places) resolves four things.
+
+### 5.1 What a location supplies
+
+- **Climate zone** (6 / 7a / 7b) — sets HDD/CDD and the TEDI threshold. Assigned
+  by a city-name classifier, user-overridable.
+- **Snow load** (Ss, Sr) — real, from the NBCC 2015 workbook.
+- **Regional energy rates** — electricity varies by delivery region (section 10).
+- **Soil** — allowable bearing and frost depth, conservative regional defaults.
+
+### 5.2 Roof snow load and joist depth
+
+The ground snow load Ss is converted to a **roof** snow load per NBCC 2015, which
+is what actually loads the structure:
+
+```
+S = Is x [Ss x (Cb x Cw x Cs x Ca) + Sr]
+```
+
+Residential defaults: Is = 1.0 (Normal importance), Cb = 0.8, Cw = Cs = Ca = 1.0,
+so `S = 0.8 x Ss + Sr`. The resulting roof load selects a snow tier, which sets
+the roof joist depth (section 10). Deeper joists hold more insulation, so snow
+load feeds directly into the achievable roof R-value and cost. Five remote
+northern locations exceed the top tier and are flagged for structural review.
+
+---
+
+## 6. Construction cost
 
 Source: `engine/cost.py`
 
