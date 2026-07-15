@@ -20,9 +20,11 @@ st.set_page_config(page_title="EnerZen Performance Engine", page_icon="🏠", la
 with open(Path(__file__).parent.parent / "data" / "assemblies.json") as f:
     CATALOG = json.load(f)
 
-WALL_LABELS   = {w["id"]: w["name"] for w in CATALOG["wall_panels"]}
-ROOF_LABELS   = {r["id"]: r["name"] for r in CATALOG["roof_cassettes"]}
-FLOOR_LABELS  = {f["id"]: f["name"] for f in CATALOG["floor_cassettes"]}
+from engine.assemblies import WALLS, ROOFS, FLOORS
+
+WALL_LABELS   = {w.id: w.name for w in WALLS}
+ROOF_LABELS   = {r.id: r.name for r in ROOFS}
+FLOOR_LABELS  = {f.id: f.name for f in FLOORS}
 WINDOW_LABELS = {w["id"]: w["name"] for w in CATALOG["windows"]}
 MECH_LABELS   = {m["id"]: m["name"] for m in CATALOG["mechanical"]}
 SOLAR_LABELS  = {s["id"]: s["name"] for s in CATALOG["solar"]}
