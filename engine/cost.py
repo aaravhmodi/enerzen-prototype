@@ -113,9 +113,16 @@ def estimate_cost(spec, env, window, mech) -> dict:
     }
 
 
+# Factory fabrication: panels produced per week on one line, plus setup
+# (shop drawings, CNC programming, material staging).
+FACTORY_PANELS_PER_WEEK = 30
+FAB_SETUP_WEEKS = 1.0
+
+
 def estimate_schedule(spec, env) -> dict:
     """
-    Estimate weeks to envelope close (fabrication + install) and panel counts.
+    Weeks to envelope close = factory fabrication + site install (sequential —
+    conservative; overlap is possible once the first panels ship).
     Panelized/cassette assemblies install significantly faster (lower hours/m2).
     """
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
