@@ -442,86 +442,83 @@ northern locations exceed the top tier and are flagged for structural review.
 
 Source: `engine/cost.py`
 
-```
-total = materials + labour + base_cost
-```
-
-### 6.1 Materials
-
-Each surface area multiplied by its catalog unit rate, plus the flat mechanical
-system cost.
+The old flat 1200 CAD/m2 "base cost" — which made two thirds of every estimate
+a placeholder — is retired. Every line is now itemized so it can be challenged
+and refined individually:
 
 ```
-materials = opaque_wall_area x wall_cost_per_m2
-          + roof_area        x roof_cost_per_m2
-          + floor_area_surf  x floor_cost_per_m2
+subtotal = envelope + connections + partitions + ext_finishes
+         + mechanical + fitout
+total    = subtotal x (1 + 8% contingency)
+```
+
+### 6.1 Envelope (materials + labour)
+
+Each surface area multiplied by its assembly's computed cost per m2 (from the
+material layers, section 4), plus windows at catalog rates:
+
+```
+materials = opaque_wall_area x wall_cost_m2
+          + roof_area        x roof_cost_m2
+          + floor_area_surf  x floor_cost_m2   (includes foundation, 4.4)
           + window_area      x window_cost_per_m2
-          + mechanical_cost
+
+labour_hours = sum(surface_area x install_hours_per_m2)
+labour       = labour_hours x 75 CAD/hr (blended crew)
 ```
 
-### 6.2 Labour
+Panelized assemblies pay off here: more expensive per m2 of material, roughly
+half the installation hours.
 
-Only wall, roof and floor installation hours are counted. Window and mechanical
-installation labour is **not** modelled.
+### 6.2 Connections
+
+Panel-to-panel joints, sealing tapes, structural fasteners — real cost that a
+per-panel material rate misses: **10% of envelope cost**.
+
+### 6.3 Interior partitions
+
+Partition area is taken as **0.9 m2 per m2 of floor** (typical residential
+layouts), built as 2x4 studs at 16" o.c. with gypsum both sides, priced from
+the same materials table, plus 0.4 hr/m2 install labour.
+
+### 6.4 Exterior finishes
+
+Cladding is already a layer in the wall assemblies. This line covers the rest —
+trim, flashings, soffits and fascia — at **15 CAD per m2 of wall**.
+
+### 6.5 Mechanical
+
+The catalog price is a reference for a 150 m2 home; plant capacity scales with
+conditioned area, so cost follows a square-root law:
 
 ```
-labour_hours = opaque_wall_area x wall_install_hours_per_m2
-             + roof_area        x roof_install_hours_per_m2
-             + floor_area_surf  x floor_install_hours_per_m2
-
-labour = labour_hours x 75
+mech_cost = catalog_cost x sqrt(floor_area / 150)
 ```
 
-The blended crew rate is **75 CAD/hour**. This is where panelized assemblies pay
-off: they cost more per square metre in materials but need roughly half the
-installation hours.
+Two user toggles:
 
-### 6.3 Base cost
+- **Air conditioning** — if the heating plant is a furnace, adds central AC
+  (3,000 CAD + 10 CAD/m2). Heat pumps cool inherently at no extra cost.
+- **Allow gas** — off means all-electric: gas systems are excluded from the
+  search entirely.
 
-```
-base_cost = floor_area x 1200
-```
+### 6.6 Fit-out and services
 
-A flat **1200 CAD/m2** covering everything outside the envelope model:
-foundation, structural framing, interior finishes, plumbing, electrical.
+Kitchens, baths, flooring, paint, plumbing and electrical: **650 CAD/m2**.
+This is the honest residue of the old blanket rate — still a lump, but now
+explicit, smaller, and challengeable on its own.
 
-It is deliberately held constant across configurations so that comparing two
-assemblies only moves the parts that genuinely differ. The consequence is that
-roughly two thirds of the reported cost is a placeholder rather than a modelled
-quantity, and assembly choice only swings the remaining third.
+### 6.7 Contingency
 
-### 6.4 Solar
+**8%** on everything above.
+
+### 6.8 Solar
 
 PV is added on top of the construction cost in the optimizer:
 
 ```
 total_cost = construction_cost + pv_capacity_kw x pv_cost_per_kw
 ```
-
-### 6.5 Worked example
-
-A 150 m2, two-storey home, 20 percent window-to-wall, with wall W4, roof R2,
-floor F2, windows GL2 and mechanical M3.
-
-```
-wall_area        = 150 x 1.40 = 210.0 m2
-window_area      = 210 x 0.20 =  42.0 m2
-opaque_wall_area = 210 -  42  = 168.0 m2
-roof_area        = 150 x 0.55 =  82.5 m2
-floor_area_surf  = 150 x 0.52 =  78.0 m2
-```
-
-| Component | Quantity | Rate | Cost |
-| --- | --- | --- | --- |
-| Opaque wall (W4) | 168.0 m2 | 155 /m2 | 26,040 |
-| Roof (R2) | 82.5 m2 | 110 /m2 | 9,075 |
-| Floor (F2) | 78.0 m2 | 95 /m2 | 7,410 |
-| Windows (GL2) | 42.0 m2 | 680 /m2 | 28,560 |
-| Mechanical (M3) | 1 | 20,000 | 20,000 |
-| Materials subtotal | | | 91,085 |
-| Labour | 135.9 hr | 75 /hr | 10,193 |
-| Base cost | 150 m2 | 1,200 /m2 | 180,000 |
-| **Total** | | | **281,278** |
 
 ---
 
