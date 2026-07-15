@@ -442,18 +442,18 @@ st.caption("Envelope demand and whole-home energy intensity. Lower is better.")
 
 intensity = st.columns(3)
 intensity[0].metric(
-    "TEDI", f"{top.energy.tedi_kwh_m2_yr:g} kWh/mÂ²/yr",
+    "TEDI", f"{top.energy.tedi_kwh_m2_yr:g} kWh/m²·yr",
     delta=f"{top.energy.tedi_kwh_m2_yr - top.energy.nzr_threshold:+g} vs NZR limit",
     delta_color="inverse",
     help="Thermal Energy Demand Intensity: envelope heating demand before plant efficiency.")
 intensity[1].metric(
-    "MEUI", f"{top.energy.meui_kwh_m2_yr:g} kWh/mÂ²/yr",
+    "MEUI", f"{top.energy.meui_kwh_m2_yr:g} kWh/m²·yr",
     help="Mechanical Energy Use Intensity: purchased heating, cooling and hot-water energy.")
 intensity[2].metric(
-    "Total site EUI", f"{top.eui_kwh_m2_yr:g} kWh/mÂ²/yr",
+    "Total site EUI", f"{top.eui_kwh_m2_yr:g} kWh/m²·yr",
     help="All purchased site energy before solar, including appliances and lighting.")
 st.caption(f"This climate zone's Net Zero Ready TEDI threshold is "
-           f"{top.energy.nzr_threshold:g} kWh/mÂ²/yr.")
+           f"{top.energy.nzr_threshold:g} kWh/m²·yr.")
 
 bench_eui = BENCH["eui_kwh_m2_yr"]
 compare = pd.DataFrame([
