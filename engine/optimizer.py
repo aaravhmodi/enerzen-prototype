@@ -85,6 +85,7 @@ class ConfigResult:
     energy: EnergyResult = field(repr=False, default=None)
     panel_schedule: dict = field(repr=False, default=None)
     utility: dict = field(repr=False, default=None)
+    cost_breakdown: dict = field(repr=False, default=None)
     _assembly: AssemblyConfig = field(repr=False, default=None)  # for deferred MC
 
     # Pareto rank (1 = non-dominated)
@@ -255,6 +256,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 joist_depth_in=joist_depth,
                 energy=energy,
                 panel_schedule=schedule["panel_counts"],
+                cost_breakdown=cost_data,
                 utility=utility,
                 _assembly=assembly,
             )
