@@ -176,11 +176,28 @@ st.markdown("""
                                     border-radius:3px; margin:.6rem 0; }
     div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:3px; }
     div[data-testid="stAlert"] { border-radius:2px; }
+    .compare-card { background:var(--surface); border:1px solid var(--line); border-radius:3px;
+                    padding:1.1rem 1.2rem 1.2rem; margin:.55rem 0 .65rem; }
+    .compare-head { display:flex; justify-content:space-between; align-items:baseline;
+                    gap:1rem; margin-bottom:1.15rem; }
+    .compare-title { color:var(--ink); font-size:.84rem; font-weight:750; }
+    .compare-summary { color:var(--forest); font-size:.82rem; font-weight:750; }
+    .compare-row { display:grid; grid-template-columns:165px 1fr 72px; align-items:center;
+                   gap:.85rem; margin:.7rem 0; }
+    .compare-label { color:var(--muted); font-size:.78rem; line-height:1.25; }
+    .compare-track { height:12px; background:#e8ebe7; border-radius:1px; overflow:hidden; }
+    .compare-fill { height:100%; border-radius:1px; }
+    .compare-fill.benchmark { background:#b8bdb7; }
+    .compare-fill.project { background:var(--forest); }
+    .compare-value { color:var(--ink); font-size:.82rem; font-weight:750; text-align:right; }
+    .compare-unit { color:var(--muted); font-size:.69rem; margin-top:.75rem; }
     hr { border-color:var(--line); }
     @media (max-width: 760px) {
         .block-container { padding:1.25rem 1rem 3rem; }
         .hero-title { font-size:2.35rem; }
         .brand-row { margin-bottom:1.8rem; }
+        .compare-row { grid-template-columns:1fr 56px; gap:.5rem; }
+        .compare-track { grid-column:1 / -1; grid-row:2; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -484,22 +501,27 @@ st.caption(f"~{pct}% less energy than a new code-built home before solar. "
 
 # Embodied carbon vs. benchmark
 bench_ec = BENCH["embodied_carbon_kg_co2e_m2"]["conventional_new_build"]
-ec = pd.DataFrame([
-    {"label": "Conventional new build", "ec": bench_ec, "kind": "Benchmark"},
-    {"label": "EnerZen (this config)", "ec": top.embodied_carbon_kg_co2e_m2, "kind": "EnerZen"},
-])
-ec_bars = alt.Chart(ec).mark_bar(cornerRadiusEnd=4).encode(
-    x=alt.X("ec:Q", title="Embodied carbon (kgCO₂e/m²)"),
-    y=alt.Y("label:N", sort=None, title=None),
-    color=alt.Color("kind:N", scale=alt.Scale(
-        domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#214E3B"]), legend=None),
-    tooltip=["label", "ec"],
-)
-ec_labels = ec_bars.mark_text(align="left", dx=4, color=CHART_MUTED).encode(
-    text=alt.Text("ec:Q", format=".0f"))
-st.altair_chart(chart_style((ec_bars + ec_labels).properties(height=100)), width="stretch")
-st.caption(f"Benchmark {bench_ec} kgCO₂e/m² — cradle-to-gate mean for new low-rise residential "
-           "(Living Materials Lab, 2024).")
+project_ec = top.embodied_carbon_kg_co2e_m2
+ec_max = max(bench_ec, project_ec, 1)
+benchmark_width = bench_ec / ec_max * 100
+project_width = project_ec / ec_max * 100
+ec_reduction = (1 - project_ec / bench_ec) * 100
+ec_summary = (f"{ec_reduction:.0f}% lower than benchmark" if ec_reduction >= 0
+              else f"{abs(ec_reduction):.0f}% above benchmark")
+st.markdown(
+    f'<div class="compare-card">'
+    f'<div class="compare-head"><div class="compare-title">Embodied carbon</div>'
+    f'<div class="compare-summary">{ec_summary}</div></div>'
+    f'<div class="compare-row"><div class="compare-label">Conventional new build</div>'
+    f'<div class="compare-track"><div class="compare-fill benchmark" '
+    f'style="width:{benchmark_width:.1f}%"></div></div>'
+    f'<div class="compare-value">{bench_ec:.0f}</div></div>'
+    f'<div class="compare-row"><div class="compare-label">Recommended configuration</div>'
+    f'<div class="compare-track"><div class="compare-fill project" '
+    f'style="width:{project_width:.1f}%"></div></div>'
+    f'<div class="compare-value">{project_ec:.0f}</div></div>'
+    f'<div class="compare-unit">kgCO₂e/m² · cradle-to-gate benchmark for new low-rise residential '
+    f'(Living Materials Lab, 2024)</div></div>', unsafe_allow_html=True)
 
 # ── Monthly utility bill ─────────────────────────────────────────────────────
 st.markdown("#### Monthly operating cost")
