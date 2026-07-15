@@ -208,6 +208,12 @@ if top.panel_schedule:
 if top.cost_breakdown:
     with st.expander("Cost breakdown (itemized)"):
         cb = top.cost_breakdown
+        st.markdown("**Envelope materials by assembly**")
+        for label, amount in cb["envelope_material_split"].items():
+            st.markdown(f"- {label.replace('_', ' ').title()}: **${amount:,.0f}**")
+        st.markdown(f"- Envelope installation labour: **${cb['labour_cost']:,.0f}** "
+                    f"({cb['labour_hours']:g} hours)")
+        st.markdown("**Whole-project lines**")
         lines = [("Envelope (materials + install)", cb["envelope_cost"]),
                  ("Panel connections & sealing", cb["connections_cost"]),
                  ("Interior partitions", cb["partitions_cost"]),
@@ -219,6 +225,35 @@ if top.cost_breakdown:
             st.markdown(f"- {label}: **${amount:,.0f}**")
         st.markdown(f"- Construction total: **${cb['total_per_unit']:,.0f}** "
                     f"(${cb['cost_per_m2']:,.0f}/m²) — solar added separately")
+
+if top.assembly_breakdown:
+    with st.expander("R-value, quantities and foundation detail"):
+        for key in ("wall", "roof", "floor"):
+            detail = top.assembly_breakdown[key]
+            nominal = detail.get("r_nominal")
+            nominal_text = f"nominal R-{nominal}, " if nominal is not None else ""
+            st.markdown(
+                f"**{key.title()}** — {nominal_text}effective R-{detail['r_effective']}, "
+                f"U {detail['u_value']} W/m²·K, materials ${detail['cost_m2']:,.2f}/m²")
+            if "bridging_loss_pct" in detail:
+                st.caption(f"Thermal-bridging loss: {detail['bridging_loss_pct']:g}%")
+        floor_detail = top.assembly_breakdown["floor"]
+        if "eps_area_m2" in floor_detail:
+            st.markdown("**Slab-on-grade quantities**")
+            st.markdown(
+                f"- Footprint: {floor_detail['footprint_length_m']:g} × "
+                f"{floor_detail['footprint_width_m']:g} m = "
+                f"{floor_detail['footprint_area_m2']:g} m²\n"
+                f"- EPS blanket: {floor_detail['extended_length_m']:g} × "
+                f"{floor_detail['extended_width_m']:g} m = "
+                f"{floor_detail['eps_area_m2']:g} m²; "
+                f"{floor_detail['eps_volume_m3']:g} m³\n"
+                f"- 100 mm slab concrete: {floor_detail['slab_concrete_m3']:g} m³\n"
+                f"- Frost-wall concrete: {floor_detail['frost_wall_concrete_m3']:g} m³ "
+                f"at {floor_detail['frost_depth_m']:g} m frost depth")
+            fc = floor_detail["cost_split_total"]
+            st.markdown(f"Slab concrete **${fc['slab']:,.0f}** · EPS **${fc['eps']:,.0f}** · "
+                        f"frost wall **${fc['frost_wall']:,.0f}**")
 
 # ── Alternatives ─────────────────────────────────────────────────────────────
 st.markdown("#### Other options")
