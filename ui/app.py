@@ -192,6 +192,21 @@ if top.panel_schedule:
     st.caption(f"Panels — {ps['wall_panels']} wall · {ps['roof_panels']} roof · "
                f"{ps['floor_panels']} floor · {ps['crane_lifts']} crane lifts")
 
+if top.cost_breakdown:
+    with st.expander("Cost breakdown (itemized)"):
+        cb = top.cost_breakdown
+        lines = [("Envelope (materials + install)", cb["envelope_cost"]),
+                 ("Panel connections & sealing", cb["connections_cost"]),
+                 ("Interior partitions", cb["partitions_cost"]),
+                 ("Exterior trim & finishes", cb["ext_finishes_cost"]),
+                 ("Mechanical (sized to floor area)", cb["mechanical_cost"]),
+                 ("Fit-out & services", cb["fitout_cost"]),
+                 ("Contingency (8%)", cb["contingency_cost"])]
+        for label, amount in lines:
+            st.markdown(f"- {label}: **${amount:,.0f}**")
+        st.markdown(f"- Construction total: **${cb['total_per_unit']:,.0f}** "
+                    f"(${cb['cost_per_m2']:,.0f}/m²) — solar added separately")
+
 # ── Alternatives ─────────────────────────────────────────────────────────────
 st.markdown("#### Other options")
 st.caption(f"{len(results)} feasible configurations ranked by your priorities.")
