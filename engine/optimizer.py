@@ -177,7 +177,12 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
 
             wall_asm  = wall_opt.build(w_rigid)
             roof_asm  = roof_opt.build(joist_depth, r_rigid)
-            floor_asm = floor_opt.build(f_rigid)
+            floor_asm = floor_opt.build(
+                f_rigid,
+                floor_area_m2=spec.floor_area_m2,
+                storeys=spec.storeys,
+                frost_depth_m=loc.frost_depth_m if loc else 1.2,
+            )
 
             env = EnvelopeCombo(
                 wall_id=wall_opt.id, roof_id=roof_opt.id, floor_id=floor_opt.id,

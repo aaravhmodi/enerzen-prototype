@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from engine.rvalue import Assembly, Layer, FramedCavity
+from engine.foundation import SlabOnGrade, EPS_MM_OPTIONS
 
 
 @dataclass
