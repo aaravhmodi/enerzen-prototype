@@ -272,4 +272,11 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         )
 
     ranked = pareto_rank(all_configs)
+
+    # NZR probability is a 400-run Monte Carlo — only worth computing for the
+    # configs actually shown. Run it on the top ranked results.
+    for r in ranked[:20]:
+        if r._assembly is not None:
+            r.nzr_probability = nzr_probability(building, r._assembly)
+
     return ranked
