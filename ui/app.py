@@ -163,8 +163,9 @@ c = st.columns(4)
 c[0].metric("Embodied carbon", f"{top.embodied_carbon_kg_co2e_m2:.0f} kg/m²")
 c[1].metric("Utility bill", f"${top.avg_monthly_utility:,.0f}/mo",
             help=f"${top.annual_utility_cost:,.0f}/yr")
-c[2].metric("60-yr lifecycle cost", f"${top.lifecycle_cost_60yr:,.0f}",
-            help="Upfront (less solar rebate) + present value of energy bills")
+c[2].metric("30-yr lifecycle cost", f"${top.lifecycle_cost_30yr:,.0f}",
+            help=f"Upfront (less solar rebate) + present value of energy bills. "
+                 f"20-yr: ${top.lifecycle_cost_20yr:,.0f}")
 c[3].metric("Solar", f"{top.pv_capacity_kw:g} kW ({top.pv_generation_kwh_yr:,.0f} kWh/yr)"
             if top.pv_capacity_kw else "None")
 
