@@ -36,6 +36,7 @@ class ProjectSpec:
     budget_per_unit: float  # CAD
     target_label: str       # "code", "nzr", "passive_house"
     solar_option_id: str = "PV0"  # from catalog["solar"]; PV0 = none
+    location: str = None    # Ontario place name; drives zone, snow tier, regional rates
     num_units: int = 1
 
     # Derived
