@@ -293,7 +293,7 @@ def catalog_tables(cat) -> str:
 
     # Parametric assemblies — R/cost/carbon computed from layers at each swept
     # thickness (roof shown at a 10-inch joist).
-    def asm_table(title, opts, build_args):
+    def asm_table(title, opts, build_args, unit='"'):
         rows = [f"### {title}", "",
                 "| ID | Name | Sweep | R_eff (min-max) | U (min-max) | Install hr/m2 |",
                 "| --- | --- | --- | --- | --- | --- |"]
@@ -301,13 +301,13 @@ def catalog_tables(cat) -> str:
             bds = [o.build(*build_args(t)).breakdown() for t in o.sweep]
             reff = f"{min(b['r_effective'] for b in bds):.0f}-{max(b['r_effective'] for b in bds):.0f}"
             us = f"{min(b['u_value'] for b in bds):.3f}-{max(b['u_value'] for b in bds):.3f}"
-            sweep = ", ".join(f'{t:g}"' for t in o.sweep)
+            sweep = ", ".join(f"{t:g}{unit}" for t in o.sweep) if o.sweep != [0] else "—"
             rows.append(f"| {o.id} | {o.name} | {sweep} | {reff} | {us} | {o.install_hours_per_m2} |")
         out.append("\n".join(rows))
 
     asm_table("Wall assemblies (sweep: exterior rigid)", WALLS, lambda t: (t,))
     asm_table("Roof assemblies (sweep: over-deck rigid, 10\" joist)", ROOFS, lambda t: (10, t))
-    asm_table("Floor assemblies (sweep: rigid)", FLOORS, lambda t: (t,))
+    asm_table("Floor assemblies (sweep: sub-slab EPS mm)", FLOORS, lambda t: (t,), unit=" mm")
 
     rows = ["### Window packages", "",
             "| ID | Name | U (W/m2K) | SHGC | Cost /m2 | Carbon /m2 |",
