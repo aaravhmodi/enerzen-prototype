@@ -67,8 +67,16 @@ with st.sidebar:
     st.markdown("**The building**")
     typology = st.selectbox("Building type", ["single_family", "townhouse", "murb"],
                             format_func=lambda x: x.replace("_", " ").title())
-    floor_area = st.number_input("Floor area (m²)", 80, 500, 150, step=10)
     storeys = st.selectbox("Storeys", [1, 2, 3], index=1)
+    footprint_cols = st.columns(2)
+    footprint_length = footprint_cols[0].number_input(
+        "Footprint length (m)", 4.0, 50.0, 10.0, step=0.5)
+    footprint_width = footprint_cols[1].number_input(
+        "Footprint width (m)", 4.0, 50.0, 7.5, step=0.5)
+    floor_area = footprint_length * footprint_width * storeys
+    st.caption(f"Footprint {footprint_length:g} × {footprint_width:g} m = "
+               f"{footprint_length * footprint_width:g} m² · "
+               f"conditioned floor area {floor_area:g} m²")
     num_units = st.number_input("Number of units", 1, 50, 1)
 
     st.markdown("**The site**")
@@ -76,10 +84,12 @@ with st.sidebar:
                             index=LOCATION_NAMES.index("Toronto") if "Toronto" in LOCATION_NAMES else 0,
                             help="Sets climate zone, snow load, regional energy rates and soil.")
     resolved = resolve_location(location)
-    st.caption(f"Zone {resolved.climate_zone} · snow {resolved.roof_snow_load_kpa} kPa "
-               f"({resolved.snow_tier['joist_depth_in']}\" joist) · {resolved.region_name}")
+    st.caption(f"Zone {resolved.climate_zone} · ground snow Ss {resolved.ss:g} kPa · "
+               f"roof load S {resolved.roof_snow_load_kpa:g} kPa · "
+               f"{resolved.snow_tier['joist_depth_in']}\" preliminary joist · "
+               f"{resolved.region_name}")
     if resolved.over_snow_range:
-        st.warning("Snow load exceeds the standard catalog — needs structural review.")
+        st.warning("Ground snow Ss exceeds the two standard options — structural review required.")
     orientation = st.selectbox("Main facade faces", ["S", "N", "E", "W"],
                                format_func=lambda x: {"S": "South", "N": "North",
                                                        "E": "East", "W": "West"}[x])
@@ -127,6 +137,8 @@ spec = ProjectSpec(
     budget_per_unit=float(budget), target_label=target_label,
     solar_option_id=solar_option_id, location=location, num_units=num_units,
     has_ac=has_ac, allow_gas=allow_gas,
+    footprint_length_m=float(footprint_length),
+    footprint_width_m=float(footprint_width),
 )
 
 with st.spinner("Evaluating assembly combinations…"):

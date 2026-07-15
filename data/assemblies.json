@@ -98,16 +98,16 @@
     "northern": {"name": "Northern Ontario (Hydro One)",   "electricity_cad_per_kwh": 0.195, "natural_gas_cad_per_kwh": 0.060, "allowable_bearing_kpa": 125, "frost_depth_m": 1.8}
   },
   "snow": {
-    "_note": "Roof snow load S = Is[Ss(Cb.Cw.Cs.Ca) + Sr] per NBCC 2015. Residential defaults: Is=1.0 (Normal importance), Cb=0.8, Cw=Cs=Ca=1.0, so S = 0.8*Ss + Sr. Tier sets roof joist depth, which Phase 3 uses to set roof cavity R-value and cost.",
+    "_note": "Ground snow Ss selects the preliminary joist option requested for the MVP. Roof load S = Is[Ss(Cb.Cw.Cs.Ca) + Sr] is also calculated and displayed for engineering review. Residential defaults give S = 0.8*Ss + Sr. Joist depths are placeholders, not structural design.",
     "importance_factor_uls": 1.0,
     "basic_roof_factor_cb": 0.8,
     "wind_exposure_cw": 1.0,
     "slope_factor_cs": 1.0,
     "accumulation_factor_ca": 1.0,
     "tiers": [
-      {"id": "S1", "name": "Light (roof S <= 2.5 kPa)",   "max_roof_load_kpa": 2.5, "joist_depth_in": 10},
-      {"id": "S2", "name": "Medium (2.5-3.0 kPa)",        "max_roof_load_kpa": 3.0, "joist_depth_in": 12},
-      {"id": "S3", "name": "Heavy (> 3.0 kPa)",           "max_roof_load_kpa": 99.0, "joist_depth_in": 14}
+      {"id": "S1", "name": "Option 1 (ground Ss <= 2.5 kPa)", "max_ground_load_kpa": 2.5, "joist_depth_in": 10},
+      {"id": "S2", "name": "Option 2 (ground Ss 2.5-3.0 kPa)", "max_ground_load_kpa": 3.0, "joist_depth_in": 12},
+      {"id": "S3", "name": "Outside options (ground Ss > 3.0 kPa; review)", "max_ground_load_kpa": 99.0, "joist_depth_in": 14}
     ]
   },
   "solar": [

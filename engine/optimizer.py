@@ -41,6 +41,8 @@ class ProjectSpec:
     num_units: int = 1
     has_ac: bool = True     # add central AC when the heating plant is a furnace
     allow_gas: bool = True  # False = all-electric: gas systems excluded
+    footprint_length_m: float | None = None
+    footprint_width_m: float | None = None
 
     # Derived
     infiltration_ach50: float = 3.0  # default target; tightens for higher labels
@@ -189,6 +191,8 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 floor_area_m2=spec.floor_area_m2,
                 storeys=spec.storeys,
                 frost_depth_m=loc.frost_depth_m if loc else 1.2,
+                footprint_length_m=spec.footprint_length_m,
+                footprint_width_m=spec.footprint_width_m,
             )
 
             env = EnvelopeCombo(

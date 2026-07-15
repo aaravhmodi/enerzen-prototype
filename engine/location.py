@@ -47,11 +47,11 @@ def roof_snow_load(ss: float, sr: float, catalog: dict | None = None) -> float:
     return s["importance_factor_uls"] * (ss * accum + sr)
 
 
-def snow_tier(roof_load_kpa: float, catalog: dict | None = None) -> dict:
-    """First tier whose max_roof_load_kpa the load fits under."""
+def snow_tier(ground_snow_load_kpa: float, catalog: dict | None = None) -> dict:
+    """Select the preliminary joist option from ground snow load Ss."""
     tiers = (catalog or _catalog())["snow"]["tiers"]
     for t in tiers:
-        if roof_load_kpa <= t["max_roof_load_kpa"]:
+        if ground_snow_load_kpa <= t["max_ground_load_kpa"]:
             return t
     return tiers[-1]
 
@@ -85,7 +85,7 @@ def resolve(name: str) -> ResolvedLocation:
     cat = _catalog()
 
     S = roof_snow_load(loc["ss"], loc["sr"], cat)
-    tier = snow_tier(S, cat)
+    tier = snow_tier(loc["ss"], cat)
     region = cat["regions"][loc["region"]]
 
     return ResolvedLocation(
@@ -101,5 +101,5 @@ def resolve(name: str) -> ResolvedLocation:
         natural_gas_cad_per_kwh=region["natural_gas_cad_per_kwh"],
         allowable_bearing_kpa=region["allowable_bearing_kpa"],
         frost_depth_m=region["frost_depth_m"],
-        over_snow_range=S > 3.0,
+        over_snow_range=loc["ss"] > 3.0,
     )
