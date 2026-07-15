@@ -16,8 +16,9 @@ tool.
 **The energy model is simplified.** A steady-state degree-day method ignores
 thermal mass, hourly weather, real shading geometry, part-load equipment
 behaviour and distribution losses. It is not HOT2000 and is not a compliance
-tool. It is calibrated against NRCan end-use shares: a code-built home computes
-near the ~194 kWh/m2/yr provincial average, with heating the dominant end use.
+tool. It is calibrated against NRCan end-use shares, with heating as the dominant
+end use, and is compared directionally with the catalog's approximate Ontario
+benchmarks (200 kWh/m2/yr existing and 130 kWh/m2/yr code-built new).
 
 **Material cost and carbon values are defaults.** R-values per inch come from
 published tables and the effective-R method cross-checks well against NRCan
@@ -39,8 +40,9 @@ still omitted. Fit-out and services remain a single 650 CAD/m2 lump.
 **The thickness sweep is coarse.** Insulation is optimised over a few discrete
 thicknesses, not a continuous range, to keep the search fast.
 
-**Build time covers envelope fabrication/close only.** It is not a project
-schedule.
+**Build time covers factory fabrication and site work to envelope close only.**
+The 30-panels-per-week production rate and one-week setup are defaults awaiting
+EnerZen factory data; the result is not a project schedule.
 
 **Cooling is glazing-driven only**, and uses a hard-coded COP of 3.5 rather than
 the selected mechanical system's rating.
