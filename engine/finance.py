@@ -37,6 +37,11 @@ def monthly_utility(energy, mech_type: str, pv_generation_kwh: float, rates: dic
     """
     elec_rate = rates["electricity_cad_per_kwh"]
     gas_rate  = rates["natural_gas_cad_per_kwh"]
+    # Fixed monthly customer charges: everyone pays the electricity service
+    # charge; the gas charge applies only if the home has a gas connection.
+    # This is why an all-electric home saves ~$300/yr before using a single kWh.
+    elec_fixed = rates.get("electricity_fixed_monthly_cad", 0.0)
+    gas_fixed  = rates.get("natural_gas_fixed_monthly_cad", 0.0)
 
     heat = _norm(_HEATING_SHARE)
     cool = _norm(_COOLING_SHARE)
@@ -63,10 +68,11 @@ def monthly_utility(energy, mech_type: str, pv_generation_kwh: float, rates: dic
         elec_kwh = cool_kwh + base_monthly + (0 if heating_is_gas else heat_kwh)
         gas_kwh  = heat_kwh if heating_is_gas else 0.0
 
-        # Net metering: PV offsets electricity in-month (bill floors at 0).
+        # Net metering: PV offsets electricity in-month (energy floors at 0,
+        # but the fixed service charge is always payable).
         net_elec_kwh = elec_kwh - pv_kwh
-        elec_cost = max(net_elec_kwh, 0) * elec_rate
-        gas_cost  = gas_kwh * gas_rate
+        elec_cost = max(net_elec_kwh, 0) * elec_rate + elec_fixed
+        gas_cost  = gas_kwh * gas_rate + (gas_fixed if heating_is_gas else 0.0)
 
         annual_elec_cost += elec_cost
         annual_gas_cost += gas_cost
