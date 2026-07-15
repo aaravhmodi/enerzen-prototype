@@ -79,6 +79,19 @@ class FramedCavity:
     def rsi_framing(self) -> float:
         return rsi(self.framing_material, self.thickness_in)
 
+    @property
+    def cost_m2(self) -> float:
+        """Insulation over the cavity fraction + framing lumber over its share."""
+        ff = self.framing_factor
+        return (cost_per_m2(self.cavity_material, self.thickness_in) * (1 - ff)
+                + cost_per_m2(self.framing_material, self.thickness_in) * ff)
+
+    @property
+    def co2_m2(self) -> float:
+        ff = self.framing_factor
+        return (co2_per_m2(self.cavity_material, self.thickness_in) * (1 - ff)
+                + co2_per_m2(self.framing_material, self.thickness_in) * ff)
+
 
 @dataclass
 class Assembly:
