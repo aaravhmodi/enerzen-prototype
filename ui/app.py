@@ -32,6 +32,23 @@ SOLAR_LABELS  = {s["id"]: s["name"] for s in CATALOG["solar"]}
 BENCH = CATALOG["benchmarks"]
 LOCATION_NAMES = location_names()
 
+CHART_INK = "#18211D"
+CHART_MUTED = "#66706A"
+CHART_LINE = "#D9DDD8"
+
+
+def chart_style(chart):
+    """Apply the same typography and neutral colors to every Altair chart."""
+    return (chart.configure(background="transparent")
+            .configure_view(stroke=None)
+            .configure_axis(labelColor=CHART_MUTED, titleColor=CHART_MUTED,
+                            domainColor=CHART_LINE, tickColor=CHART_LINE,
+                            gridColor=CHART_LINE, labelFont="Segoe UI",
+                            titleFont="Segoe UI", titleFontWeight=600)
+            .configure_legend(labelColor=CHART_MUTED, titleColor=CHART_MUTED,
+                              labelFont="Segoe UI", titleFont="Segoe UI")
+            .configure_text(font="Segoe UI", color=CHART_INK))
+
 ZONE_LABELS = {
     "6":  "Zone 6 — Toronto / Southern ON",
     "7a": "Zone 7a — Ottawa / Eastern ON",
@@ -58,16 +75,19 @@ st.markdown("""
         --selected-hover: #c9dccc;
         --focus: #f1c453;
         --disabled: #eceeea;
-        --amber: #a96820;
+        --amber: #7b4d18;
         --red: #9f3f35;
     }
-    html, body, [class*="css"] { font-family: Aptos, Inter, "Segoe UI", sans-serif; }
+    html, body, [class*="css"], button, input, select, textarea {
+        font-family: Aptos, "Segoe UI Variable", "Segoe UI", Arial, sans-serif !important;
+    }
     .stApp { background: var(--paper); color: var(--ink); }
     .block-container { padding: 2.1rem 2.5rem 5rem; max-width: 1180px; }
     header[data-testid="stHeader"] { background: transparent; }
     #MainMenu, footer { visibility: hidden; }
-    h1, h2, h3 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif !important;
-                 color: var(--ink) !important; letter-spacing: -0.025em; }
+    h1, h2, h3, h4, h5, h6 { font-family: Aptos, "Segoe UI Variable", "Segoe UI", Arial,
+                              sans-serif !important; color:var(--ink) !important;
+                              letter-spacing:-.025em; font-weight:720 !important; }
     h3 { font-size: 1.7rem !important; margin-top: 2.2rem !important; }
     h4 { margin-top: 1.5rem !important; color: var(--ink) !important; }
     p, label, .stCaption { color: var(--muted); }
@@ -77,9 +97,9 @@ st.markdown("""
     .edition { font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
     .eyebrow { color:var(--forest); font-size:.72rem; font-weight:750; letter-spacing:.14em;
                text-transform:uppercase; margin-bottom:.65rem; }
-    .hero-title { font-family:"Iowan Old Style", "Palatino Linotype", Georgia, serif;
-                  font-size:3.2rem; line-height:1.02; letter-spacing:-.045em; max-width:760px;
-                  color:var(--ink); margin:0 0 .9rem; }
+    .hero-title { font-family:Aptos, "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+                  font-size:3.05rem; line-height:1.04; font-weight:730; letter-spacing:-.045em;
+                  max-width:760px; color:var(--ink); margin:0 0 .9rem; }
     .hero-copy { font-size:1.03rem; line-height:1.6; max-width:690px; color:var(--muted);
                  margin-bottom:2rem; }
     .section-kicker { margin:2.8rem 0 .1rem; color:var(--forest); font-size:.7rem;
@@ -97,8 +117,9 @@ st.markdown("""
                                   border-radius:3px; padding:1rem 1.05rem; min-height:108px; }
     [data-testid="stMetricLabel"] { font-size:.72rem; font-weight:700; letter-spacing:.06em;
                                     text-transform:uppercase; color:var(--muted); }
-    [data-testid="stMetricValue"] { font-family:"Iowan Old Style", Georgia, serif;
-                                    font-size:1.75rem; color:var(--ink); letter-spacing:-.025em; }
+    [data-testid="stMetricValue"] { font-family:Aptos, "Segoe UI Variable", "Segoe UI", Arial,
+                                    sans-serif !important; font-size:1.7rem; font-weight:700;
+                                    color:var(--ink); letter-spacing:-.025em; }
     .pill { display:inline-flex; align-items:center; border:1px solid currentColor;
             border-radius:2px; padding:5px 9px; font-size:.7rem; font-weight:750;
             letter-spacing:.04em; text-transform:uppercase; }
@@ -416,8 +437,9 @@ bars = alt.Chart(compare).mark_bar(cornerRadiusEnd=4).encode(
         domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#214E3B"]), legend=None),
     tooltip=["label", "eui"],
 )
-labels = bars.mark_text(align="left", dx=4, color="#666").encode(text=alt.Text("eui:Q", format=".0f"))
-st.altair_chart((bars + labels).properties(height=180), use_container_width=True)
+labels = bars.mark_text(align="left", dx=4, color=CHART_MUTED).encode(
+    text=alt.Text("eui:Q", format=".0f"))
+st.altair_chart(chart_style((bars + labels).properties(height=180)), use_container_width=True)
 
 pct = round((1 - top.eui_kwh_m2_yr / bench_eui["code_built_new"]) * 100)
 st.caption(f"~{pct}% less energy than a new code-built home before solar. "
@@ -437,9 +459,9 @@ ec_bars = alt.Chart(ec).mark_bar(cornerRadiusEnd=4).encode(
         domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#214E3B"]), legend=None),
     tooltip=["label", "ec"],
 )
-ec_labels = ec_bars.mark_text(align="left", dx=4, color="#666").encode(
+ec_labels = ec_bars.mark_text(align="left", dx=4, color=CHART_MUTED).encode(
     text=alt.Text("ec:Q", format=".0f"))
-st.altair_chart((ec_bars + ec_labels).properties(height=100), use_container_width=True)
+st.altair_chart(chart_style((ec_bars + ec_labels).properties(height=100)), use_container_width=True)
 st.caption(f"Benchmark {bench_ec} kgCO₂e/m² — cradle-to-gate mean for new low-rise residential "
            "(Living Materials Lab, 2024).")
 
@@ -459,7 +481,7 @@ util_chart = alt.Chart(util_long).mark_bar().encode(
         legend=alt.Legend(title=None, orient="top")),
     tooltip=["month", "Energy", "cost"],
 ).properties(height=240)
-st.altair_chart(util_chart, use_container_width=True)
+st.altair_chart(chart_style(util_chart), use_container_width=True)
 st.caption(f"~${top.annual_utility_cost:,.0f}/yr total"
            + (" — PV net-metering credits offset summer electricity." if top.pv_capacity_kw else "")
            + " Rates: OEB electricity ~$0.16/kWh, Enbridge gas ~$0.055/kWh (2025).")
@@ -481,4 +503,4 @@ pts = alt.Chart(opts).mark_circle(size=90, opacity=0.75).encode(
         range=["#567A61", "#214E3B", "#9F3F35"]), title=None),
     tooltip=["cost", "eui", "status"],
 )
-st.altair_chart(pts.properties(height=320), use_container_width=True)
+st.altair_chart(chart_style(pts.properties(height=320)), use_container_width=True)
