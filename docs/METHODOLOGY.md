@@ -16,34 +16,48 @@ tool.
 **The energy model is simplified.** A steady-state degree-day method ignores
 thermal mass, hourly weather, real shading geometry, part-load equipment
 behaviour and distribution losses. It is not HOT2000 and is not a compliance
-tool. Reported EUIs run optimistic relative to published benchmarks; part of that
-gap is genuine performance and part is model simplification.
+tool. It is calibrated against NRCan end-use shares: a code-built home computes
+near the ~194 kWh/m2/yr provincial average, with heating the dominant end use.
+
+**Material cost and carbon values are defaults.** R-values per inch come from
+published tables and the effective-R method cross-checks well against NRCan
+(a code 2x6 R22 wall computes to ~R16 effective, matching published values). But
+the *cost* and *embodied carbon* per material are default ranges, not EnerZen's
+procurement data, and should be replaced before quoting.
 
 **Geometry is generic.** Surface areas come from floor-area ratios for typical
 residential forms, not from EnerZen's actual designed units. Storey height is
 assumed at 2.7 m for the volume calculation, while wall area comes from the
 ratios — so height is effectively assumed twice, by two unlinked routes.
 
-**Cost is dominated by a placeholder.** The 1200 CAD/m2 base cost is roughly two
-thirds of the reported total and is not modelled. Window and mechanical
-installation labour is omitted entirely.
+**Cost still carries a placeholder.** A 1200 CAD/m2 base cost covers everything
+outside the envelope/foundation model. Window and mechanical installation labour
+is omitted. (Scheduled for replacement with an itemised model.)
 
-**Build time covers envelope close only.** It is not a project schedule.
+**The thickness sweep is coarse.** Insulation is optimised over a few discrete
+thicknesses, not a continuous range, to keep the search fast.
+
+**Build time covers envelope fabrication/close only.** It is not a project
+schedule.
 
 **Cooling is glazing-driven only**, and uses a hard-coded COP of 3.5 rather than
 the selected mechanical system's rating.
 
 **Lifecycle cost omits maintenance and replacement**, which will understate the
-true cost of any system over 60 years.
+true cost of any system over its study period.
 
-**Benchmarks and rates are provincial averages** drawn from secondary sources.
-They are adequate for directional comparison in a prototype and should be
-replaced with EnerZen's own project data before any number is quoted to a client.
+**Climate zone and region are auto-classified.** Each of the 227 Ontario
+locations is assigned a zone (6/7a/7b) and utility region by a city-name
+classifier, overridable per project. Snow load (Ss/Sr) is real, from the NBCC
+2015 workbook; soil values are conservative regional defaults, not a site
+investigation.
 
-**The Monte Carlo distributions are engineering judgement.** They are plausible
-representations of as-built variance but are not calibrated against measured
-EnerZen blower-door or energy-bill data. The probability is therefore a
-structured estimate of confidence, not a validated statistic.
+**Benchmarks and rates are provincial/regional averages** from secondary
+sources, adequate for directional comparison in a prototype.
+
+**The Monte Carlo distributions are engineering judgement**, not calibrated
+against measured EnerZen data — a structured confidence estimate, not a
+validated statistic.
 
 ---
 
