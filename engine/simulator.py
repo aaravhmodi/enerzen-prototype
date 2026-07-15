@@ -154,21 +154,35 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
 
     ua_total = ua_wall + ua_roof + ua_floor + ua_windows + ua_vent
 
-    # Degree-day heating demand (kWh/yr)
-    # Solar gains reduce heating demand — south-facing captures more
-    solar_factor = {"S": 0.82, "N": 0.95, "E": 0.90, "W": 0.90}.get(spec.orientation, 0.90)
-    heating_demand = (ua_total * hdd * 24 / 1000) * solar_factor
-    heating_demand /= config.mechanical_cop * cop_factor
+    # ── Base loads ──────────────────────────────────────────────────────────
+    # Scaled to occupancy and floor area, calibrated against NRCan shares
+    # (space heating 61%, water heating ~18%, appliances/lighting ~21% of
+    # Canadian residential energy). Hot water previously divided by storeys,
+    # which had no physical basis and ran ~4x low.
+    occupants = occupants_for(spec.floor_area_m2)
+    hot_water = occupants * 1800                                # kWh/yr
+    appliances = (1500 + 20 * spec.floor_area_m2) * plug_factor  # kWh/yr
+
+    # ── Heating: gross loss less useful gains ───────────────────────────────
+    season_days = climate["heating_season_days"]
+    season_frac = season_days / 365
+    season_hours = season_days * 24
+
+    gross_loss = ua_total * hdd * 24 / 1000                     # kWh/yr
+
+    gain_internal = (appliances * APPLIANCE_TO_HEAT * season_frac
+                     + hot_water * DHW_TO_HEAT * season_frac
+                     + occupants * OCCUPANT_SENSIBLE_W * OCCUPANT_PRESENCE
+                       * season_hours / 1000)
+    gain_solar = solar_gain_kwh(window_area, config.window_shgc, spec.orientation)
+
+    useful_gains = GAIN_UTILISATION * (gain_internal + gain_solar)
+    heating_net = max(0.0, gross_loss - useful_gains)
+    heating_demand = heating_net / (config.mechanical_cop * cop_factor)
 
     # Cooling demand (simplified — smaller fraction for Canadian climate)
     cooling_demand = (ua_windows * config.window_shgc * cdd * 24 / 1000) * 0.4
     cooling_demand /= 3.5  # typical cooling COP
-
-    # Hot water (CMHC average for residential)
-    hot_water = 15 * spec.floor_area_m2 / spec.storeys  # kWh/yr, scales with units
-
-    # Appliances and lighting (fixed, not assembly-dependent)
-    appliances = 25 * spec.floor_area_m2 * plug_factor  # kWh/yr
 
     total_energy = heating_demand + cooling_demand + hot_water + appliances
     eui = total_energy / spec.floor_area_m2
