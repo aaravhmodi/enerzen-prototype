@@ -30,9 +30,11 @@ residential forms, not from EnerZen's actual designed units. Storey height is
 assumed at 2.7 m for the volume calculation, while wall area comes from the
 ratios — so height is effectively assumed twice, by two unlinked routes.
 
-**Cost still carries a placeholder.** A 1200 CAD/m2 base cost covers everything
-outside the envelope/foundation model. Window and mechanical installation labour
-is omitted. (Scheduled for replacement with an itemised model.)
+**Cost is itemized but rates are defaults.** The old 1200 CAD/m2 blanket is
+gone; every line (connections, partitions, finishes, mechanical, fit-out,
+contingency) is explicit, but the unit rates are published Canadian defaults
+awaiting EnerZen procurement data. Window and mechanical installation labour is
+still omitted. Fit-out and services remain a single 650 CAD/m2 lump.
 
 **The thickness sweep is coarse.** Insulation is optimised over a few discrete
 thicknesses, not a continuous range, to keep the search fast.
