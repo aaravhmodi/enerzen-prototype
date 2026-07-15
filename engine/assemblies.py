@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from engine.rvalue import Assembly, Layer, FramedCavity
-from engine.foundation import SlabOnGrade, EPS_MM_OPTIONS
+from engine.foundation import SlabOnGrade, RaisedFloorFoundation, EPS_MM_OPTIONS
 
 
 @dataclass
@@ -93,11 +93,12 @@ def _floor_slab(eps_mm: float, *, floor_area_m2: float = 150.0, storeys: int = 1
     return SlabOnGrade(eps_mm, floor_area_m2, storeys, frost_depth_m)
 
 
-def _floor_cassette(rigid_in: float, **_geom) -> Assembly:
-    layers = [Layer("osb", 0.75)]
-    return Assembly("Raised floor cassette", "floor", layers,
-                    FramedCavity("mineral_wool_batt", 9.25, framing_factor=0.10),
-                    exterior_film=False)
+def _floor_cassette(rigid_in: float, *, floor_area_m2: float = 150.0,
+                    storeys: int = 1, frost_depth_m: float = 1.2) -> RaisedFloorFoundation:
+    asm = Assembly("Raised floor cassette", "floor", [Layer("osb", 0.75)],
+                   FramedCavity("mineral_wool_batt", 9.25, framing_factor=0.10),
+                   exterior_film=False)
+    return RaisedFloorFoundation(asm, floor_area_m2, storeys, frost_depth_m)
 
 
 @dataclass
