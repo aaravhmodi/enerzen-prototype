@@ -269,7 +269,7 @@ def snow_table(cat) -> str:
             "| Tier | Name | Max roof load kPa | Joist depth |",
             "| --- | --- | --- | --- |"]
     for t in s["tiers"]:
-        cap = "no limit" if t["max_roof_load_kpa"] > 90 else t["max_roof_load_kpa"]
+        cap = "no limit" if t["max_ground_load_kpa"] > 90 else t["max_ground_load_kpa"]
         rows.append(f"| {t['id']} | {t['name']} | {cap} | {t['joist_depth_in']}\" |")
     return "\n".join(rows)
 

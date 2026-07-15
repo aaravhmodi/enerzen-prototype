@@ -79,7 +79,8 @@ class SlabOnGrade:
         edge_co2 = co2_per_m2("concrete", edge_in) * edge_area / footprint
         self.co2_m2 = round(slab_co2 + eps_co2 + edge_co2, 2)
 
-        self.name = f"Slab on grade — {eps_mm:.0f} mm sub-slab EPS ({STRIP_WIDTH_M} m perimeter strip)"
+        self.name = (f"Slab on grade — {eps_mm:.0f} mm EPS blanket "
+                     f"(+{STRIP_WIDTH_M} m each edge)")
         slab_volume = footprint * SLAB_MM / 1000
         eps_volume = eps_area * eps_mm / 1000
         frost_wall_volume = perimeter * frost_depth_m * EDGE_WALL_MM / 1000
