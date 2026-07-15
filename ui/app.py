@@ -173,7 +173,9 @@ a[0].markdown(
     f"- **Wall** — {WALL_LABELS[top.wall_id]}{_rigid(top.wall_ext_rigid_in)}\n"
     f"- **Roof** — {ROOF_LABELS[top.roof_id]} ({top.joist_depth_in}\" joist)"
     f"{_rigid(top.roof_deck_rigid_in)}\n"
-    f"- **Floor** — {FLOOR_LABELS[top.floor_id]}")
+    f"- **Floor** — {FLOOR_LABELS[top.floor_id]}"
+    + (f" ({top.floor_rigid_in:g} mm sub-slab EPS, 1.5 m perimeter strip)"
+       if top.floor_id == "FA1" else " (grade-beam foundation)"))
 a[1].markdown(
     f"- **Windows** — {WINDOW_LABELS[top.window_id]}\n"
     f"- **Mechanical** — {MECH_LABELS[top.mechanical_id]}\n"
