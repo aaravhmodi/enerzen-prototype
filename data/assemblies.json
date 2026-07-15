@@ -196,15 +196,35 @@
     }
   },
   "energy_rates": {
-    "_note": "Ontario residential all-in retail energy prices, 2025. Used for utility bill and lifecycle cost estimates.",
+    "_note": "Ontario residential all-in retail energy prices, 2025. Electricity varies by region (delivery); see 'regions'. Commodity + carbon factors are province-wide.",
     "electricity_cad_per_kwh": 0.16,
-    "electricity_source": "OEB TOU/tiered ~12c/kWh energy + delivery/regulatory; blended all-in Nov 2025",
+    "electricity_source": "OEB TOU/tiered ~12c/kWh energy + delivery/regulatory; blended all-in Nov 2025 (province-wide fallback)",
     "natural_gas_cad_per_kwh": 0.055,
     "natural_gas_source": "Enbridge Ontario all-in ~$0.50/m3 / 10.35 kWh per m3",
     "grid_intensity_kg_co2e_per_kwh": 0.074,
     "grid_intensity_source": "The Atmospheric Fund, Ontario Emissions Factors 2024 (73.8 gCO2e/kWh)",
     "solar_rebate_cad": 5000,
     "solar_rebate_source": "Ontario Home Renovation Savings Program (HRS), ~$5k toward rooftop PV"
+  },
+  "regions": {
+    "_note": "Regional electricity rates reflect delivery-charge differences (energy commodity is uniform province-wide). Hydro One rural/northern delivery runs 15-50% above Toronto Hydro (OEB / Hydro One 2025). Soil values are conservative regional defaults for foundation sizing and are overridable per project.",
+    "toronto":  {"name": "Toronto (Toronto Hydro)",        "electricity_cad_per_kwh": 0.155, "natural_gas_cad_per_kwh": 0.055, "allowable_bearing_kpa": 150, "frost_depth_m": 1.2},
+    "southern": {"name": "Southern Ontario (mixed LDCs)",  "electricity_cad_per_kwh": 0.165, "natural_gas_cad_per_kwh": 0.055, "allowable_bearing_kpa": 150, "frost_depth_m": 1.2},
+    "eastern":  {"name": "Eastern/Central (Hydro One)",    "electricity_cad_per_kwh": 0.175, "natural_gas_cad_per_kwh": 0.058, "allowable_bearing_kpa": 125, "frost_depth_m": 1.5},
+    "northern": {"name": "Northern Ontario (Hydro One)",   "electricity_cad_per_kwh": 0.195, "natural_gas_cad_per_kwh": 0.060, "allowable_bearing_kpa": 125, "frost_depth_m": 1.8}
+  },
+  "snow": {
+    "_note": "Roof snow load S = Is[Ss(Cb.Cw.Cs.Ca) + Sr] per NBCC 2015. Residential defaults: Is=1.0 (Normal importance), Cb=0.8, Cw=Cs=Ca=1.0, so S = 0.8*Ss + Sr. Tier sets roof joist depth, which Phase 3 uses to set roof cavity R-value and cost.",
+    "importance_factor_uls": 1.0,
+    "basic_roof_factor_cb": 0.8,
+    "wind_exposure_cw": 1.0,
+    "slope_factor_cs": 1.0,
+    "accumulation_factor_ca": 1.0,
+    "tiers": [
+      {"id": "S1", "name": "Light (roof S <= 2.5 kPa)",   "max_roof_load_kpa": 2.5, "joist_depth_in": 10},
+      {"id": "S2", "name": "Medium (2.5-3.0 kPa)",        "max_roof_load_kpa": 3.0, "joist_depth_in": 12},
+      {"id": "S3", "name": "Heavy (> 3.0 kPa)",           "max_roof_load_kpa": 99.0, "joist_depth_in": 14}
+    ]
   },
   "solar": [
     {
