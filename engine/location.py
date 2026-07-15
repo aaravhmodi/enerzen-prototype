@@ -2,7 +2,7 @@
 Location resolution: a place name -> the parameters the rest of the engine needs.
 
 A single location choice drives four things:
-  - snow load  : roof snow load S (NBCC 2015) -> structural snow tier / joist depth
+  - snow load  : ground Ss -> preliminary option/joist; roof S also reported
   - climate    : climate zone (HDD/CDD, TEDI threshold) for the energy model
   - rates      : regional electricity/gas prices for utility + lifecycle cost
   - soil       : allowable bearing + frost depth for foundation sizing

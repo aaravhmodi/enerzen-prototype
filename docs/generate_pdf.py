@@ -263,10 +263,10 @@ def regions_table(cat) -> str:
 
 def snow_table(cat) -> str:
     s = cat["snow"]
-    rows = ["### Snow tiers (roof load -> joist depth)", "",
+    rows = ["### Snow options (ground Ss -> preliminary joist depth)", "",
             f"Roof load S = Is[Ss(Cb.Cw.Cs.Ca) + Sr], with Is={s['importance_factor_uls']}, "
             f"Cb={s['basic_roof_factor_cb']}, Cw=Cs=Ca=1.0.", "",
-            "| Tier | Name | Max roof load kPa | Joist depth |",
+            "| Tier | Name | Max ground Ss kPa | Joist depth |",
             "| --- | --- | --- | --- |"]
     for t in s["tiers"]:
         cap = "no limit" if t["max_ground_load_kpa"] > 90 else t["max_ground_load_kpa"]

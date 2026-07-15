@@ -26,10 +26,11 @@ published tables and the effective-R method cross-checks well against NRCan
 the *cost* and *embodied carbon* per material are default ranges, not EnerZen's
 procurement data, and should be replaced before quoting.
 
-**Geometry is generic.** Surface areas come from floor-area ratios for typical
-residential forms, not from EnerZen's actual designed units. Storey height is
-assumed at 2.7 m for the volume calculation, while wall area comes from the
-ratios — so height is effectively assumed twice, by two unlinked routes.
+**Geometry is partly explicit.** Footprint length and width are entered, and
+conditioned floor area is their product times the storey count. Foundation area,
+perimeter and quantities use those dimensions. Wall and roof areas still come
+from typical residential floor-area ratios rather than designed elevations and
+roof geometry. A 2.7 m storey height converts total floor area to air volume.
 
 **Cost is itemized but rates are defaults.** The old 1200 CAD/m2 blanket is
 gone; every line (connections, partitions, finishes, mechanical, fit-out,
@@ -175,7 +176,7 @@ the test condition; the model uses the standard **divide-by-20 rule of thumb**:
 
 ```
 ACH_natural     = ACH50 / 20
-volume          = floor_area x 2.7 x storeys
+volume          = total_conditioned_floor_area x 2.7
 UA_infiltration = ACH_natural x volume x 0.33
 ```
 
@@ -381,33 +382,36 @@ per assembly type (panelized assemblies install fastest).
 
 ### 4.4 Foundation (`engine/foundation.py`)
 
-**Slab on grade.** A 100 mm concrete slab with sub-slab rigid EPS in a 1.5 m
-strip around the perimeter — the zone where slab heat loss concentrates. The
-strip thickness is swept by the optimizer: 100 / 150 / 200 / 250 mm. Ground
-coupling is modelled with two parallel paths, area-weighted by the strip's
-share of the footprint:
+**Slab on grade.** A 100 mm concrete slab sits on a continuous rigid-EPS
+blanket. The blanket covers the footprint and extends **1.5 m beyond all four
+sides**. For footprint length `L` and width `W`:
 
 ```
-U_strip = 1 / (film + concrete + EPS + shallow-soil RSI)     soil RSI 0.5
-U_core  = 1 / (film + concrete + deep-soil RSI)              soil RSI 2.0
-U_slab  = [f x U_strip + (1-f) x U_core] x 0.6
+footprint_area = L x W
+EPS_area       = (L + 3.0) x (W + 3.0)
+slab_volume    = footprint_area x 0.100
+EPS_volume     = EPS_area x EPS_thickness
+
+U_slab = [1 / (film + concrete + EPS + deep-soil RSI)] x 0.6
 ```
 
-The 0.6 factor accounts for ground being warmer than outdoor air over the
-heating season, so the degree-day model can use `U_slab` against air HDD
-unchanged. The slab core is left uninsulated, matching Part 9 practice — deep
-ground is already resistive, so core insulation buys little.
+EPS thickness is swept at 100 / 150 / 200 / 250 mm. For an 8 x 20 m footprint,
+the blanket is 11 x 23 m = 253 m2. The 0.6 factor accounts for ground being
+warmer than outdoor air over the heating season. The exterior wing's material
+quantity, cost and carbon are included; its additional reduction of edge heat
+loss is not separately credited in this simplified thermal model.
 
 **Frost wall.** A 300 mm thickened edge runs the perimeter down to the
 location's frost depth (section 5). Northern locations with deeper frost lines
-pay for more concrete — the location drives foundation cost directly.
+pay for more concrete — the location drives foundation cost directly. Reported
+quantities include slab concrete, EPS area/volume and frost-wall concrete volume.
 
 **Raised cassette.** The alternative floor is costed *with* the perimeter
 grade beam (250 mm, to frost depth) it must sit on, so the two floor systems
 compare fairly — neither gets its foundation for free.
 
-The plan is assumed square for perimeter purposes, consistent with the area
-ratios in section 6.
+If explicit footprint dimensions are unavailable to the Python API, the fallback
+is a square plan with the same footprint area. The UI always supplies dimensions.
 
 ---
 
@@ -435,10 +439,15 @@ S = Is x [Ss x (Cb x Cw x Cs x Ca) + Sr]
 ```
 
 Residential defaults: Is = 1.0 (Normal importance), Cb = 0.8, Cw = Cs = Ca = 1.0,
-so `S = 0.8 x Ss + Sr`. The resulting roof load selects a snow tier, which sets
-the roof joist depth (section 12). Deeper joists hold more insulation, so snow
-load feeds directly into the achievable roof R-value and cost. Five remote
-northern locations exceed the top tier and are flagged for structural review.
+so `S = 0.8 x Ss + Sr`. The MVP's requested preliminary options are selected
+from **ground snow Ss**: Option 1 at `Ss <= 2.5 kPa`, and Option 2 at
+`2.5 < Ss <= 3.0 kPa`. Fourteen Ontario locations exceed 3.0 kPa and are placed
+in an out-of-range placeholder tier and flagged for structural review.
+
+The placeholder mapping is 10 / 12 / 14 inch joist depth for Option 1 / Option 2
+/ out-of-range. Deeper joists hold more insulation, so the selection changes
+roof R-value and cost. This is not structural design: span, spacing, dead load,
+slope, species/grade, product capacity and deflection still require an engineer.
 
 ---
 

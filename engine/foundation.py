@@ -1,17 +1,14 @@
 """
 Slab-on-grade foundation model (Phase 4).
 
-Concrete slab over a sub-slab rigid EPS strip around the perimeter — the zone
-where slab heat loss actually concentrates. The strip is 1.5 m wide; its
-thickness is swept by the optimizer (100/150/200/250 mm). The slab core loses
-heat through deep ground, which is far more resistive, so insulating the core
-buys little — this matches Part 9 practice.
+Concrete slab over a continuous rigid EPS blanket. The blanket covers the slab
+and extends 1.5 m outside every edge; thickness is swept by the optimizer
+(100/150/200/250 mm).
 
-Heat loss model (parallel paths, area-weighted like rvalue.py):
+Heat loss model:
 
-    U_strip = 1 / (film + concrete + EPS + shallow-soil RSI)
-    U_core  = 1 / (film + concrete + deep-soil  RSI)
-    U_slab  = (f x U_strip + (1-f) x U_core) x GROUND_TEMP_FACTOR
+    U_slab = 1 / (film + concrete + EPS + deep-soil RSI)
+    U_effective = U_slab x GROUND_TEMP_FACTOR
 
 where f is the strip's share of the footprint. GROUND_TEMP_FACTOR scales for
 ground being warmer than outdoor air over the heating season, so the degree-day
