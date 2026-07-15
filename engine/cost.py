@@ -140,16 +140,21 @@ def estimate_schedule(spec, env) -> dict:
 
     # 4-person crew, 40hr week
     crew_size = 4
-    weeks = labour_hours / (crew_size * 40)
+    install_weeks = labour_hours / (crew_size * 40)
 
     # Panel counts (approximate 2.4m x 3.0m standard panel)
     panel_area = 2.4 * 3.0
     wall_panels  = max(1, round(opaque_wall / panel_area))
     roof_panels  = max(1, round(roof_area / panel_area))
     floor_panels = max(1, round(floor_area / panel_area))
+    total_panels = wall_panels + roof_panels + floor_panels
+
+    fab_weeks = FAB_SETUP_WEEKS + total_panels / FACTORY_PANELS_PER_WEEK
 
     return {
-        "weeks_to_envelope_close": round(weeks, 1),
+        "weeks_to_envelope_close": round(fab_weeks + install_weeks, 1),
+        "fabrication_weeks": round(fab_weeks, 1),
+        "install_weeks": round(install_weeks, 1),
         "total_labour_hours": round(labour_hours, 1),
         "panel_counts": {
             "wall_panels":  wall_panels,
