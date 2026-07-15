@@ -158,79 +158,90 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         infiltration_ach50=ach50,
     )
 
-    results = []
-
-    combos = itertools.product(
-        catalog["wall_panels"],
-        catalog["roof_cassettes"],
-        catalog["floor_cassettes"],
-        catalog["windows"],
-        catalog["mechanical"],
-    )
+    # Roof joist depth is set by the structural snow tier (from location).
+    # Without a location, default to the lightest tier.
+    joist_depth = loc.joist_depth_in if loc else catalog["snow"]["tiers"][0]["joist_depth_in"]
 
     all_configs = []
-    for wall, roof, floor_c, window, mech in combos:
-        assembly = AssemblyConfig(
-            wall_u=wall["u_value"],
-            roof_u=roof["u_value"],
-            floor_u=floor_c["u_value"],
-            window_u=window["u_value"],
-            window_shgc=window["shgc"],
-            mechanical_cop=mech.get("heating_cop", 1.0),
-            mechanical_type=mech["type"],
-            hrv_efficiency=mech.get("hrv_efficiency", 0.0),
-        )
+    for wall_opt, roof_opt, floor_opt, window, mech in itertools.product(
+            WALLS, ROOFS, FLOORS, catalog["windows"], catalog["mechanical"]):
+        for w_rigid, r_rigid, f_rigid in itertools.product(
+                wall_opt.sweep, roof_opt.sweep, floor_opt.sweep):
 
-        energy = simulate(building, assembly)
-        cost_data = estimate_cost(spec, wall, roof, floor_c, window, mech)
-        carbon_data = calculate_carbon(spec, wall, roof, floor_c, window, mech, energy)
-        schedule = estimate_schedule(spec, wall, roof, floor_c)
+            wall_asm  = wall_opt.build(w_rigid)
+            roof_asm  = roof_opt.build(joist_depth, r_rigid)
+            floor_asm = floor_opt.build(f_rigid)
 
-        # Net operational energy after on-site PV generation
-        net_operational = energy.total_energy_kwh_yr - solar["annual_generation_kwh"]
-        net_eui = net_operational / spec.floor_area_m2
+            env = EnvelopeCombo(
+                wall_id=wall_opt.id, roof_id=roof_opt.id, floor_id=floor_opt.id,
+                wall=wall_asm, roof=roof_asm, floor=floor_asm,
+                wall_ext_rigid_in=w_rigid, roof_deck_rigid_in=r_rigid,
+                floor_rigid_in=f_rigid, joist_depth_in=joist_depth,
+                wall_hours_per_m2=wall_opt.install_hours_per_m2,
+                roof_hours_per_m2=roof_opt.install_hours_per_m2,
+                floor_hours_per_m2=floor_opt.install_hours_per_m2,
+            )
 
-        total_cost = cost_data["total_per_unit"] + solar["cost"]
+            assembly = AssemblyConfig(
+                wall_u=wall_asm.u_value,
+                roof_u=roof_asm.u_value,
+                floor_u=floor_asm.u_value,
+                window_u=window["u_value"],
+                window_shgc=window["shgc"],
+                mechanical_cop=mech.get("heating_cop", 1.0),
+                mechanical_type=mech["type"],
+                hrv_efficiency=mech.get("hrv_efficiency", 0.0),
+            )
 
-        # Skip over budget (envelope + PV)
-        if total_cost > spec.budget_per_unit:
-            continue
+            energy = simulate(building, assembly)
+            cost_data = estimate_cost(spec, env, window, mech)
+            carbon_data = calculate_carbon(spec, env, window, mech, energy)
+            schedule = estimate_schedule(spec, env)
 
-        # For NZR target, skip non-compliant configs (envelope-based)
-        if spec.target_label == "nzr" and not energy.nzr_compliant:
-            continue
+            net_operational = energy.total_energy_kwh_yr - solar["annual_generation_kwh"]
+            net_eui = net_operational / spec.floor_area_m2
+            total_cost = cost_data["total_per_unit"] + solar["cost"]
 
-        utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
-        lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate)
-        nzr_prob = nzr_probability(building, assembly)
+            if total_cost > spec.budget_per_unit:
+                continue
+            if spec.target_label == "nzr" and not energy.nzr_compliant:
+                continue
 
-        result = ConfigResult(
-            wall_id=wall["id"],
-            roof_id=roof["id"],
-            floor_id=floor_c["id"],
-            window_id=window["id"],
-            mechanical_id=mech["id"],
-            construction_cost=total_cost,
-            construction_weeks=schedule["weeks_to_envelope_close"],
-            embodied_carbon_kg_co2e_m2=carbon_data["total_per_m2"]
-                + solar["embodied_carbon_kg_co2e"] / spec.floor_area_m2,
-            eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
-            nzr_compliant=energy.nzr_compliant,
-            nzr_probability=nzr_prob,
-            energuide_score=energy.energuide_score,
-            pv_capacity_kw=solar["capacity_kw"],
-            pv_generation_kwh_yr=solar["annual_generation_kwh"],
-            net_operational_energy_kwh_yr=round(net_operational, 0),
-            net_eui_kwh_m2_yr=round(net_eui, 1),
-            net_zero=net_operational <= 0,
-            annual_utility_cost=utility["annual_total"],
-            avg_monthly_utility=utility["avg_monthly"],
-            lifecycle_cost_60yr=lcc["total"],
-            energy=energy,
-            panel_schedule=schedule["panel_counts"],
-            utility=utility,
-        )
-        all_configs.append(result)
+            utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
+            lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate)
+
+            result = ConfigResult(
+                wall_id=wall_opt.id,
+                roof_id=roof_opt.id,
+                floor_id=floor_opt.id,
+                window_id=window["id"],
+                mechanical_id=mech["id"],
+                construction_cost=total_cost,
+                construction_weeks=schedule["weeks_to_envelope_close"],
+                embodied_carbon_kg_co2e_m2=carbon_data["total_per_m2"]
+                    + solar["embodied_carbon_kg_co2e"] / spec.floor_area_m2,
+                eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
+                nzr_compliant=energy.nzr_compliant,
+                nzr_probability=0.0,   # deferred; computed for top configs below
+                energuide_score=energy.energuide_score,
+                pv_capacity_kw=solar["capacity_kw"],
+                pv_generation_kwh_yr=solar["annual_generation_kwh"],
+                net_operational_energy_kwh_yr=round(net_operational, 0),
+                net_eui_kwh_m2_yr=round(net_eui, 1),
+                net_zero=net_operational <= 0,
+                annual_utility_cost=utility["annual_total"],
+                avg_monthly_utility=utility["avg_monthly"],
+                lifecycle_cost_60yr=lcc["total"],
+                wall_ext_rigid_in=w_rigid,
+                roof_deck_rigid_in=r_rigid,
+                floor_rigid_in=f_rigid,
+                joist_depth_in=joist_depth,
+                energy=energy,
+                panel_schedule=schedule["panel_counts"],
+                utility=utility,
+                _assembly=assembly,
+            )
+            all_configs.append(result)
 
     if not all_configs:
         return []
