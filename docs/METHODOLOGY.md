@@ -89,7 +89,7 @@ Project inputs
       |-- cost.py      : construction cost, build schedule
       |-- carbon.py    : embodied + operational carbon
       |-- solar.py     : PV generation, cost, carbon
-      |-- finance.py   : monthly utility bill, 60-year lifecycle cost
+      |-- finance.py   : monthly utility bill, 30- and 20-year lifecycle cost
       |
       v
   Filter (budget, target label)
@@ -529,14 +529,19 @@ total_cost = construction_cost + pv_capacity_kw x pv_cost_per_kw
 Source: `engine/cost.py`
 
 ```
-weeks = labour_hours / (4 x 40)
+fab_weeks     = 1 + total_panels / 30
+install_weeks = labour_hours / (4 x 40)
+weeks          = fab_weeks + install_weeks
 ```
 
-A four-person crew working a forty-hour week gives 160 labour-hours per week.
-Labour hours are exactly those from the cost model.
+A factory setup allowance of one week covers shop drawings, CNC programming and
+material staging, followed by production at **30 panels per week** on one line.
+A four-person site crew working a forty-hour week gives 160 labour-hours per
+week. Labour hours are exactly those from the cost model.
 
-Using the worked example above, 135.9 hours gives roughly 0.85 weeks. The same
-home in stick-frame assemblies (W1/R1/F1) needs about 312.6 hours, or roughly
+Fabrication and installation are added sequentially as a conservative headline;
+in practice, installation may begin once the first panel packages ship. The old
+worked comparison to retired catalog assemblies has been removed.
 2.0 weeks — about 2.3 times slower.
 
 Panel counts assume a standard 2.4 m x 3.0 m panel:
@@ -549,10 +554,13 @@ floor_panels = round(floor_area_surf / panel_area)
 crane_lifts  = wall_panels + roof_panels + floor_panels
 ```
 
-**Scope limitation.** This figure is time to *envelope close* only. Foundation,
-window and mechanical installation, interior fit-out, inspections and cure times
-are excluded, as is any allowance for weather, staging or crane scheduling. It is
-not a project programme.
+**Scope limitation.** This figure is factory fabrication plus site installation
+to *envelope close* only. Window and mechanical installation, interior fit-out,
+inspections and cure times are excluded, as is any allowance for weather, site
+staging, shipping or crane scheduling. Foundation effort is represented through
+the selected floor/foundation assembly's install hours, but real excavation and
+cure sequencing require a project-specific programme. The result is not a full
+construction schedule.
 
 ---
 
@@ -659,19 +667,25 @@ gas_kwh      = heating_share if plant is gas else 0
 net_elec     = elec_kwh - pv_generation_share
 elec_cost    = max(net_elec, 0) x electricity_rate
 gas_cost     = gas_kwh x gas_rate
+monthly_bill = elec_cost + 35 CAD electricity fixed charge
+             + (25 CAD gas fixed charge if heating is gas)
 ```
 
 Net metering is modelled within the month, and the bill floors at zero: surplus
-generation offsets consumption but is not paid out or banked across months.
+generation offsets consumption but is not paid out or banked across months. The
+electricity service charge is always payable; the gas customer charge applies
+only to gas-heated configurations. Both defaults come from `energy_rates` and
+should be replaced with the applicable utility's current tariff.
 
 ### 10.2 Lifecycle cost
 
-A 60-year present-value calculation.
+The headline is a 30-year present-value calculation, with a 20-year alternate
+reported alongside it.
 
 ```
 upfront = construction_cost + pv_cost - solar_rebate
 
-for each year y in 1..60:
+for each year y in 1..30 (and separately 1..20):
     escalated = annual_energy_cost x (1 + 0.02)^(y-1)
     pv_energy = pv_energy + escalated / (1 + 0.03)^y
 
@@ -680,12 +694,13 @@ lifecycle_total = upfront + pv_energy
 
 | Parameter | Value |
 | --- | --- |
-| Study period | 60 years |
+| Study period | 30 years headline; 20 years alternate |
 | Discount rate | 3 percent |
 | Energy price escalation | 2 percent per year |
 
-Maintenance, component replacement (a heat pump will not last 60 years) and
-residual value are **not** modelled.
+Maintenance, component replacement and residual value are **not** modelled.
+Thirty years can still exceed the service life of some mechanical components,
+so lifecycle totals should not be read as a full asset-management forecast.
 
 ---
 

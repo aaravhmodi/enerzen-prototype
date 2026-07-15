@@ -224,7 +224,22 @@ st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 # ── How EnerZen compares ─────────────────────────────────────────────────────
 st.markdown("#### How this home compares")
-st.caption("Energy use intensity vs. typical Ontario homes. Lower is better.")
+st.caption("Envelope demand and whole-home energy intensity. Lower is better.")
+
+intensity = st.columns(3)
+intensity[0].metric(
+    "TEDI", f"{top.energy.tedi_kwh_m2_yr:g} kWh/mÂ²/yr",
+    delta=f"{top.energy.tedi_kwh_m2_yr - top.energy.nzr_threshold:+g} vs NZR limit",
+    delta_color="inverse",
+    help="Thermal Energy Demand Intensity: envelope heating demand before plant efficiency.")
+intensity[1].metric(
+    "MEUI", f"{top.energy.meui_kwh_m2_yr:g} kWh/mÂ²/yr",
+    help="Mechanical Energy Use Intensity: purchased heating, cooling and hot-water energy.")
+intensity[2].metric(
+    "Total site EUI", f"{top.eui_kwh_m2_yr:g} kWh/mÂ²/yr",
+    help="All purchased site energy before solar, including appliances and lighting.")
+st.caption(f"This climate zone's Net Zero Ready TEDI threshold is "
+           f"{top.energy.nzr_threshold:g} kWh/mÂ²/yr.")
 
 bench_eui = BENCH["eui_kwh_m2_yr"]
 compare = pd.DataFrame([
@@ -245,14 +260,12 @@ bars = alt.Chart(compare).mark_bar(cornerRadiusEnd=4).encode(
     tooltip=["label", "eui"],
 )
 labels = bars.mark_text(align="left", dx=4, color="#666").encode(text=alt.Text("eui:Q", format=".0f"))
-nzr_rule = alt.Chart(pd.DataFrame({"x": [top.energy.nzr_threshold]})).mark_rule(
-    color="#1E8449", strokeDash=[4, 4]).encode(x="x:Q")
-st.altair_chart((bars + labels + nzr_rule).properties(height=180), use_container_width=True)
+st.altair_chart((bars + labels).properties(height=180), use_container_width=True)
 
 pct = round((1 - top.eui_kwh_m2_yr / bench_eui["code_built_new"]) * 100)
-st.caption(f"~{pct}% less energy than a new code-built home "
-           f"(green dashed line = Net Zero Ready threshold, {top.energy.nzr_threshold:g}). "
-           "Benchmarks: NRCan residential intensity, CHBA Net Zero program.")
+st.caption(f"~{pct}% less energy than a new code-built home before solar. "
+           "Benchmarks: NRCan residential intensity, CHBA Net Zero program. "
+           "The EUI comparison and TEDI compliance test are intentionally kept separate.")
 
 # Embodied carbon vs. benchmark
 bench_ec = BENCH["embodied_carbon_kg_co2e_m2"]["conventional_new_build"]
