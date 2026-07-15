@@ -18,6 +18,24 @@ from typing import Callable
 
 from engine.rvalue import Assembly, Layer, FramedCavity
 
+
+@dataclass
+class EnvelopeCombo:
+    """One resolved wall+roof+floor selection with its build parameters."""
+    wall_id: str
+    roof_id: str
+    floor_id: str
+    wall: Assembly
+    roof: Assembly
+    floor: Assembly
+    wall_ext_rigid_in: float
+    roof_deck_rigid_in: float
+    floor_rigid_in: float
+    joist_depth_in: int
+    wall_hours_per_m2: float
+    roof_hours_per_m2: float
+    floor_hours_per_m2: float
+
 # Coarse thickness sweeps (inches). Kept small so the optimizer stays fast.
 WALL_EXT_RIGID_IN = [0, 2, 4]      # exterior continuous mineral wool
 ROOF_DECK_RIGID_IN = [0, 2, 4]     # rigid above the roof deck
