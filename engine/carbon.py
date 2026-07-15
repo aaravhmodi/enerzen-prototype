@@ -19,7 +19,7 @@ SURFACE_RATIOS = {
 }
 
 
-def calculate_carbon(spec, wall, roof, floor_c, window, mech, energy_result) -> dict:
+def calculate_carbon(spec, env, window, mech, energy_result) -> dict:
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area   = spec.floor_area_m2 * ratios["wall"]
     roof_area   = spec.floor_area_m2 * ratios["roof"]
@@ -27,13 +27,12 @@ def calculate_carbon(spec, wall, roof, floor_c, window, mech, energy_result) -> 
     window_area = wall_area * spec.window_to_wall_ratio
     opaque_wall = wall_area - window_area
 
-    embodied = (
-        opaque_wall * wall["embodied_carbon_kg_co2e_m2"] +
-        roof_area   * roof["embodied_carbon_kg_co2e_m2"] +
-        floor_area  * floor_c["embodied_carbon_kg_co2e_m2"] +
-        window_area * window["embodied_carbon_kg_co2e_m2"] +
-        mech["embodied_carbon_kg_co2e"]
-    )
+    wall_c  = opaque_wall * env.wall.co2_m2
+    roof_c  = roof_area   * env.roof.co2_m2
+    floor_c_ = floor_area * env.floor.co2_m2
+    window_c = window_area * window["embodied_carbon_kg_co2e_m2"]
+    mech_c   = mech["embodied_carbon_kg_co2e"]
+    embodied = wall_c + roof_c + floor_c_ + window_c + mech_c
 
     grid_factor = GAS_FACTOR if mech["type"] == "gas" else ONTARIO_GRID_FACTOR
     operational_annual = energy_result.total_energy_kwh_yr * grid_factor
