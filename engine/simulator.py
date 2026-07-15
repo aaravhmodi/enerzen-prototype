@@ -217,14 +217,15 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
 
 
 def nzr_probability(spec: BuildingSpec, config: AssemblyConfig,
-                    pv_offset_eui: float = 0.0, n: int = 400, seed: int = 42) -> float:
+                    n: int = 400, seed: int = 42) -> float:
     """
-    Probability the home meets its Net Zero Ready EUI threshold once real-world
+    Probability the home meets its Net Zero Ready TEDI threshold once real-world
     variance is accounted for. Monte Carlo: sample the uncertain inputs, run the
-    model, and return the fraction of runs at or below threshold.
+    model, and return the fraction of runs whose TEDI is at or below threshold.
 
-    pv_offset_eui: EUI offset from on-site PV (kWh/m²/yr) subtracted from each
-    sampled result — lets solar improve the odds.
+    The test is on TEDI (envelope heating demand), matching the deterministic
+    nzr_compliant flag — so PV, which offsets purchased energy rather than
+    envelope demand, does not enter here.
 
     Distributions reflect typical as-built construction variance:
       weather-year severity   ~ Normal(1.00, 0.06)
@@ -234,7 +235,7 @@ def nzr_probability(spec: BuildingSpec, config: AssemblyConfig,
       mechanical COP derate   ~ Normal(0.97, 0.05)
     """
     rng = random.Random(seed)
-    threshold = CLIMATE[spec.climate_zone]["nzr_eui"]
+    threshold = CLIMATE[spec.climate_zone]["nzr_tedi"]
     hits = 0
     for _ in range(n):
         weather = max(0.7, rng.gauss(1.00, 0.06))
@@ -243,6 +244,6 @@ def nzr_probability(spec: BuildingSpec, config: AssemblyConfig,
         cop     = max(0.6, rng.gauss(0.97, 0.05))
         r = simulate(spec, config, weather_factor=weather, infiltration_factor=infil,
                      plug_factor=plug, cop_factor=cop)
-        if r.eui_kwh_m2_yr - pv_offset_eui <= threshold:
+        if r.tedi_kwh_m2_yr <= threshold:
             hits += 1
     return round(hits / n, 3)
