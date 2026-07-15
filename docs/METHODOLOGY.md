@@ -416,7 +416,7 @@ Source: `engine/cost.py`
 total = materials + labour + base_cost
 ```
 
-### 4.1 Materials
+### 6.1 Materials
 
 Each surface area multiplied by its catalog unit rate, plus the flat mechanical
 system cost.
@@ -429,7 +429,7 @@ materials = opaque_wall_area x wall_cost_per_m2
           + mechanical_cost
 ```
 
-### 4.2 Labour
+### 6.2 Labour
 
 Only wall, roof and floor installation hours are counted. Window and mechanical
 installation labour is **not** modelled.
@@ -446,7 +446,7 @@ The blended crew rate is **75 CAD/hour**. This is where panelized assemblies pay
 off: they cost more per square metre in materials but need roughly half the
 installation hours.
 
-### 4.3 Base cost
+### 6.3 Base cost
 
 ```
 base_cost = floor_area x 1200
@@ -460,7 +460,7 @@ assemblies only moves the parts that genuinely differ. The consequence is that
 roughly two thirds of the reported cost is a placeholder rather than a modelled
 quantity, and assembly choice only swings the remaining third.
 
-### 4.4 Solar
+### 6.4 Solar
 
 PV is added on top of the construction cost in the optimizer:
 
@@ -468,7 +468,7 @@ PV is added on top of the construction cost in the optimizer:
 total_cost = construction_cost + pv_capacity_kw x pv_cost_per_kw
 ```
 
-### 4.5 Worked example
+### 6.5 Worked example
 
 A 150 m2, two-storey home, 20 percent window-to-wall, with wall W4, roof R2,
 floor F2, windows GL2 and mechanical M3.
@@ -495,7 +495,7 @@ floor_area_surf  = 150 x 0.52 =  78.0 m2
 
 ---
 
-## 5. Build schedule
+## 7. Build schedule
 
 Source: `engine/cost.py`
 
@@ -527,11 +527,11 @@ not a project programme.
 
 ---
 
-## 6. Carbon
+## 8. Carbon
 
 Source: `engine/carbon.py`
 
-### 6.1 Embodied carbon
+### 8.1 Embodied carbon
 
 Carbon emitted producing the materials, from EPD-based values in the catalog.
 
@@ -548,7 +548,7 @@ PV embodied carbon is added in the optimizer at 1500 kgCO2e per kW installed.
 The module also reports a **carbon hotspot** — whichever single component
 contributes the most embodied carbon.
 
-### 6.2 Operational carbon
+### 8.2 Operational carbon
 
 ```
 grid_factor        = 0.19 if mechanical is gas else 0.074
@@ -566,7 +566,7 @@ two and a half times.
 
 ---
 
-## 7. Solar
+## 9. Solar
 
 Source: `engine/solar.py`
 
@@ -603,11 +603,11 @@ exceed consumption over the year.
 
 ---
 
-## 8. Utility bill and lifecycle cost
+## 10. Utility bill and lifecycle cost
 
 Source: `engine/finance.py`
 
-### 8.1 Monthly utility bill
+### 10.1 Monthly utility bill
 
 Annual demand is distributed across the year using typical Ontario monthly
 profiles, then priced. Each profile is normalised so its twelve values sum to 1.
@@ -631,7 +631,7 @@ gas_cost     = gas_kwh x gas_rate
 Net metering is modelled within the month, and the bill floors at zero: surplus
 generation offsets consumption but is not paid out or banked across months.
 
-### 8.2 Lifecycle cost
+### 10.2 Lifecycle cost
 
 A 60-year present-value calculation.
 
@@ -656,11 +656,11 @@ residual value are **not** modelled.
 
 ---
 
-## 9. Optimizer and ranking
+## 11. Optimizer and ranking
 
 Source: `engine/optimizer.py`
 
-### 9.1 Airtightness by target
+### 11.1 Airtightness by target
 
 The performance target sets the blower-door target used by the energy model.
 
@@ -670,13 +670,13 @@ The performance target sets the blower-door target used by the energy model.
 | Net Zero Ready | 3.0 |
 | Passive House | 1.5 |
 
-### 9.2 Filtering
+### 11.2 Filtering
 
 A configuration is discarded if its total cost (envelope plus PV) exceeds the
 budget. If the target is Net Zero Ready, configurations whose deterministic EUI
 misses the threshold are also discarded.
 
-### 9.3 Pareto ranking
+### 11.3 Pareto ranking
 
 Configuration B **dominates** A when B is at least as good as A on all four
 objectives — cost, build time, embodied carbon and EUI — and strictly better on
@@ -689,7 +689,7 @@ rank(A) = 1 + count of configurations that dominate A
 Rank 1 configurations are non-dominated: nothing else beats them on every axis
 simultaneously. They represent the genuine trade-off frontier.
 
-### 9.4 Weighted score
+### 11.4 Weighted score
 
 Within a rank, objectives are min-max normalised across all feasible
 configurations to a 0-1 scale, then combined using the priority weights. Lower is
@@ -709,7 +709,7 @@ is presented as the recommended configuration.
 
 ---
 
-## 10. Reference data
+## 12. Reference data
 
 {{CLIMATE_TABLE}}
 
@@ -719,6 +719,6 @@ is presented as the recommended configuration.
 
 ---
 
-## 11. Assembly catalog
+## 13. Assembly catalog
 
 {{CATALOG_TABLES}}
