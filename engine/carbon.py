@@ -50,11 +50,8 @@ def calculate_carbon(spec, env, window, mech, energy_result) -> dict:
         "total_per_m2":           round(total_embodied_per_m2, 1),
         "total_60yr_per_m2":      round(total_60yr_per_m2, 1),
         "carbon_hotspot": max(
-            [("Wall", opaque_wall * wall["embodied_carbon_kg_co2e_m2"]),
-             ("Roof", roof_area * roof["embodied_carbon_kg_co2e_m2"]),
-             ("Floor", floor_area * floor_c["embodied_carbon_kg_co2e_m2"]),
-             ("Windows", window_area * window["embodied_carbon_kg_co2e_m2"]),
-             ("Mechanical", mech["embodied_carbon_kg_co2e"])],
+            [("Wall", wall_c), ("Roof", roof_c), ("Floor", floor_c_),
+             ("Windows", window_c), ("Mechanical", mech_c)],
             key=lambda x: x[1]
         )[0]
     }
