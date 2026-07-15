@@ -92,3 +92,36 @@ class SlabOnGrade:
             "cost_m2": self.cost_m2, "co2_m2": self.co2_m2,
             **self._detail,
         }
+
+
+GRADE_BEAM_MM = 250
+
+
+class RaisedFloorFoundation:
+    """Wraps the raised-cassette Assembly and adds the foundation it sits on
+    (perimeter grade beam to frost depth), so slab vs cassette compare fairly —
+    neither floats in mid-air for free."""
+
+    kind = "floor"
+
+    def __init__(self, asm, floor_area_m2: float, storeys: int,
+                 frost_depth_m: float = 1.2):
+        footprint = floor_area_m2 / max(1, storeys)
+        perimeter = 4 * sqrt(footprint)
+        beam_in = GRADE_BEAM_MM / MM_PER_IN
+        beam_area = perimeter * frost_depth_m
+        add_cost = cost_per_m2("concrete", beam_in) * beam_area / footprint
+        add_co2 = co2_per_m2("concrete", beam_in) * beam_area / footprint
+
+        self._asm = asm
+        self.u_value = asm.u_value
+        self.cost_m2 = round(asm.cost_m2 + add_cost, 2)
+        self.co2_m2 = round(asm.co2_m2 + add_co2, 2)
+        self.name = asm.name + " + grade-beam foundation"
+
+    def breakdown(self) -> dict:
+        b = dict(self._asm.breakdown())
+        b["name"] = self.name
+        b["cost_m2"] = self.cost_m2
+        b["co2_m2"] = self.co2_m2
+        return b
