@@ -8,7 +8,46 @@ names the source file so a reader can check the maths against the code.
 
 ---
 
-## 1. What the engine does
+## 1. Assumptions and limitations
+
+These are the things a reader should know before trusting a number from this
+tool.
+
+**The energy model is simplified.** A steady-state degree-day method ignores
+thermal mass, hourly weather, real shading geometry, part-load equipment
+behaviour and distribution losses. It is not HOT2000 and is not a compliance
+tool. Reported EUIs run optimistic relative to published benchmarks; part of that
+gap is genuine performance and part is model simplification.
+
+**Geometry is generic.** Surface areas come from floor-area ratios for typical
+residential forms, not from EnerZen's actual designed units. Storey height is
+assumed at 2.7 m for the volume calculation, while wall area comes from the
+ratios — so height is effectively assumed twice, by two unlinked routes.
+
+**Cost is dominated by a placeholder.** The 1200 CAD/m2 base cost is roughly two
+thirds of the reported total and is not modelled. Window and mechanical
+installation labour is omitted entirely.
+
+**Build time covers envelope close only.** It is not a project schedule.
+
+**Cooling is glazing-driven only**, and uses a hard-coded COP of 3.5 rather than
+the selected mechanical system's rating.
+
+**Lifecycle cost omits maintenance and replacement**, which will understate the
+true cost of any system over 60 years.
+
+**Benchmarks and rates are provincial averages** drawn from secondary sources.
+They are adequate for directional comparison in a prototype and should be
+replaced with EnerZen's own project data before any number is quoted to a client.
+
+**The Monte Carlo distributions are engineering judgement.** They are plausible
+representations of as-built variance but are not calibrated against measured
+EnerZen blower-door or energy-bill data. The probability is therefore a
+structured estimate of confidence, not a validated statistic.
+
+---
+
+## 2. What the engine does
 
 The engine takes a project description and searches for the best assembly
 configuration. It is a deterministic physics-and-costing model — there is no
@@ -69,7 +108,7 @@ cost, and a monthly utility estimate.
 
 ---
 
-## 2. Energy model
+## 3. Energy model
 
 Source: `engine/simulator.py`
 
@@ -231,7 +270,7 @@ itself, not its solar array.
 
 ---
 
-## 3. Construction cost
+## 4. Construction cost
 
 Source: `engine/cost.py`
 
@@ -318,7 +357,7 @@ floor_area_surf  = 150 x 0.52 =  78.0 m2
 
 ---
 
-## 4. Build schedule
+## 5. Build schedule
 
 Source: `engine/cost.py`
 
@@ -350,7 +389,7 @@ not a project programme.
 
 ---
 
-## 5. Carbon
+## 6. Carbon
 
 Source: `engine/carbon.py`
 
@@ -389,7 +428,7 @@ two and a half times.
 
 ---
 
-## 6. Solar
+## 7. Solar
 
 Source: `engine/solar.py`
 
@@ -426,7 +465,7 @@ exceed consumption over the year.
 
 ---
 
-## 7. Utility bill and lifecycle cost
+## 8. Utility bill and lifecycle cost
 
 Source: `engine/finance.py`
 
@@ -479,7 +518,7 @@ residual value are **not** modelled.
 
 ---
 
-## 8. Optimizer and ranking
+## 9. Optimizer and ranking
 
 Source: `engine/optimizer.py`
 
@@ -532,7 +571,7 @@ is presented as the recommended configuration.
 
 ---
 
-## 9. Reference data
+## 10. Reference data
 
 {{CLIMATE_TABLE}}
 
@@ -542,45 +581,6 @@ is presented as the recommended configuration.
 
 ---
 
-## 10. Assembly catalog
+## 11. Assembly catalog
 
 {{CATALOG_TABLES}}
-
----
-
-## 11. Assumptions and limitations
-
-These are the things a reader should know before trusting a number from this
-tool.
-
-**The energy model is simplified.** A steady-state degree-day method ignores
-thermal mass, hourly weather, real shading geometry, part-load equipment
-behaviour and distribution losses. It is not HOT2000 and is not a compliance
-tool. Reported EUIs run optimistic relative to published benchmarks; part of that
-gap is genuine performance and part is model simplification.
-
-**Geometry is generic.** Surface areas come from floor-area ratios for typical
-residential forms, not from EnerZen's actual designed units. Storey height is
-assumed at 2.7 m for the volume calculation, while wall area comes from the
-ratios — so height is effectively assumed twice, by two unlinked routes.
-
-**Cost is dominated by a placeholder.** The 1200 CAD/m2 base cost is roughly two
-thirds of the reported total and is not modelled. Window and mechanical
-installation labour is omitted entirely.
-
-**Build time covers envelope close only.** It is not a project schedule.
-
-**Cooling is glazing-driven only**, and uses a hard-coded COP of 3.5 rather than
-the selected mechanical system's rating.
-
-**Lifecycle cost omits maintenance and replacement**, which will understate the
-true cost of any system over 60 years.
-
-**Benchmarks and rates are provincial averages** drawn from secondary sources.
-They are adequate for directional comparison in a prototype and should be
-replaced with EnerZen's own project data before any number is quoted to a client.
-
-**The Monte Carlo distributions are engineering judgement.** They are plausible
-representations of as-built variance but are not calibrated against measured
-EnerZen blower-door or energy-bill data. The probability is therefore a
-structured estimate of confidence, not a validated statistic.
