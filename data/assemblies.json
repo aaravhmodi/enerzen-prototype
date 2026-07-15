@@ -84,7 +84,11 @@
     "grid_intensity_kg_co2e_per_kwh": 0.074,
     "grid_intensity_source": "The Atmospheric Fund, Ontario Emissions Factors 2024 (73.8 gCO2e/kWh)",
     "solar_rebate_cad": 5000,
-    "solar_rebate_source": "Ontario Home Renovation Savings Program (HRS), ~$5k toward rooftop PV"
+    "solar_rebate_source": "Ontario Home Renovation Savings Program (HRS), ~$5k toward rooftop PV",
+    "electricity_fixed_monthly_cad": 35,
+    "electricity_fixed_source": "OEB residential service charge + fixed delivery, typical LDC 2025",
+    "natural_gas_fixed_monthly_cad": 25,
+    "natural_gas_fixed_source": "Enbridge Ontario monthly customer charge, 2025"
   },
   "regions": {
     "_note": "Regional electricity rates reflect delivery-charge differences (energy commodity is uniform province-wide). Hydro One rural/northern delivery runs 15-50% above Toronto Hydro (OEB / Hydro One 2025). Soil values are conservative regional defaults for foundation sizing and are overridable per project.",
