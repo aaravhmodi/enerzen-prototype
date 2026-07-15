@@ -18,7 +18,12 @@ BASE_COST_PER_M2 = 1200  # CAD
 LABOUR_RATE_PER_HR = 75  # CAD, blended rate for panelized installation crew
 
 
-def estimate_cost(spec, wall, roof, floor_c, window, mech) -> dict:
+def estimate_cost(spec, env, window, mech) -> dict:
+    """
+    env: assemblies.EnvelopeCombo — carries the wall/roof/floor Assembly objects
+    whose .cost_m2 is derived from the material layers (engine.materials).
+    window, mech: catalog dicts (still list-priced products).
+    """
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area   = spec.floor_area_m2 * ratios["wall"]
     roof_area   = spec.floor_area_m2 * ratios["roof"]
@@ -27,17 +32,17 @@ def estimate_cost(spec, wall, roof, floor_c, window, mech) -> dict:
     opaque_wall = wall_area - window_area
 
     material_cost = (
-        opaque_wall * wall["cost_per_m2"] +
-        roof_area   * roof["cost_per_m2"] +
-        floor_area  * floor_c["cost_per_m2"] +
+        opaque_wall * env.wall.cost_m2 +
+        roof_area   * env.roof.cost_m2 +
+        floor_area  * env.floor.cost_m2 +
         window_area * window["cost_per_m2"] +
         mech["cost"]
     )
 
     labour_hours = (
-        opaque_wall * wall["install_hours_per_m2"] +
-        roof_area   * roof["install_hours_per_m2"] +
-        floor_area  * floor_c["install_hours_per_m2"]
+        opaque_wall * env.wall_hours_per_m2 +
+        roof_area   * env.roof_hours_per_m2 +
+        floor_area  * env.floor_hours_per_m2
     )
     labour_cost = labour_hours * LABOUR_RATE_PER_HR
 
