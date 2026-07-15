@@ -89,16 +89,21 @@ def _roof_mineral(joist_depth_in: float, deck_rigid_in: float) -> Assembly:
 # ground-coupled heat loss, frost wall sized by the location's frost depth.
 
 def _floor_slab(eps_mm: float, *, floor_area_m2: float = 150.0, storeys: int = 1,
-                frost_depth_m: float = 1.2) -> SlabOnGrade:
-    return SlabOnGrade(eps_mm, floor_area_m2, storeys, frost_depth_m)
+                frost_depth_m: float = 1.2, footprint_length_m: float | None = None,
+                footprint_width_m: float | None = None) -> SlabOnGrade:
+    return SlabOnGrade(eps_mm, floor_area_m2, storeys, frost_depth_m,
+                       footprint_length_m, footprint_width_m)
 
 
 def _floor_cassette(rigid_in: float, *, floor_area_m2: float = 150.0,
-                    storeys: int = 1, frost_depth_m: float = 1.2) -> RaisedFloorFoundation:
+                    storeys: int = 1, frost_depth_m: float = 1.2,
+                    footprint_length_m: float | None = None,
+                    footprint_width_m: float | None = None) -> RaisedFloorFoundation:
     asm = Assembly("Raised floor cassette", "floor", [Layer("osb", 0.75)],
                    FramedCavity("mineral_wool_batt", 9.25, framing_factor=0.10),
                    exterior_film=False)
-    return RaisedFloorFoundation(asm, floor_area_m2, storeys, frost_depth_m)
+    return RaisedFloorFoundation(asm, floor_area_m2, storeys, frost_depth_m,
+                                 footprint_length_m, footprint_width_m)
 
 
 @dataclass

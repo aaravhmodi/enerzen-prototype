@@ -44,45 +44,66 @@ class SlabOnGrade:
     kind = "floor"
 
     def __init__(self, eps_mm: float, floor_area_m2: float, storeys: int,
-                 frost_depth_m: float = 1.2):
+                 frost_depth_m: float = 1.2, footprint_length_m: float | None = None,
+                 footprint_width_m: float | None = None):
         footprint = floor_area_m2 / max(1, storeys)
-        perimeter = 4 * sqrt(footprint)          # square plan, consistent with cost.py ratios
-        strip_area = min(perimeter * STRIP_WIDTH_M, footprint)
-        f = strip_area / footprint
+        if footprint_length_m and footprint_width_m:
+            length = float(footprint_length_m)
+            width = float(footprint_width_m)
+            footprint = length * width
+        else:
+            length = width = sqrt(footprint)
+        perimeter = 2 * (length + width)
+        eps_area = (length + 2 * STRIP_WIDTH_M) * (width + 2 * STRIP_WIDTH_M)
 
         slab_in = SLAB_MM / MM_PER_IN
         eps_in = eps_mm / MM_PER_IN
         rsi_concrete = r_per_in("concrete") * slab_in * RSI_PER_R
         rsi_eps = r_per_in("eps") * eps_in * RSI_PER_R
 
-        u_strip = 1 / (RSI_FILM_FLOOR + rsi_concrete + rsi_eps + RSI_SOIL_EDGE)
-        u_core = 1 / (RSI_FILM_FLOOR + rsi_concrete + RSI_SOIL_CORE)
-        u_raw = f * u_strip + (1 - f) * u_core
-        self.u_value = round(u_raw * GROUND_TEMP_FACTOR, 4)
+        # EPS is continuous beneath the slab. The exterior wing is included in
+        # quantity/cost; its extra edge-loss benefit is not separately credited.
+        u_slab = 1 / (RSI_FILM_FLOOR + rsi_concrete + rsi_eps + RSI_SOIL_CORE)
+        self.u_value = round(u_slab * GROUND_TEMP_FACTOR, 4)
         self.r_effective = round(5.678 / self.u_value, 1)
 
         edge_in = EDGE_WALL_MM / MM_PER_IN
         edge_area = perimeter * frost_depth_m    # frost wall, both storeys share it
         slab_cost = cost_per_m2("concrete", slab_in)
-        eps_cost = cost_per_m2("eps", eps_in) * f
+        eps_cost = cost_per_m2("eps", eps_in) * eps_area / footprint
         edge_cost = cost_per_m2("concrete", edge_in) * edge_area / footprint
         self.cost_m2 = round(slab_cost + eps_cost + edge_cost, 2)
 
         slab_co2 = co2_per_m2("concrete", slab_in)
-        eps_co2 = co2_per_m2("eps", eps_in) * f
+        eps_co2 = co2_per_m2("eps", eps_in) * eps_area / footprint
         edge_co2 = co2_per_m2("concrete", edge_in) * edge_area / footprint
         self.co2_m2 = round(slab_co2 + eps_co2 + edge_co2, 2)
 
         self.name = f"Slab on grade — {eps_mm:.0f} mm sub-slab EPS ({STRIP_WIDTH_M} m perimeter strip)"
+        slab_volume = footprint * SLAB_MM / 1000
+        eps_volume = eps_area * eps_mm / 1000
+        frost_wall_volume = perimeter * frost_depth_m * EDGE_WALL_MM / 1000
         self._detail = {
             "eps_mm": eps_mm,
-            "strip_fraction": round(f, 3),
+            "footprint_length_m": round(length, 2),
+            "footprint_width_m": round(width, 2),
+            "footprint_area_m2": round(footprint, 2),
+            "eps_area_m2": round(eps_area, 2),
+            "extended_length_m": round(length + 2 * STRIP_WIDTH_M, 2),
+            "extended_width_m": round(width + 2 * STRIP_WIDTH_M, 2),
+            "slab_concrete_m3": round(slab_volume, 2),
+            "eps_volume_m3": round(eps_volume, 2),
+            "frost_wall_concrete_m3": round(frost_wall_volume, 2),
             "perimeter_m": round(perimeter, 1),
             "frost_depth_m": frost_depth_m,
-            "u_strip": round(u_strip, 3),
-            "u_core": round(u_core, 3),
+            "u_slab": round(u_slab, 3),
             "cost_split_m2": {"slab": round(slab_cost, 2), "eps": round(eps_cost, 2),
                               "frost_wall": round(edge_cost, 2)},
+            "cost_split_total": {
+                "slab": round(slab_cost * footprint, 0),
+                "eps": round(eps_cost * footprint, 0),
+                "frost_wall": round(edge_cost * footprint, 0),
+            },
         }
 
     def breakdown(self) -> dict:
@@ -105,9 +126,14 @@ class RaisedFloorFoundation:
     kind = "floor"
 
     def __init__(self, asm, floor_area_m2: float, storeys: int,
-                 frost_depth_m: float = 1.2):
+                 frost_depth_m: float = 1.2, footprint_length_m: float | None = None,
+                 footprint_width_m: float | None = None):
         footprint = floor_area_m2 / max(1, storeys)
-        perimeter = 4 * sqrt(footprint)
+        if footprint_length_m and footprint_width_m:
+            footprint = footprint_length_m * footprint_width_m
+            perimeter = 2 * (footprint_length_m + footprint_width_m)
+        else:
+            perimeter = 4 * sqrt(footprint)
         beam_in = GRADE_BEAM_MM / MM_PER_IN
         beam_area = perimeter * frost_depth_m
         add_cost = cost_per_m2("concrete", beam_in) * beam_area / footprint
