@@ -369,11 +369,41 @@ the thickness options rather than the user guessing:
 - **Walls** — exterior continuous rigid swept 0 / 2 / 4 inches.
 - **Roofs** — cavity depth set by the snow-driven joist (section 5); over-deck
   rigid swept 0 / 2 / 4 inches.
-- **Floors** — slab-on-grade with sub-slab rigid, or a raised cassette.
+- **Floors** — slab-on-grade with sub-slab EPS, or a raised cassette (4.4).
 
 Cost and carbon per m2 come from summing the layers (insulation over the cavity
 fraction, framing lumber over its share). Install labour is a fixed hours-per-m2
 per assembly type (panelized assemblies install fastest).
+
+### 4.4 Foundation (`engine/foundation.py`)
+
+**Slab on grade.** A 100 mm concrete slab with sub-slab rigid EPS in a 1.5 m
+strip around the perimeter — the zone where slab heat loss concentrates. The
+strip thickness is swept by the optimizer: 100 / 150 / 200 / 250 mm. Ground
+coupling is modelled with two parallel paths, area-weighted by the strip's
+share of the footprint:
+
+```
+U_strip = 1 / (film + concrete + EPS + shallow-soil RSI)     soil RSI 0.5
+U_core  = 1 / (film + concrete + deep-soil RSI)              soil RSI 2.0
+U_slab  = [f x U_strip + (1-f) x U_core] x 0.6
+```
+
+The 0.6 factor accounts for ground being warmer than outdoor air over the
+heating season, so the degree-day model can use `U_slab` against air HDD
+unchanged. The slab core is left uninsulated, matching Part 9 practice — deep
+ground is already resistive, so core insulation buys little.
+
+**Frost wall.** A 300 mm thickened edge runs the perimeter down to the
+location's frost depth (section 5). Northern locations with deeper frost lines
+pay for more concrete — the location drives foundation cost directly.
+
+**Raised cassette.** The alternative floor is costed *with* the perimeter
+grade beam (250 mm, to frost depth) it must sit on, so the two floor systems
+compare fairly — neither gets its foundation for free.
+
+The plan is assumed square for perimeter purposes, consistent with the area
+ratios in section 6.
 
 ---
 
