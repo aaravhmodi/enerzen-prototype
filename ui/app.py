@@ -93,6 +93,11 @@ with st.sidebar:
                                    format_func=lambda x: SOLAR_LABELS[x])
     budget = st.number_input("Budget per unit (CAD $)", 200_000, 1_500_000,
                              500_000, step=25_000, format="%d")
+    has_ac = st.checkbox("Include air conditioning", value=True,
+                         help="Adds central AC when the heating plant is a furnace. "
+                              "Heat pumps cool inherently — no extra cost.")
+    allow_gas = st.checkbox("Allow natural gas systems", value=True,
+                            help="Uncheck for an all-electric home (excludes gas furnaces).")
 
     with st.expander("Priorities (advanced)"):
         st.caption("How much each objective counts in the ranking.")
@@ -121,6 +126,7 @@ spec = ProjectSpec(
     storeys=storeys, orientation=orientation, window_to_wall_ratio=wwr,
     budget_per_unit=float(budget), target_label=target_label,
     solar_option_id=solar_option_id, location=location, num_units=num_units,
+    has_ac=has_ac, allow_gas=allow_gas,
 )
 
 with st.spinner("Evaluating assembly combinations…"):
