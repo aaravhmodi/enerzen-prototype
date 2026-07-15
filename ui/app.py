@@ -136,6 +136,13 @@ st.markdown("""
     .stButton > button { border-radius:2px; min-height:46px; font-weight:750; letter-spacing:.02em; }
     .stButton > button[kind="primary"] { background:var(--forest); border-color:var(--forest); }
     .stButton > button[kind="primary"]:hover { background:var(--forest-dark); border-color:var(--forest-dark); }
+    [data-testid="stSidebar"] .stButton > button[kind="primary"] {
+        background:var(--surface); border:1px solid var(--forest); color:var(--forest-dark);
+        font-weight:800; box-shadow:none;
+    }
+    [data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+        background:var(--hover); border-color:var(--forest-dark); color:var(--forest-dark);
+    }
     .stButton > button:focus-visible, input:focus-visible, textarea:focus-visible,
     [tabindex="0"]:focus-visible { outline:3px solid var(--focus) !important;
                                   outline-offset:2px !important; box-shadow:none !important; }
