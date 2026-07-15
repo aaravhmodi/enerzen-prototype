@@ -29,37 +29,7 @@ Sources:
 
 from dataclasses import dataclass, field
 
-# R (imperial, hr.ft2.F/Btu) -> RSI (metric, m2.K/W).  RSI = R / 5.678
-RSI_PER_R = 0.17611
-
-
-# ── Material thermal resistance, R per inch (imperial) ───────────────────────
-# Conservative ends of published ranges; polyiso is de-rated for cold climates
-# where its R/inch drops materially below the lab value.
-MATERIALS = {
-    # Insulation
-    "mineral_wool_batt":    4.0,
-    "mineral_wool_board":   4.2,   # exterior continuous
-    "fiberglass_batt":      3.5,
-    "cellulose_blown":      3.6,
-    "eps":                  4.2,   # high-density
-    "xps":                  5.0,
-    "polyiso":              5.6,   # cold-climate de-rated (lab ~6.5)
-    "spray_foam_closed":    6.0,
-    # Structure / sheathing / finish
-    "spf_lumber":           1.25,  # softwood framing member
-    "osb":                  1.25,
-    "plywood":              1.25,
-    "gypsum":               0.90,
-    "concrete":             0.08,
-    "air_gap":              1.00,  # nominal 3/4" vented cavity
-    # Cladding
-    "vinyl_siding":         0.61,
-    "fiber_cement":         0.15,
-    "wood_siding":          0.81,
-    "asphalt_shingle":      0.44,
-    "membrane_roof":        0.10,
-}
+from engine.materials import RSI_PER_R, rsi, cost_per_m2, co2_per_m2
 
 # Surface air films, already in RSI (m2.K/W) — NRCan values.
 AIR_FILM_EXTERIOR = 0.03
@@ -68,13 +38,6 @@ AIR_FILM_INTERIOR = {
     "ceiling": 0.11,   # heat flow up
     "floor":   0.16,   # heat flow down
 }
-
-
-def rsi(material: str, thickness_in: float) -> float:
-    """RSI of a solid layer of `material` at `thickness_in` inches."""
-    if material not in MATERIALS:
-        raise KeyError(f"unknown material {material!r}; add it to MATERIALS")
-    return MATERIALS[material] * thickness_in * RSI_PER_R
 
 
 @dataclass
@@ -86,6 +49,14 @@ class Layer:
     @property
     def rsi(self) -> float:
         return rsi(self.material, self.thickness_in)
+
+    @property
+    def cost_m2(self) -> float:
+        return cost_per_m2(self.material, self.thickness_in)
+
+    @property
+    def co2_m2(self) -> float:
+        return co2_per_m2(self.material, self.thickness_in)
 
 
 @dataclass
