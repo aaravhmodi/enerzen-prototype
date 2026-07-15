@@ -217,7 +217,7 @@ rows = [{
     "Windows": WINDOW_LABELS[r.window_id], "Mech": MECH_LABELS[r.mechanical_id],
     "Cost": f"${r.construction_cost:,.0f}", "Wks": f"{r.construction_weeks:.0f}",
     "Net EUI": f"{r.net_eui_kwh_m2_yr:g}", "Carbon": f"{r.embodied_carbon_kg_co2e_m2:.0f}",
-    "Bill/mo": f"${r.avg_monthly_utility:,.0f}", "60yr LCC": f"${r.lifecycle_cost_60yr:,.0f}",
+    "Bill/mo": f"${r.avg_monthly_utility:,.0f}", "30yr LCC": f"${r.lifecycle_cost_30yr:,.0f}",
     "NZR likely": f"{r.nzr_probability:.0%}", "Net Zero": "✓" if r.net_zero else "·",
 } for r in results[:20]]
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
