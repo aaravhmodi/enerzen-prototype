@@ -54,6 +54,10 @@ st.markdown("""
         --forest: #214e3b;
         --forest-dark: #17382b;
         --sage: #dfe9df;
+        --selected: #d8e6dc;
+        --selected-hover: #c9dccc;
+        --focus: #f1c453;
+        --disabled: #eceeea;
         --amber: #a96820;
         --red: #9f3f35;
     }
@@ -104,8 +108,34 @@ st.markdown("""
     .stButton > button { border-radius:2px; min-height:46px; font-weight:750; letter-spacing:.02em; }
     .stButton > button[kind="primary"] { background:var(--forest); border-color:var(--forest); }
     .stButton > button[kind="primary"]:hover { background:var(--forest-dark); border-color:var(--forest-dark); }
+    .stButton > button:focus-visible, input:focus-visible, textarea:focus-visible,
+    [tabindex="0"]:focus-visible { outline:3px solid var(--focus) !important;
+                                  outline-offset:2px !important; box-shadow:none !important; }
     div[data-baseweb="select"] > div, div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextInput"] input { background:var(--surface); border-radius:2px; }
+    div[data-testid="stTextInput"] input { background:var(--surface); border:1px solid #aeb7b0;
+                                           border-radius:2px; color:var(--ink); }
+    div[data-baseweb="select"] > div:hover { border-color:var(--forest); }
+    div[data-baseweb="select"] [aria-selected="true"] { background:var(--selected) !important;
+                                                            color:var(--forest-dark) !important; }
+    [data-baseweb="popover"] { color:var(--ink); }
+    [data-baseweb="popover"] ul { background:var(--surface) !important; border:1px solid var(--line); }
+    [data-baseweb="popover"] [role="option"] { color:var(--ink) !important; }
+    [data-baseweb="popover"] [role="option"]:hover { background:#edf2ed !important; }
+    [data-baseweb="popover"] [role="option"][aria-selected="true"] {
+        background:var(--selected) !important; color:var(--forest-dark) !important; font-weight:700;
+    }
+    div[role="radiogroup"] { gap:.35rem; flex-wrap:wrap; }
+    div[role="radiogroup"] label { background:var(--surface); border:1px solid #bbc2bc;
+                                    border-radius:2px; padding:.38rem .55rem; margin:0; }
+    div[role="radiogroup"] label:hover { background:#edf2ed; border-color:var(--forest); }
+    div[role="radiogroup"] label:has(input:checked) { background:var(--selected);
+                                                     border-color:var(--forest); color:var(--forest-dark); }
+    div[role="radiogroup"] label:has(input:checked) p { color:var(--forest-dark) !important;
+                                                       font-weight:700; }
+    label[data-baseweb="checkbox"]:hover p { color:var(--ink) !important; }
+    [data-testid="stSlider"] [role="slider"] { box-shadow:0 0 0 1px var(--surface); }
+    [data-testid="stSlider"] [role="slider"]:focus-visible { outline:3px solid var(--focus) !important; }
+    input:disabled, button:disabled { background:var(--disabled) !important; color:#8b928d !important; }
     div[data-testid="stExpander"] { background:var(--surface); border:1px solid var(--line);
                                     border-radius:3px; margin:.6rem 0; }
     div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:3px; }
@@ -134,9 +164,10 @@ with st.sidebar:
     st.caption("Define the building once. The engine tests every feasible assembly combination.")
 
     st.markdown('<div class="side-step">01 · Building</div>', unsafe_allow_html=True)
-    typology = st.selectbox("Building type", ["single_family", "townhouse", "murb"],
-                            format_func=lambda x: x.replace("_", " ").title())
-    storeys = st.selectbox("Storeys", [1, 2, 3], index=1)
+    typology = st.radio("Building type", ["single_family", "townhouse", "murb"],
+                        format_func=lambda x: {"single_family": "Detached", "townhouse": "Townhouse",
+                                               "murb": "Multi-unit"}[x], horizontal=True)
+    storeys = st.radio("Storeys", [1, 2, 3], index=1, horizontal=True)
     footprint_cols = st.columns(2)
     footprint_length = footprint_cols[0].number_input(
         "Footprint length (m)", 4.0, 50.0, 10.0, step=0.5)
@@ -159,14 +190,14 @@ with st.sidebar:
                f"{resolved.region_name}")
     if resolved.over_snow_range:
         st.warning("Ground snow Ss exceeds the two standard options — structural review required.")
-    orientation = st.selectbox("Main facade faces", ["S", "N", "E", "W"],
-                               format_func=lambda x: {"S": "South", "N": "North",
-                                                       "E": "East", "W": "West"}[x])
+    orientation = st.radio("Main facade faces", ["S", "E", "W", "N"], horizontal=True,
+                           format_func=lambda x: {"S": "South", "N": "North",
+                                                   "E": "East", "W": "West"}[x])
     wwr = st.slider("Window-to-wall ratio", 0.10, 0.45, 0.20, step=0.05)
 
     st.markdown('<div class="side-step">03 · Brief</div>', unsafe_allow_html=True)
-    target_label = st.selectbox("Performance target", ["code", "nzr", "passive_house"],
-                                index=1, format_func=lambda x: LABEL_NAMES[x])
+    target_label = st.radio("Performance target", ["code", "nzr", "passive_house"],
+                            index=1, format_func=lambda x: LABEL_NAMES[x])
     solar_option_id = st.selectbox("Solar (rooftop PV)",
                                    [s["id"] for s in CATALOG["solar"]],
                                    format_func=lambda x: SOLAR_LABELS[x])
@@ -450,6 +481,4 @@ pts = alt.Chart(opts).mark_circle(size=90, opacity=0.75).encode(
         range=["#567A61", "#214E3B", "#9F3F35"]), title=None),
     tooltip=["cost", "eui", "status"],
 )
-thresh_rule = alt.Chart(pd.DataFrame({"y": [top.energy.nzr_threshold]})).mark_rule(
-    color="#1E8449", strokeDash=[4, 4]).encode(y="y:Q")
-st.altair_chart((pts + thresh_rule).properties(height=320), use_container_width=True)
+st.altair_chart(pts.properties(height=320), use_container_width=True)

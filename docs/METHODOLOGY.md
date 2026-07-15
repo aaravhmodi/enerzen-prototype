@@ -78,6 +78,13 @@ performance and cost/energy trade-offs. Technical quantities remain behind
 clearly labelled disclosure panels so the primary result is readable without
 hiding the assumptions needed for audit.
 
+Short-choice inputs are shown directly rather than hidden in dropdowns; selects
+are reserved for long catalogs such as Ontario locations and solar packages.
+Interaction colors use semantic roles (primary, selected, hover, focus,
+success, warning, error and disabled). Selected states use a restrained sage
+surface with dark text, while keyboard focus uses a separate high-contrast
+yellow outline so selection and focus are never communicated by the same cue.
+
 The search is exhaustive. The catalog holds 5 wall panels, 3 roof cassettes,
 2 floor cassettes, 3 window packages and 3 mechanical systems, so the engine
 evaluates every combination:
