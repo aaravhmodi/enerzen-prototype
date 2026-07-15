@@ -13,6 +13,7 @@ import altair as alt
 
 from engine.optimizer import ProjectSpec, optimize
 from engine.location import resolve as resolve_location, location_names
+from engine.report import generate_results_pdf
 
 st.set_page_config(page_title="EnerZen — Building Performance", page_icon="◼", layout="wide",
                    initial_sidebar_state="expanded")
@@ -244,7 +245,7 @@ with st.sidebar:
         w_carbon = st.slider("Carbon", 0, 10, 3)
         w_energy = st.slider("Energy", 0, 10, 2)
 
-    run = st.button("Evaluate project", use_container_width=True, type="primary")
+    run = st.button("Evaluate project", width="stretch", type="primary")
 
 # ── Run + results ────────────────────────────────────────────────────────────
 if not run:
@@ -295,6 +296,27 @@ if top.pv_capacity_kw > 0:
     status.append('<span class="pill pill-pass">✓ Net Zero</span>' if top.net_zero
                   else '<span class="pill pill-fail">Not net zero</span>')
 st.markdown(" &nbsp; ".join(status), unsafe_allow_html=True)
+
+report_labels = {
+    "target": LABEL_NAMES[target_label],
+    "wall": WALL_LABELS[top.wall_id] +
+            (f" + {top.wall_ext_rigid_in:g}\" exterior rigid" if top.wall_ext_rigid_in else ""),
+    "roof": ROOF_LABELS[top.roof_id] + f"; {top.joist_depth_in}\" joist" +
+            (f" + {top.roof_deck_rigid_in:g}\" over-deck rigid"
+             if top.roof_deck_rigid_in else ""),
+    "floor": FLOOR_LABELS[top.floor_id] +
+             (f"; {top.floor_rigid_in:g} mm EPS blanket" if top.floor_id == "FA1" else ""),
+    "window": WINDOW_LABELS[top.window_id],
+    "mechanical": MECH_LABELS[top.mechanical_id],
+    "solar": SOLAR_LABELS[solar_option_id],
+}
+report_pdf = generate_results_pdf(spec, top, resolved, report_labels)
+safe_location = "".join(ch if ch.isalnum() else "-" for ch in location).strip("-").lower()
+st.download_button(
+    "Download project report (PDF)", data=report_pdf,
+    file_name=f"enerzen-{safe_location}-performance-report.pdf",
+    mime="application/pdf", width="content",
+    help="Professional summary of the project inputs, recommendation, quantities, costs and limitations.")
 
 c = st.columns(4)
 c[0].metric("Cost / unit", f"${top.construction_cost:,.0f}")
@@ -404,7 +426,7 @@ rows = [{
     "Bill/mo": f"${r.avg_monthly_utility:,.0f}", "30yr LCC": f"${r.lifecycle_cost_30yr:,.0f}",
     "NZR likely": f"{r.nzr_probability:.0%}", "Net Zero": "✓" if r.net_zero else "·",
 } for r in results[:20]]
-st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 # ── How EnerZen compares ─────────────────────────────────────────────────────
 st.markdown('<div class="section-kicker">Performance</div>', unsafe_allow_html=True)
@@ -446,7 +468,7 @@ bars = alt.Chart(compare).mark_bar(cornerRadiusEnd=4).encode(
 )
 labels = bars.mark_text(align="left", dx=4, color=CHART_MUTED).encode(
     text=alt.Text("eui:Q", format=".0f"))
-st.altair_chart(chart_style((bars + labels).properties(height=180)), use_container_width=True)
+st.altair_chart(chart_style((bars + labels).properties(height=180)), width="stretch")
 
 pct = round((1 - top.eui_kwh_m2_yr / bench_eui["code_built_new"]) * 100)
 st.caption(f"~{pct}% less energy than a new code-built home before solar. "
@@ -468,7 +490,7 @@ ec_bars = alt.Chart(ec).mark_bar(cornerRadiusEnd=4).encode(
 )
 ec_labels = ec_bars.mark_text(align="left", dx=4, color=CHART_MUTED).encode(
     text=alt.Text("ec:Q", format=".0f"))
-st.altair_chart(chart_style((ec_bars + ec_labels).properties(height=100)), use_container_width=True)
+st.altair_chart(chart_style((ec_bars + ec_labels).properties(height=100)), width="stretch")
 st.caption(f"Benchmark {bench_ec} kgCO₂e/m² — cradle-to-gate mean for new low-rise residential "
            "(Living Materials Lab, 2024).")
 
@@ -488,7 +510,7 @@ util_chart = alt.Chart(util_long).mark_bar().encode(
         legend=alt.Legend(title=None, orient="top")),
     tooltip=["month", "Energy", "cost"],
 ).properties(height=240)
-st.altair_chart(chart_style(util_chart), use_container_width=True)
+st.altair_chart(chart_style(util_chart), width="stretch")
 st.caption(f"~${top.annual_utility_cost:,.0f}/yr total"
            + (" — PV net-metering credits offset summer electricity." if top.pv_capacity_kw else "")
            + " Rates: OEB electricity ~$0.16/kWh, Enbridge gas ~$0.055/kWh (2025).")
@@ -510,4 +532,4 @@ pts = alt.Chart(opts).mark_circle(size=90, opacity=0.75).encode(
         range=["#567A61", "#214E3B", "#9F3F35"]), title=None),
     tooltip=["cost", "eui", "status"],
 )
-st.altair_chart(chart_style(pts.properties(height=320)), use_container_width=True)
+st.altair_chart(chart_style(pts.properties(height=320)), width="stretch")

@@ -89,6 +89,13 @@ metrics, controls, tables and chart labels. Weight, size and spacing establish
 hierarchy; typeface changes do not. The Streamlit theme, custom controls and
 Altair charts share the same neutral, primary and semantic color tokens.
 
+After optimization, the interface can generate a project-specific PDF report in
+memory. It records the submitted brief, resolved location/snow/soil defaults,
+recommended systems, effective R-values, energy/carbon results, itemized costs,
+foundation quantities, utility/lifecycle outlook and model limitations. The
+downloaded report is a decision summary; it explicitly does not represent a
+permit, tender, structural design or professional geotechnical opinion.
+
 The search is exhaustive. The catalog holds 5 wall panels, 3 roof cassettes,
 2 floor cassettes, 3 window packages and 3 mechanical systems, so the engine
 evaluates every combination:
