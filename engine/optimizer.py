@@ -73,10 +73,17 @@ class ConfigResult:
     avg_monthly_utility: float = 0.0
     lifecycle_cost_60yr: float = 0.0
 
+    # Assembly build parameters (swept)
+    wall_ext_rigid_in: float = 0.0
+    roof_deck_rigid_in: float = 0.0
+    floor_rigid_in: float = 0.0
+    joist_depth_in: int = 0
+
     # Details
     energy: EnergyResult = field(repr=False, default=None)
     panel_schedule: dict = field(repr=False, default=None)
     utility: dict = field(repr=False, default=None)
+    _assembly: AssemblyConfig = field(repr=False, default=None)  # for deferred MC
 
     # Pareto rank (1 = non-dominated)
     pareto_rank: int = 0
