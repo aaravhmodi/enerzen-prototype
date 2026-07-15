@@ -248,22 +248,66 @@ def benchmark_table(cat) -> str:
     return "\n".join(rows)
 
 
+def regions_table(cat) -> str:
+    rows = ["### Regional rates and soil", "",
+            "| Region | Electricity $/kWh | Gas $/kWh | Bearing kPa | Frost m |",
+            "| --- | --- | --- | --- | --- |"]
+    for k, r in cat["regions"].items():
+        if k == "_note":
+            continue
+        rows.append(f"| {r['name']} | {r['electricity_cad_per_kwh']} | "
+                    f"{r['natural_gas_cad_per_kwh']} | {r['allowable_bearing_kpa']} | "
+                    f"{r['frost_depth_m']} |")
+    return "\n".join(rows)
+
+
+def snow_table(cat) -> str:
+    s = cat["snow"]
+    rows = ["### Snow tiers (roof load -> joist depth)", "",
+            f"Roof load S = Is[Ss(Cb.Cw.Cs.Ca) + Sr], with Is={s['importance_factor_uls']}, "
+            f"Cb={s['basic_roof_factor_cb']}, Cw=Cs=Ca=1.0.", "",
+            "| Tier | Name | Max roof load kPa | Joist depth |",
+            "| --- | --- | --- | --- |"]
+    for t in s["tiers"]:
+        cap = "no limit" if t["max_roof_load_kpa"] > 90 else t["max_roof_load_kpa"]
+        rows.append(f"| {t['id']} | {t['name']} | {cap} | {t['joist_depth_in']}\" |")
+    return "\n".join(rows)
+
+
 def catalog_tables(cat) -> str:
+    import sys as _sys
+    from pathlib import Path as _Path
+    _sys.path.insert(0, str(_Path(__file__).parent.parent))
+    from engine.assemblies import WALLS, ROOFS, FLOORS
+    from engine.materials import MATERIALS
+
     out = []
 
-    def envelope(key, title, extra_r=True):
+    # Materials table — the single source of R / cost / carbon.
+    rows = ["### Material properties (single source of truth)", "",
+            "| Material | R/inch | Cost $/m2/in | Carbon kgCO2e/m2/in |",
+            "| --- | --- | --- | --- |"]
+    for name, (r, c, co2) in MATERIALS.items():
+        rows.append(f"| {name.replace('_', ' ')} | {r} | {c} | {co2} |")
+    out.append("\n".join(rows))
+
+    # Parametric assemblies — R/cost/carbon computed from layers at each swept
+    # thickness (roof shown at a 10-inch joist).
+    def asm_table(title, opts, build_args):
         rows = [f"### {title}", "",
-                "| ID | Name | R | U (W/m2K) | Cost /m2 | Carbon /m2 | Install hr/m2 |",
-                "| --- | --- | --- | --- | --- | --- | --- |"]
-        for a in cat[key]:
-            rows.append(f"| {a['id']} | {a['name']} | R{a['r_value']} | {a['u_value']} | "
-                        f"{a['cost_per_m2']} | {a['embodied_carbon_kg_co2e_m2']} | "
-                        f"{a['install_hours_per_m2']} |")
+                "| ID | Name | Sweep | R_eff (min-max) | U (min-max) | Install hr/m2 |",
+                "| --- | --- | --- | --- | --- | --- |"]
+        for o in opts:
+            bds = [o.build(*build_args(t)).breakdown() for t in o.sweep]
+            reff = f"{min(b['r_effective'] for b in bds):.0f}-{max(b['r_effective'] for b in bds):.0f}"
+            us = f"{min(b['u_value'] for b in bds):.3f}-{max(b['u_value'] for b in bds):.3f}"
+            sweep = ", ".join(f'{t:g}"' for t in o.sweep)
+            rows.append(f"| {o.id} | {o.name} | {sweep} | {reff} | {us} | {o.install_hours_per_m2} |")
         out.append("\n".join(rows))
 
-    envelope("wall_panels", "Wall panels")
-    envelope("roof_cassettes", "Roof cassettes")
-    envelope("floor_cassettes", "Floor cassettes")
+    asm_table("Wall assemblies (sweep: exterior rigid)", WALLS, lambda t: (t,))
+    asm_table("Roof assemblies (sweep: over-deck rigid, 10\" joist)", ROOFS, lambda t: (10, t))
+    asm_table("Floor assemblies (sweep: rigid)", FLOORS, lambda t: (t,))
 
     rows = ["### Window packages", "",
             "| ID | Name | U (W/m2K) | SHGC | Cost /m2 | Carbon /m2 |",
@@ -319,6 +363,8 @@ def main() -> int:
             .replace("{{CLIMATE_TABLE}}", climate_table(cat))
             .replace("{{RATES_TABLE}}", rates_table(cat))
             .replace("{{BENCHMARK_TABLE}}", benchmark_table(cat))
+            .replace("{{REGIONS_TABLE}}", regions_table(cat))
+            .replace("{{SNOW_TABLE}}", snow_table(cat))
             .replace("{{CATALOG_TABLES}}", catalog_tables(cat)))
 
     styles = build_styles()
