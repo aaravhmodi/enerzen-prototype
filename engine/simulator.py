@@ -46,12 +46,65 @@ class EnergyResult:
     nzr_threshold: float
 
 
-# Climate data from assemblies.json (HDD/CDD for degree-day model)
+# Climate data from assemblies.json (HDD/CDD for degree-day model).
+# heating_season_days bounds the period over which internal/solar gains are
+# credited against heating demand.
 CLIMATE = {
-    "6":  {"hdd": 3520, "cdd": 320,  "nzr_eui": 60, "design_heat": -18},
-    "7a": {"hdd": 4440, "cdd": 220,  "nzr_eui": 55, "design_heat": -25},
-    "7b": {"hdd": 5500, "cdd": 130,  "nzr_eui": 50, "design_heat": -30},
+    "6":  {"hdd": 3520, "cdd": 320,  "nzr_eui": 60, "design_heat": -18,
+           "heating_season_days": 230},
+    "7a": {"hdd": 4440, "cdd": 220,  "nzr_eui": 55, "design_heat": -25,
+           "heating_season_days": 250},
+    "7b": {"hdd": 5500, "cdd": 130,  "nzr_eui": 50, "design_heat": -30,
+           "heating_season_days": 270},
 }
+
+# ── Internal + solar gains ───────────────────────────────────────────────────
+# Heat generated inside the building offsets heating demand. The old model
+# ignored this entirely and used a crude `solar_factor` multiplier instead,
+# which over-predicted heating badly (a code home computed at 83% heating vs
+# NRCan's 61% actual share of residential energy).
+
+OCCUPANT_SENSIBLE_W = 100    # sensible heat per person, ASHRAE residential
+OCCUPANT_PRESENCE   = 0.60   # fraction of hours occupied
+APPLIANCE_TO_HEAT   = 0.90   # fraction of appliance/lighting energy ending as heat
+DHW_TO_HEAT         = 0.20   # tank + pipe losses released indoors
+GAIN_UTILISATION    = 0.90   # useful fraction in a cold-climate heating season
+
+# Solar irradiance on a vertical surface over the heating season (kWh/m2),
+# southern Ontario. Drives passive gain through glazing.
+VERTICAL_IRRADIANCE = {"S": 450, "E": 260, "W": 260, "N": 160}
+
+# Glazing distribution: fraction of window area on the main facade vs. the rest.
+GLAZING_DISTRIBUTION = {"main": 0.40, "opposite": 0.20, "side": 0.20}
+_OPPOSITE = {"S": "N", "N": "S", "E": "W", "W": "E"}
+_SIDES = {"S": ("E", "W"), "N": ("E", "W"), "E": ("N", "S"), "W": ("N", "S")}
+
+WINDOW_FRAME_FACTOR = 0.70   # glazed fraction of rough opening
+SHADING_FACTOR      = 0.85   # overhangs, neighbours, dirt
+
+
+def occupants_for(floor_area_m2: float) -> float:
+    """
+    Derived occupancy. Canadian average household is ~2.4 people; this scales
+    with floor area so a 150 m2 home lands near 3.0.
+    """
+    return max(1.0, 1.0 + floor_area_m2 / 75)
+
+
+def solar_gain_kwh(window_area_m2: float, shgc: float, orientation: str) -> float:
+    """Passive solar gain through glazing over the heating season."""
+    dist = {
+        orientation: GLAZING_DISTRIBUTION["main"],
+        _OPPOSITE.get(orientation, "N"): GLAZING_DISTRIBUTION["opposite"],
+    }
+    for s in _SIDES.get(orientation, ("E", "W")):
+        dist[s] = dist.get(s, 0) + GLAZING_DISTRIBUTION["side"]
+
+    total = 0.0
+    for facing, frac in dist.items():
+        total += (window_area_m2 * frac * WINDOW_FRAME_FACTOR * shgc
+                  * VERTICAL_IRRADIANCE.get(facing, 260) * SHADING_FACTOR)
+    return total
 
 # Envelope surface area ratios relative to floor area (typical residential forms)
 SURFACE_RATIOS = {
