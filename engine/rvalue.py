@@ -147,6 +147,22 @@ class Assembly:
             total += self.cavity.rsi_cavity
         return total / RSI_PER_R
 
+    @property
+    def cost_m2(self) -> float:
+        """Installed material cost per m2 of assembly (excludes labour)."""
+        total = sum(l.cost_m2 for l in self.layers)
+        if self.cavity:
+            total += self.cavity.cost_m2
+        return total
+
+    @property
+    def co2_m2(self) -> float:
+        """Embodied carbon per m2 of assembly, kgCO2e."""
+        total = sum(l.co2_m2 for l in self.layers)
+        if self.cavity:
+            total += self.cavity.co2_m2
+        return total
+
     def breakdown(self) -> dict:
         return {
             "name": self.name,
@@ -154,6 +170,8 @@ class Assembly:
             "r_effective": round(self.r_effective, 1),
             "rsi_effective": round(self.rsi_effective, 2),
             "u_value": round(self.u_value, 3),
+            "cost_m2": round(self.cost_m2, 2),
+            "co2_m2": round(self.co2_m2, 2),
             "bridging_loss_pct": round(
                 (1 - self.r_effective / self.r_nominal) * 100, 1) if self.r_nominal else 0,
         }
