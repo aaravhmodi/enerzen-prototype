@@ -167,10 +167,12 @@ st.caption(f"EnerGuide estimate ~{top.energuide_score:g}/100  ·  "
 
 # ── The assembly ─────────────────────────────────────────────────────────────
 st.markdown("#### Assembly")
+def _rigid(n): return f" + {n:g}\" exterior rigid" if n else ""
 a = st.columns(2)
 a[0].markdown(
-    f"- **Wall** — {WALL_LABELS[top.wall_id]}\n"
-    f"- **Roof** — {ROOF_LABELS[top.roof_id]}\n"
+    f"- **Wall** — {WALL_LABELS[top.wall_id]}{_rigid(top.wall_ext_rigid_in)}\n"
+    f"- **Roof** — {ROOF_LABELS[top.roof_id]} ({top.joist_depth_in}\" joist)"
+    f"{_rigid(top.roof_deck_rigid_in)}\n"
     f"- **Floor** — {FLOOR_LABELS[top.floor_id]}")
 a[1].markdown(
     f"- **Windows** — {WINDOW_LABELS[top.window_id]}\n"
