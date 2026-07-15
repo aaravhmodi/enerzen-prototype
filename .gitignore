@@ -6,3 +6,4 @@ streamlit.log
 
 # Generated docs — rebuild with: python docs/generate_pdf.py
 *.pdf
+*.md
