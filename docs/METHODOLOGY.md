@@ -72,6 +72,12 @@ The engine takes a project description and searches for the best assembly
 configuration. It is a deterministic physics-and-costing model — there is no
 machine learning anywhere in it.
 
+The Streamlit interface is organised as a project brief followed by five levels
+of decision detail: recommendation, selected systems, viable alternatives,
+performance and cost/energy trade-offs. Technical quantities remain behind
+clearly labelled disclosure panels so the primary result is readable without
+hiding the assumptions needed for audit.
+
 The search is exhaustive. The catalog holds 5 wall panels, 3 roof cassettes,
 2 floor cassettes, 3 window packages and 3 mechanical systems, so the engine
 evaluates every combination:

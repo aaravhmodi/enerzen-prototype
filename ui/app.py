@@ -14,7 +14,8 @@ import altair as alt
 from engine.optimizer import ProjectSpec, optimize
 from engine.location import resolve as resolve_location, location_names
 
-st.set_page_config(page_title="EnerZen Performance Engine", page_icon="🏠", layout="wide")
+st.set_page_config(page_title="EnerZen — Building Performance", page_icon="◼", layout="wide",
+                   initial_sidebar_state="expanded")
 
 # ── Catalog for display labels ───────────────────────────────────────────────
 with open(Path(__file__).parent.parent / "data" / "assemblies.json") as f:
@@ -44,27 +45,95 @@ LABEL_NAMES = {
 
 st.markdown("""
 <style>
-    .block-container { padding-top: 2.5rem; max-width: 1100px; }
-    h1 { font-size: 1.6rem !important; color: #1A5276; margin-bottom: 0.2rem; }
-    .caption { color: #888; font-size: 0.9rem; margin-bottom: 1.5rem; }
-    [data-testid="stMetricValue"] { font-size: 1.5rem; color: #1A5276; }
-    .pill { display:inline-block; border-radius: 999px; padding: 3px 12px;
-            font-size: 0.8rem; font-weight: 600; }
-    .pill-pass { background:#D5F5E3; color:#1E8449; }
-    .pill-warn { background:#FCF3CF; color:#B7950B; }
-    .pill-fail { background:#FADBD8; color:#C0392B; }
+    :root {
+        --ink: #18211d;
+        --muted: #66706a;
+        --paper: #f5f4ef;
+        --surface: #fffefa;
+        --line: #d9ddd8;
+        --forest: #214e3b;
+        --forest-dark: #17382b;
+        --sage: #dfe9df;
+        --amber: #a96820;
+        --red: #9f3f35;
+    }
+    html, body, [class*="css"] { font-family: Aptos, Inter, "Segoe UI", sans-serif; }
+    .stApp { background: var(--paper); color: var(--ink); }
+    .block-container { padding: 2.1rem 2.5rem 5rem; max-width: 1180px; }
+    header[data-testid="stHeader"] { background: transparent; }
+    #MainMenu, footer { visibility: hidden; }
+    h1, h2, h3 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif !important;
+                 color: var(--ink) !important; letter-spacing: -0.025em; }
+    h3 { font-size: 1.7rem !important; margin-top: 2.2rem !important; }
+    h4 { margin-top: 1.5rem !important; color: var(--ink) !important; }
+    p, label, .stCaption { color: var(--muted); }
+    .brand-row { display:flex; align-items:center; justify-content:space-between;
+                 border-bottom:1px solid var(--line); padding-bottom:1rem; margin-bottom:2.8rem; }
+    .wordmark { font-size:1rem; font-weight:750; letter-spacing:.12em; color:var(--forest); }
+    .edition { font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+    .eyebrow { color:var(--forest); font-size:.72rem; font-weight:750; letter-spacing:.14em;
+               text-transform:uppercase; margin-bottom:.65rem; }
+    .hero-title { font-family:"Iowan Old Style", "Palatino Linotype", Georgia, serif;
+                  font-size:3.2rem; line-height:1.02; letter-spacing:-.045em; max-width:760px;
+                  color:var(--ink); margin:0 0 .9rem; }
+    .hero-copy { font-size:1.03rem; line-height:1.6; max-width:690px; color:var(--muted);
+                 margin-bottom:2rem; }
+    .section-kicker { margin:2.8rem 0 .1rem; color:var(--forest); font-size:.7rem;
+                      font-weight:750; letter-spacing:.14em; text-transform:uppercase; }
+    .result-intro { border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+                    padding:1.25rem 0; margin:1.2rem 0 1.6rem; color:var(--muted); }
+    [data-testid="stSidebar"] { background:#e9ece6; border-right:1px solid #cfd5cf; }
+    [data-testid="stSidebar"] .block-container { padding:1.8rem 1.35rem 3rem; }
+    [data-testid="stSidebar"] h2 { font-size:1.45rem !important; margin-bottom:.2rem; }
+    [data-testid="stSidebar"] .stMarkdown p { margin-bottom:.35rem; }
+    .side-step { color:var(--forest); font-size:.68rem; font-weight:800; letter-spacing:.12em;
+                 text-transform:uppercase; border-top:1px solid #cfd5cf; padding-top:1.15rem;
+                 margin-top:1.15rem; }
+    div[data-testid="stMetric"] { background:var(--surface); border:1px solid var(--line);
+                                  border-radius:3px; padding:1rem 1.05rem; min-height:108px; }
+    [data-testid="stMetricLabel"] { font-size:.72rem; font-weight:700; letter-spacing:.06em;
+                                    text-transform:uppercase; color:var(--muted); }
+    [data-testid="stMetricValue"] { font-family:"Iowan Old Style", Georgia, serif;
+                                    font-size:1.75rem; color:var(--ink); letter-spacing:-.025em; }
+    .pill { display:inline-flex; align-items:center; border:1px solid currentColor;
+            border-radius:2px; padding:5px 9px; font-size:.7rem; font-weight:750;
+            letter-spacing:.04em; text-transform:uppercase; }
+    .pill-pass { background:#e5eee5; color:var(--forest); }
+    .pill-warn { background:#f4eadb; color:var(--amber); }
+    .pill-fail { background:#f2e2df; color:var(--red); }
+    .stButton > button { border-radius:2px; min-height:46px; font-weight:750; letter-spacing:.02em; }
+    .stButton > button[kind="primary"] { background:var(--forest); border-color:var(--forest); }
+    .stButton > button[kind="primary"]:hover { background:var(--forest-dark); border-color:var(--forest-dark); }
+    div[data-baseweb="select"] > div, div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextInput"] input { background:var(--surface); border-radius:2px; }
+    div[data-testid="stExpander"] { background:var(--surface); border:1px solid var(--line);
+                                    border-radius:3px; margin:.6rem 0; }
+    div[data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:3px; }
+    div[data-testid="stAlert"] { border-radius:2px; }
+    hr { border-color:var(--line); }
+    @media (max-width: 760px) {
+        .block-container { padding:1.25rem 1rem 3rem; }
+        .hero-title { font-size:2.35rem; }
+        .brand-row { margin-bottom:1.8rem; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("# EnerZen Performance Engine")
-st.markdown('<div class="caption">Describe your project. Get the optimal assembly, costs, and performance.</div>',
+st.markdown('<div class="brand-row"><div class="wordmark">ENERZEN</div>'
+            '<div class="edition">Ontario · Performance study</div></div>',
             unsafe_allow_html=True)
+st.markdown('<div class="eyebrow">Residential systems configurator</div>'
+            '<div class="hero-title">Build the envelope around the site.</div>'
+            '<div class="hero-copy">Compare wall, roof, foundation and mechanical systems using '
+            'location-specific snow, climate and regional cost assumptions. Every recommendation '
+            'keeps the underlying quantities visible.</div>', unsafe_allow_html=True)
 
 # ── Inputs (sidebar) ─────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("Your project")
+    st.header("Project brief")
+    st.caption("Define the building once. The engine tests every feasible assembly combination.")
 
-    st.markdown("**The building**")
+    st.markdown('<div class="side-step">01 · Building</div>', unsafe_allow_html=True)
     typology = st.selectbox("Building type", ["single_family", "townhouse", "murb"],
                             format_func=lambda x: x.replace("_", " ").title())
     storeys = st.selectbox("Storeys", [1, 2, 3], index=1)
@@ -79,7 +148,7 @@ with st.sidebar:
                f"conditioned floor area {floor_area:g} m²")
     num_units = st.number_input("Number of units", 1, 50, 1)
 
-    st.markdown("**The site**")
+    st.markdown('<div class="side-step">02 · Site</div>', unsafe_allow_html=True)
     location = st.selectbox("Location (Ontario)", LOCATION_NAMES,
                             index=LOCATION_NAMES.index("Toronto") if "Toronto" in LOCATION_NAMES else 0,
                             help="Sets climate zone, snow load, regional energy rates and soil.")
@@ -95,7 +164,7 @@ with st.sidebar:
                                                        "E": "East", "W": "West"}[x])
     wwr = st.slider("Window-to-wall ratio", 0.10, 0.45, 0.20, step=0.05)
 
-    st.markdown("**The target**")
+    st.markdown('<div class="side-step">03 · Brief</div>', unsafe_allow_html=True)
     target_label = st.selectbox("Performance target", ["code", "nzr", "passive_house"],
                                 index=1, format_func=lambda x: LABEL_NAMES[x])
     solar_option_id = st.selectbox("Solar (rooftop PV)",
@@ -109,18 +178,20 @@ with st.sidebar:
     allow_gas = st.checkbox("Allow natural gas systems", value=True,
                             help="Uncheck for an all-electric home (excludes gas furnaces).")
 
-    with st.expander("Priorities (advanced)"):
+    with st.expander("Ranking priorities"):
         st.caption("How much each objective counts in the ranking.")
         w_cost   = st.slider("Cost",   0, 10, 3)
         w_speed  = st.slider("Speed",  0, 10, 2)
         w_carbon = st.slider("Carbon", 0, 10, 3)
         w_energy = st.slider("Energy", 0, 10, 2)
 
-    run = st.button("Run engine", use_container_width=True, type="primary")
+    run = st.button("Evaluate project", use_container_width=True, type="primary")
 
 # ── Run + results ────────────────────────────────────────────────────────────
 if not run:
-    st.info("Set your project details in the sidebar, then **Run engine**.")
+    st.markdown('<div class="result-intro">Start with the project brief at left. '
+                'The first study evaluates cost, speed, embodied carbon and energy together.</div>',
+                unsafe_allow_html=True)
     st.stop()
 
 total_w = w_cost + w_speed + w_carbon + w_energy
@@ -152,7 +223,12 @@ if not results:
 top = results[0]
 
 # ── Headline ─────────────────────────────────────────────────────────────────
-st.markdown("### Recommended configuration")
+st.markdown('<div class="section-kicker">Recommendation 01</div>', unsafe_allow_html=True)
+st.markdown("### Best-fit configuration")
+st.markdown(f'<div class="result-intro">{location} · {footprint_length:g} × '
+            f'{footprint_width:g} m footprint · {storeys} storey'
+            f'{"s" if storeys > 1 else ""} · {floor_area:g} m² conditioned</div>',
+            unsafe_allow_html=True)
 nzr_p = top.nzr_probability
 nzr_cls = "pill-pass" if nzr_p >= 0.8 else ("pill-warn" if nzr_p >= 0.5 else "pill-fail")
 status = [f'<span class="pill {nzr_cls}">Net Zero Ready — {nzr_p:.0%} likely</span>']
@@ -185,7 +261,8 @@ st.caption(f"EnerGuide estimate ~{top.energuide_score:g}/100  ·  "
            f"NZR threshold {top.energy.nzr_threshold:g} kWh/m²/yr for this climate zone.")
 
 # ── The assembly ─────────────────────────────────────────────────────────────
-st.markdown("#### Assembly")
+st.markdown('<div class="section-kicker">Specification</div>', unsafe_allow_html=True)
+st.markdown("#### Selected building systems")
 def _rigid(n): return f" + {n:g}\" exterior rigid" if n else ""
 a = st.columns(2)
 a[0].markdown(
@@ -256,7 +333,8 @@ if top.assembly_breakdown:
                         f"frost wall **${fc['frost_wall']:,.0f}**")
 
 # ── Alternatives ─────────────────────────────────────────────────────────────
-st.markdown("#### Other options")
+st.markdown('<div class="section-kicker">Shortlist</div>', unsafe_allow_html=True)
+st.markdown("#### Other viable configurations")
 st.caption(f"{len(results)} feasible configurations ranked by your priorities.")
 
 rows = [{
@@ -270,7 +348,8 @@ rows = [{
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 # ── How EnerZen compares ─────────────────────────────────────────────────────
-st.markdown("#### How this home compares")
+st.markdown('<div class="section-kicker">Performance</div>', unsafe_allow_html=True)
+st.markdown("#### Energy profile")
 st.caption("Envelope demand and whole-home energy intensity. Lower is better.")
 
 intensity = st.columns(3)
@@ -303,7 +382,7 @@ bars = alt.Chart(compare).mark_bar(cornerRadiusEnd=4).encode(
     x=alt.X("eui:Q", title="Energy use intensity (kWh/m²/yr)"),
     y=alt.Y("label:N", sort=None, title=None),
     color=alt.Color("kind:N", scale=alt.Scale(
-        domain=["Benchmark", "EnerZen"], range=["#B0BEC5", "#1A5276"]), legend=None),
+        domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#214E3B"]), legend=None),
     tooltip=["label", "eui"],
 )
 labels = bars.mark_text(align="left", dx=4, color="#666").encode(text=alt.Text("eui:Q", format=".0f"))
@@ -324,7 +403,7 @@ ec_bars = alt.Chart(ec).mark_bar(cornerRadiusEnd=4).encode(
     x=alt.X("ec:Q", title="Embodied carbon (kgCO₂e/m²)"),
     y=alt.Y("label:N", sort=None, title=None),
     color=alt.Color("kind:N", scale=alt.Scale(
-        domain=["Benchmark", "EnerZen"], range=["#B0BEC5", "#1A5276"]), legend=None),
+        domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#214E3B"]), legend=None),
     tooltip=["label", "ec"],
 )
 ec_labels = ec_bars.mark_text(align="left", dx=4, color="#666").encode(
@@ -334,7 +413,7 @@ st.caption(f"Benchmark {bench_ec} kgCO₂e/m² — cradle-to-gate mean for new l
            "(Living Materials Lab, 2024).")
 
 # ── Monthly utility bill ─────────────────────────────────────────────────────
-st.markdown("#### Estimated monthly utility bill")
+st.markdown("#### Monthly operating cost")
 util = pd.DataFrame(top.utility["months"])
 util_long = util.melt(id_vars="month", value_vars=["electricity", "gas"],
                       var_name="Energy", value_name="cost")
@@ -345,7 +424,7 @@ util_chart = alt.Chart(util_long).mark_bar().encode(
     x=alt.X("month:N", sort=None, title=None),
     y=alt.Y("cost:Q", title="Cost ($)", stack="zero"),
     color=alt.Color("Energy:N", scale=alt.Scale(
-        domain=["electricity", "gas"], range=["#1A5276", "#E67E22"]),
+        domain=["electricity", "gas"], range=["#214E3B", "#A96820"]),
         legend=alt.Legend(title=None, orient="top")),
     tooltip=["month", "Energy", "cost"],
 ).properties(height=240)
@@ -355,7 +434,8 @@ st.caption(f"~${top.annual_utility_cost:,.0f}/yr total"
            + " Rates: OEB electricity ~$0.16/kWh, Enbridge gas ~$0.055/kWh (2025).")
 
 # ── Cost vs. energy trade-off ────────────────────────────────────────────────
-st.markdown("#### Cost vs. energy across options")
+st.markdown('<div class="section-kicker">Decision field</div>', unsafe_allow_html=True)
+st.markdown("#### Cost and energy trade-off")
 opts = pd.DataFrame({
     "cost": [r.construction_cost for r in results[:20]],
     "eui": [r.net_eui_kwh_m2_yr for r in results[:20]],
@@ -367,7 +447,7 @@ pts = alt.Chart(opts).mark_circle(size=90, opacity=0.75).encode(
     y=alt.Y("eui:Q", title="Net EUI (kWh/m²/yr)"),
     color=alt.Color("status:N", scale=alt.Scale(
         domain=["Net Zero", "NZR", "Below NZR"],
-        range=["#1E8449", "#1A5276", "#C0392B"]), title=None),
+        range=["#567A61", "#214E3B", "#9F3F35"]), title=None),
     tooltip=["cost", "eui", "status"],
 )
 thresh_rule = alt.Chart(pd.DataFrame({"y": [top.energy.nzr_threshold]})).mark_rule(
