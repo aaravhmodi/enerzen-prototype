@@ -68,8 +68,14 @@ with st.sidebar:
     num_units = st.number_input("Number of units", 1, 50, 1)
 
     st.markdown("**The site**")
-    climate_zone = st.selectbox("Climate zone", ["6", "7a", "7b"],
-                                format_func=lambda z: ZONE_LABELS[z])
+    location = st.selectbox("Location (Ontario)", LOCATION_NAMES,
+                            index=LOCATION_NAMES.index("Toronto") if "Toronto" in LOCATION_NAMES else 0,
+                            help="Sets climate zone, snow load, regional energy rates and soil.")
+    resolved = resolve_location(location)
+    st.caption(f"Zone {resolved.climate_zone} · snow {resolved.roof_snow_load_kpa} kPa "
+               f"({resolved.snow_tier['joist_depth_in']}\" joist) · {resolved.region_name}")
+    if resolved.over_snow_range:
+        st.warning("Snow load exceeds the standard catalog — needs structural review.")
     orientation = st.selectbox("Main facade faces", ["S", "N", "E", "W"],
                                format_func=lambda x: {"S": "South", "N": "North",
                                                        "E": "East", "W": "West"}[x])
