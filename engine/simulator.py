@@ -36,25 +36,32 @@ class AssemblyConfig:
 
 @dataclass
 class EnergyResult:
-    eui_kwh_m2_yr: float          # Energy Use Intensity
-    heating_demand_kwh_yr: float
+    eui_kwh_m2_yr: float          # total site Energy Use Intensity (all end uses)
+    heating_demand_kwh_yr: float  # purchased heating energy (after COP)
     cooling_demand_kwh_yr: float
     hot_water_kwh_yr: float
     total_energy_kwh_yr: float
     energuide_score: float         # approximate
-    nzr_compliant: bool
-    nzr_threshold: float
+    nzr_compliant: bool            # tested on TEDI (envelope), not total EUI
+    nzr_threshold: float           # TEDI threshold for the zone
+    # Split metrics (BC Step Code / CHBA style)
+    tedi_kwh_m2_yr: float = 0.0    # Thermal Energy Demand Intensity (envelope)
+    meui_kwh_m2_yr: float = 0.0    # Mechanical EUI (heating+cooling+DHW, purchased)
 
 
 # Climate data from assemblies.json (HDD/CDD for degree-day model).
 # heating_season_days bounds the period over which internal/solar gains are
 # credited against heating demand.
 CLIMATE = {
-    "6":  {"hdd": 3520, "cdd": 320,  "nzr_eui": 60, "design_heat": -18,
+    # nzr_tedi is the Thermal Energy Demand Intensity threshold (kWh/m2/yr),
+    # the envelope-only heating-demand target the NZR test is run against.
+    # Colder zones get a higher allowance. Values are envelope-driven: a good
+    # panelized envelope meets them; code-minimum construction does not.
+    "6":  {"hdd": 3520, "cdd": 320,  "nzr_eui": 60, "nzr_tedi": 30, "design_heat": -18,
            "heating_season_days": 230},
-    "7a": {"hdd": 4440, "cdd": 220,  "nzr_eui": 55, "design_heat": -25,
+    "7a": {"hdd": 4440, "cdd": 220,  "nzr_eui": 55, "nzr_tedi": 35, "design_heat": -25,
            "heating_season_days": 250},
-    "7b": {"hdd": 5500, "cdd": 130,  "nzr_eui": 50, "design_heat": -30,
+    "7b": {"hdd": 5500, "cdd": 130,  "nzr_eui": 50, "nzr_tedi": 40, "design_heat": -30,
            "heating_season_days": 270},
 }
 
@@ -128,7 +135,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     climate = CLIMATE[spec.climate_zone]
     hdd = climate["hdd"] * weather_factor
     cdd = climate["cdd"] * weather_factor
-    nzr_threshold = climate["nzr_eui"]
+    tedi_threshold = climate["nzr_tedi"]
 
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area = spec.floor_area_m2 * ratios["wall"]
@@ -187,6 +194,11 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     total_energy = heating_demand + cooling_demand + hot_water + appliances
     eui = total_energy / spec.floor_area_m2
 
+    # Split metrics: TEDI is the envelope-only heating *demand* (before COP),
+    # MEUI is purchased mechanical energy (heating + cooling + DHW).
+    tedi = heating_net / spec.floor_area_m2
+    meui = (heating_demand + cooling_demand + hot_water) / spec.floor_area_m2
+
     # EnerGuide score approximation (inverse of EUI, scaled to ~100 for NZR homes)
     energuide_score = max(0, min(100, 100 - (eui - 30) * 0.8))
 
@@ -197,8 +209,10 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
         hot_water_kwh_yr=round(hot_water, 0),
         total_energy_kwh_yr=round(total_energy, 0),
         energuide_score=round(energuide_score, 1),
-        nzr_compliant=eui <= nzr_threshold,
-        nzr_threshold=nzr_threshold,
+        nzr_compliant=tedi <= tedi_threshold,
+        nzr_threshold=tedi_threshold,
+        tedi_kwh_m2_yr=round(tedi, 1),
+        meui_kwh_m2_yr=round(meui, 1),
     )
 
 
