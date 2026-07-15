@@ -62,10 +62,10 @@ def estimate_cost(spec, env, window, mech) -> dict:
     }
 
 
-def estimate_schedule(spec, wall, roof, floor_c) -> dict:
+def estimate_schedule(spec, env) -> dict:
     """
-    Estimate weeks to envelope close and panel counts.
-    Panelized assemblies (EnerZen IDs W3+, R2+, F2) install significantly faster.
+    Estimate weeks to envelope close (fabrication + install) and panel counts.
+    Panelized/cassette assemblies install significantly faster (lower hours/m2).
     """
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area  = spec.floor_area_m2 * ratios["wall"]
@@ -75,9 +75,9 @@ def estimate_schedule(spec, wall, roof, floor_c) -> dict:
     opaque_wall = wall_area - window_area
 
     labour_hours = (
-        opaque_wall * wall["install_hours_per_m2"] +
-        roof_area   * roof["install_hours_per_m2"] +
-        floor_area  * floor_c["install_hours_per_m2"]
+        opaque_wall * env.wall_hours_per_m2 +
+        roof_area   * env.roof_hours_per_m2 +
+        floor_area  * env.floor_hours_per_m2
     )
 
     # 4-person crew, 40hr week
