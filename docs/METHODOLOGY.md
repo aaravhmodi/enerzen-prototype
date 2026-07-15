@@ -332,7 +332,7 @@ cost_per_m2_in  installed cost, CAD per m2 per inch of thickness
 co2_per_m2_in   embodied carbon, kgCO2e per m2 per inch
 ```
 
-The full table is listed in section 11. Imperial R converts to metric RSI by
+The full table is listed in section 13. Imperial R converts to metric RSI by
 `RSI = R / 5.678`. (A prior version treated imperial R as if it were metric RSI,
 making every assembly about 5.7x better insulated than reality — that bug is
 fixed here.)
@@ -363,7 +363,7 @@ what marketing quotes.
 ### 4.3 The six assemblies and the thickness sweep
 
 Two walls, two roofs, two floors, each a layer build-up with a swept insulation
-thickness (section 11 lists them with computed R ranges). The optimizer searches
+thickness (section 13 lists them with computed R ranges). The optimizer searches
 the thickness options rather than the user guessing:
 
 - **Walls** — exterior continuous rigid swept 0 / 2 / 4 inches.
@@ -388,7 +388,7 @@ A single location choice (one of 227 Ontario places) resolves four things.
 - **Climate zone** (6 / 7a / 7b) — sets HDD/CDD and the TEDI threshold. Assigned
   by a city-name classifier, user-overridable.
 - **Snow load** (Ss, Sr) — real, from the NBCC 2015 workbook.
-- **Regional energy rates** — electricity varies by delivery region (section 10).
+- **Regional energy rates** — electricity varies by delivery region (section 12).
 - **Soil** — allowable bearing and frost depth, conservative regional defaults.
 
 ### 5.2 Roof snow load and joist depth
@@ -402,7 +402,7 @@ S = Is x [Ss x (Cb x Cw x Cs x Ca) + Sr]
 
 Residential defaults: Is = 1.0 (Normal importance), Cb = 0.8, Cw = Cs = Ca = 1.0,
 so `S = 0.8 x Ss + Sr`. The resulting roof load selects a snow tier, which sets
-the roof joist depth (section 10). Deeper joists hold more insulation, so snow
+the roof joist depth (section 12). Deeper joists hold more insulation, so snow
 load feeds directly into the achievable roof R-value and cost. Five remote
 northern locations exceed the top tier and are flagged for structural review.
 
@@ -714,6 +714,10 @@ is presented as the recommended configuration.
 {{CLIMATE_TABLE}}
 
 {{RATES_TABLE}}
+
+{{REGIONS_TABLE}}
+
+{{SNOW_TABLE}}
 
 {{BENCHMARK_TABLE}}
 
