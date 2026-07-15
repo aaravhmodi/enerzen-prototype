@@ -182,7 +182,7 @@ st.markdown('<div class="brand-row"><div class="wordmark">ENERZEN</div>'
             '<div class="edition">Ontario · Performance study</div></div>',
             unsafe_allow_html=True)
 st.markdown('<div class="eyebrow">Residential systems configurator</div>'
-            '<div class="hero-title">Build the envelope around the site.</div>'
+            '<div class="hero-title">Find the right building system.</div>'
             '<div class="hero-copy">Compare wall, roof, foundation and mechanical systems using '
             'location-specific snow, climate and regional cost assumptions. Every recommendation '
             'keeps the underlying quantities visible.</div>', unsafe_allow_html=True)
