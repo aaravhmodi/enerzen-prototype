@@ -95,7 +95,7 @@ def monthly_utility(energy, mech_type: str, pv_generation_kwh: float, rates: dic
 
 
 def lifecycle_cost(construction_cost: float, annual_energy_cost: float,
-                   rebate: float = 0.0, years: int = 60,
+                   rebate: float = 0.0, years: int = 30,
                    discount_rate: float = 0.03, energy_escalation: float = 0.02) -> dict:
     """
     Present-value lifecycle cost: upfront capital (less rebate) plus discounted
