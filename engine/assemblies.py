@@ -121,6 +121,6 @@ ROOFS = [
     AssemblyOption("RA2", "Unvented cassette — mineral wool", "roof", _roof_mineral, ROOF_DECK_RIGID_IN, 0.50),
 ]
 FLOORS = [
-    AssemblyOption("FA1", "Slab on grade", "floor", _floor_slab, FLOOR_RIGID_IN, 0.80),
+    AssemblyOption("FA1", "Slab on grade", "floor", _floor_slab, EPS_MM_OPTIONS, 0.80),
     AssemblyOption("FA2", "Raised floor cassette", "floor", _floor_cassette, [0], 0.40),
 ]
