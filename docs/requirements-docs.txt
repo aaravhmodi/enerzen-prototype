@@ -1,0 +1,5 @@
+# Documentation-only dependencies.
+# Kept separate from requirements.txt so the Streamlit Cloud deploy stays lean.
+#   pip install -r docs/requirements-docs.txt
+#   python docs/generate_pdf.py
+reportlab>=4.0.0
