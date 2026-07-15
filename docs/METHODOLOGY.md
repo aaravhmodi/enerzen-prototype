@@ -579,19 +579,23 @@ contributes the most embodied carbon.
 
 ### 8.2 Operational carbon
 
+Fuel factors are applied per end use — only heating burns gas in a gas home;
+base loads and cooling are always electric:
+
 ```
-grid_factor        = 0.19 if mechanical is gas else 0.074
-operational_annual = total_energy x grid_factor
-operational_60yr   = operational_annual x 60
+gas home:      operational_annual = heating x 0.19 + everything_else x 0.074
+electric home: operational_annual = total_energy x 0.074
+operational_30yr = operational_annual x 30      (aligned with lifecycle horizon)
 ```
 
 - **0.074 kgCO2e/kWh** — Ontario grid intensity, 2024.
 - **0.19 kgCO2e/kWh** — natural gas combustion.
 
-Note that Ontario's grid intensity rose 25 percent in 2024 as gas-fired
-generation increased. An earlier version of this engine used 0.03, a 2022-era
-figure, which understated the operational carbon of electric systems by roughly
-two and a half times.
+Two corrections worth noting: an earlier version applied the gas factor to
+*all* energy in gas homes (inflating their operational carbon roughly 2x), and
+used a 2022-era grid factor of 0.03 (understating electric systems ~2.5x).
+Ontario's grid intensity rose 25 percent in 2024 as gas-fired generation
+increased.
 
 ---
 
