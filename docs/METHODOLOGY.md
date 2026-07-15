@@ -542,7 +542,6 @@ week. Labour hours are exactly those from the cost model.
 Fabrication and installation are added sequentially as a conservative headline;
 in practice, installation may begin once the first panel packages ship. The old
 worked comparison to retired catalog assemblies has been removed.
-2.0 weeks — about 2.3 times slower.
 
 Panel counts assume a standard 2.4 m x 3.0 m panel:
 
