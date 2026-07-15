@@ -35,7 +35,7 @@ MATERIALS = {
     "osb":                (1.25,  4.20,   3.40),
     "plywood":            (1.25,  6.50,   2.90),
     "gypsum":             (0.90,  3.10,   2.60),
-    "concrete":           (0.08, 18.00,  55.00),   # per inch; very high carbon
+    "concrete":           (0.08, 18.00,   8.00),   # ~315 kgCO2e/m3; high-carbon per volume
     "air_gap":            (1.00,  0.00,   0.00),
     "vinyl_siding":       (0.61,  9.00,   4.80),
     "fiber_cement":       (0.15, 16.00,   7.50),
