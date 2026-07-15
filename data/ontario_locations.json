@@ -1,0 +1,1367 @@
+{
+  "_source": "NBCC 2015 Climatic Data (Snow Load Calculation workbook v1.3), Ontario only. ss/sr from workbook; climate_zone and region auto-classified and user-overridable.",
+  "locations": {
+    "Ailsa Craig": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Ajax": {
+      "ss": 1.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Alexandria": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Alliston": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Almonte": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Armstrong": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Arnprior": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Atikokan": {
+      "ss": 2.4,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Attawapiskat": {
+      "ss": 2.8,
+      "sr": 0.3,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Aurora": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Bancroft": {
+      "ss": 3.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Barrie": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Barriefield": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Beaverton": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Belleville": {
+      "ss": 1.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Belmont": {
+      "ss": 1.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Big Trout Lake": {
+      "ss": 3.2,
+      "sr": 0.2,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Bracebridge": {
+      "ss": 3.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Bradford": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Brampton": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Brantford": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Brighton": {
+      "ss": 1.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Brockville": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Burk's Falls": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Burlington": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "CFB Borden": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Cambridge": {
+      "ss": 1.6,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Campbellford": {
+      "ss": 1.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Cannington": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Carleton Place": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Cavan": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Centralia": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Chapleau": {
+      "ss": 3.6,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Chatham": {
+      "ss": 1.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Chesley": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Clinton": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Coboconk": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Cobourg": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Cochrane": {
+      "ss": 2.8,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Colborne": {
+      "ss": 1.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Collingwood": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Cornwall": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Corunna": {
+      "ss": 1.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Deep River": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Deseronto": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Dorchester": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Dorion": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Dresden": {
+      "ss": 1.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Dryden": {
+      "ss": 2.4,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Dundalk": {
+      "ss": 3.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Dunnville": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Durham": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Dutton": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Earlton": {
+      "ss": 3.1,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Edison": {
+      "ss": 2.4,
+      "sr": 0.3,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Elliot Lake": {
+      "ss": 2.9,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Elmvale": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Embro": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Englehart": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Espanola": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Etobicoke": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Exeter": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Fenelon Falls": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Fergus": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Forest": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Fort Erie": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Fort Erie (Ridgeway)": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Fort Frances": {
+      "ss": 2.3,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Ganaoque": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Geraldton": {
+      "ss": 2.9,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Glencoe": {
+      "ss": 1.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Goderich": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Gore Bay": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Graham": {
+      "ss": 2.6,
+      "sr": 0.3,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Gravenhurst (Muskoka Airport)": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Grimsby": {
+      "ss": 0.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Guelph": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Guthrie": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Haileybury": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Haldimand (Caledonia)": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Haldimand (Hagersville)": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Haliburton": {
+      "ss": 2.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Halton Hills (Georgetown)": {
+      "ss": 1.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Hamilton": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Hanover": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Hastings": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Hawkesbury": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Hearst": {
+      "ss": 2.8,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Honey Harbour": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Hornepayne": {
+      "ss": 3.6,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Huntsville": {
+      "ss": 2.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Ingersoll": {
+      "ss": 1.7,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Iroquois Falls": {
+      "ss": 2.9,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Jellicoe": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Kapuskasing": {
+      "ss": 3.0,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Kemptville": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Kenora": {
+      "ss": 2.5,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Killaloe": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Kincardine": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Kingston": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Kinmount": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Kirkland Lake": {
+      "ss": 2.9,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Kitchener": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Lakefield": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Lansdowne House": {
+      "ss": 3.0,
+      "sr": 0.2,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Leamington": {
+      "ss": 0.8,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Lindsay": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Lion's Head": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Listowel": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "London": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Lucan": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Maitland": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Markdale": {
+      "ss": 3.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Markham": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Martin": {
+      "ss": 2.6,
+      "sr": 0.3,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Matheson": {
+      "ss": 2.8,
+      "sr": 0.3,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Mattawa": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Midland": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Milton": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Milverton": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Minden": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Mississauga": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Mississauga (Airport)": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Mississauga (Port Credit)": {
+      "ss": 0.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Mitchell": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Moosonee": {
+      "ss": 2.7,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Morrisburg": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Mount Forest": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Nakina": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Nanticoke (Jarvis)": {
+      "ss": 1.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Nanticoke (Port Dover)": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Napanee": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "New Liskeard": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Newcastle": {
+      "ss": 1.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Newcastle (Bowmanville)": {
+      "ss": 1.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Newmarket": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Niagara Falls": {
+      "ss": 1.8,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "North Bay": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "North York": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Norwood": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Oakville": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Orangeville": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Orillia": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Oshawa": {
+      "ss": 1.4,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Ottawa": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Ottawa (Kanata)": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Owen Sound": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Pagwa River": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Paris": {
+      "ss": 1.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Parkhill": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Parry Sound": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Pelham (Fonthill)": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Pembroke": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Penetanguishene": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Perth": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Petawawa": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Peterborough": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Petrolia": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Pickering (Dunbarton)": {
+      "ss": 1.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Picton": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Plattsville": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Point Alexander": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Port Burwell": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Port Colborne": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Port Elgin": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Port Hope": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Port Perry": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Port Stanley": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Prescott": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Princeton": {
+      "ss": 1.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Raith": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Rayside-Balfour (Chelmsford)": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Red Lake": {
+      "ss": 2.6,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Renfrew": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Richmond Hill": {
+      "ss": 1.5,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Rockland": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Sarnia": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Sault Ste. Marie": {
+      "ss": 3.1,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Scarborough": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Schreiber": {
+      "ss": 3.3,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Seaforth": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Shelburne": {
+      "ss": 3.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Simcoe": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Sioux Lookout": {
+      "ss": 2.6,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Smiths Falls": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Smithville": {
+      "ss": 1.5,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Smooth Rock Falls": {
+      "ss": 2.7,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "South River": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Southampton": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "St. Catharines": {
+      "ss": 1.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "St. Mary's": {
+      "ss": 2.2,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "St. Thomas": {
+      "ss": 1.4,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Stirling": {
+      "ss": 1.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Stratford": {
+      "ss": 2.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Strathroy": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Sturgeon Falls": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Sudbury": {
+      "ss": 2.5,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Sundridge": {
+      "ss": 2.8,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Tavistock": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Temagami": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Thamesford": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Thedford": {
+      "ss": 2.1,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Thunder Bay": {
+      "ss": 2.9,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Tillsonburg": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Timmins": {
+      "ss": 3.1,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Timmins (Porcupine)": {
+      "ss": 2.9,
+      "sr": 0.3,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Toronto": {
+      "ss": 0.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "toronto"
+    },
+    "Trenton": {
+      "ss": 1.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Trout Creek": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Uxbridge": {
+      "ss": 2.4,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Vaughan (Woodbridge)": {
+      "ss": 1.1,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Vittoria": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Walkerton": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Wallaceburg": {
+      "ss": 0.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Waterloo": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Watford": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Wawa": {
+      "ss": 3.4,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Welland": {
+      "ss": 2.0,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "West Lorne": {
+      "ss": 1.3,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Whitby": {
+      "ss": 1.2,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Whitby (Brooklin)": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "White River": {
+      "ss": 3.6,
+      "sr": 0.4,
+      "climate_zone": "7b",
+      "region": "northern"
+    },
+    "Wiarton": {
+      "ss": 2.7,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Windsor": {
+      "ss": 0.8,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Wingham": {
+      "ss": 2.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    },
+    "Woodstock": {
+      "ss": 1.9,
+      "sr": 0.4,
+      "climate_zone": "6",
+      "region": "southern"
+    },
+    "Wyoming": {
+      "ss": 1.6,
+      "sr": 0.4,
+      "climate_zone": "7a",
+      "region": "eastern"
+    }
+  }
+}
