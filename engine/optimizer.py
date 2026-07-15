@@ -73,7 +73,8 @@ class ConfigResult:
     # Utility + lifecycle
     annual_utility_cost: float = 0.0
     avg_monthly_utility: float = 0.0
-    lifecycle_cost_60yr: float = 0.0
+    lifecycle_cost_30yr: float = 0.0
+    lifecycle_cost_20yr: float = 0.0
 
     # Assembly build parameters (swept)
     wall_ext_rigid_in: float = 0.0
@@ -226,7 +227,8 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 continue
 
             utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
-            lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate)
+            lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate, years=30)
+            lcc20 = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate, years=20)
 
             result = ConfigResult(
                 wall_id=wall_opt.id,
