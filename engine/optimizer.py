@@ -39,6 +39,8 @@ class ProjectSpec:
     solar_option_id: str = "PV0"  # from catalog["solar"]; PV0 = none
     location: str = None    # Ontario place name; drives zone, snow tier, regional rates
     num_units: int = 1
+    has_ac: bool = True     # add central AC when the heating plant is a furnace
+    allow_gas: bool = True  # False = all-electric: gas systems excluded
 
     # Derived
     infiltration_ach50: float = 3.0  # default target; tightens for higher labels
@@ -169,9 +171,12 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     # Without a location, default to the lightest tier.
     joist_depth = loc.joist_depth_in if loc else catalog["snow"]["tiers"][0]["joist_depth_in"]
 
+    mech_options = [m for m in catalog["mechanical"]
+                    if spec.allow_gas or m["type"] != "gas"]
+
     all_configs = []
     for wall_opt, roof_opt, floor_opt, window, mech in itertools.product(
-            WALLS, ROOFS, FLOORS, catalog["windows"], catalog["mechanical"]):
+            WALLS, ROOFS, FLOORS, catalog["windows"], mech_options):
         for w_rigid, r_rigid, f_rigid in itertools.product(
                 wall_opt.sweep, roof_opt.sweep, floor_opt.sweep):
 
