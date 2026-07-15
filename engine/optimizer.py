@@ -28,7 +28,7 @@ DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
 class ProjectSpec:
     # Project info
     typology: str           # "single_family", "townhouse", "murb"
-    climate_zone: str       # "6", "7a", "7b"
+    climate_zone: str       # "6", "7a", "7b" — overridden by `location` if set
     floor_area_m2: float
     storeys: int
     orientation: str        # "N", "S", "E", "W"
