@@ -115,10 +115,10 @@ weights = {"cost": w_cost / total_w, "speed": w_speed / total_w,
            "carbon": w_carbon / total_w, "energy": w_energy / total_w}
 
 spec = ProjectSpec(
-    typology=typology, climate_zone=climate_zone, floor_area_m2=float(floor_area),
+    typology=typology, climate_zone=resolved.climate_zone, floor_area_m2=float(floor_area),
     storeys=storeys, orientation=orientation, window_to_wall_ratio=wwr,
     budget_per_unit=float(budget), target_label=target_label,
-    solar_option_id=solar_option_id, num_units=num_units,
+    solar_option_id=solar_option_id, location=location, num_units=num_units,
 )
 
 with st.spinner("Evaluating assembly combinations…"):
