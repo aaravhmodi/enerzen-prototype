@@ -89,6 +89,7 @@ class ConfigResult:
     panel_schedule: dict = field(repr=False, default=None)
     utility: dict = field(repr=False, default=None)
     cost_breakdown: dict = field(repr=False, default=None)
+    assembly_breakdown: dict = field(repr=False, default=None)
     _assembly: AssemblyConfig = field(repr=False, default=None)  # for deferred MC
 
     # Pareto rank (1 = non-dominated)
@@ -169,6 +170,8 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         orientation=spec.orientation,
         window_to_wall_ratio=spec.window_to_wall_ratio,
         infiltration_ach50=ach50,
+        footprint_length_m=spec.footprint_length_m,
+        footprint_width_m=spec.footprint_width_m,
     )
 
     # Roof joist depth is set by the structural snow tier (from location).
@@ -264,6 +267,11 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 energy=energy,
                 panel_schedule=schedule["panel_counts"],
                 cost_breakdown=cost_data,
+                assembly_breakdown={
+                    "wall": wall_asm.breakdown(),
+                    "roof": roof_asm.breakdown(),
+                    "floor": floor_asm.breakdown(),
+                },
                 utility=utility,
                 _assembly=assembly,
             )

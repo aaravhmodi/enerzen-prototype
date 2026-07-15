@@ -20,6 +20,8 @@ class BuildingSpec:
     orientation: str  # N, S, E, W (main facade)
     window_to_wall_ratio: float  # 0.0 - 0.5
     infiltration_ach50: float  # blower door target
+    footprint_length_m: float | None = None
+    footprint_width_m: float | None = None
 
 
 @dataclass
@@ -140,7 +142,9 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area = spec.floor_area_m2 * ratios["wall"]
     roof_area = spec.floor_area_m2 * ratios["roof"]
-    floor_area = spec.floor_area_m2 * ratios["floor"]
+    floor_area = (spec.footprint_length_m * spec.footprint_width_m
+                  if spec.footprint_length_m and spec.footprint_width_m
+                  else spec.floor_area_m2 * ratios["floor"])
     window_area = wall_area * spec.window_to_wall_ratio
     opaque_wall_area = wall_area - window_area
 
@@ -152,7 +156,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
 
     # Infiltration losses — convert ACH50 to natural infiltration (÷ 20 rule of thumb)
     ach_natural = spec.infiltration_ach50 * infiltration_factor / 20
-    volume_m3 = spec.floor_area_m2 * 2.7 * spec.storeys
+    volume_m3 = spec.floor_area_m2 * 2.7
     ua_infiltration = (ach_natural * volume_m3 * 0.33)  # W/K, 0.33 = air heat capacity factor
 
     # HRV recovery reduces ventilation load

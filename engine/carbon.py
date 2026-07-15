@@ -23,7 +23,10 @@ def calculate_carbon(spec, env, window, mech, energy_result) -> dict:
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area   = spec.floor_area_m2 * ratios["wall"]
     roof_area   = spec.floor_area_m2 * ratios["roof"]
-    floor_area  = spec.floor_area_m2 * ratios["floor"]
+    floor_area  = (spec.footprint_length_m * spec.footprint_width_m
+                   if getattr(spec, "footprint_length_m", None)
+                   and getattr(spec, "footprint_width_m", None)
+                   else spec.floor_area_m2 * ratios["floor"])
     window_area = wall_area * spec.window_to_wall_ratio
     opaque_wall = wall_area - window_area
 

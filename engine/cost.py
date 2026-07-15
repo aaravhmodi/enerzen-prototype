@@ -68,16 +68,18 @@ def estimate_cost(spec, env, window, mech) -> dict:
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area   = spec.floor_area_m2 * ratios["wall"]
     roof_area   = spec.floor_area_m2 * ratios["roof"]
-    floor_area  = spec.floor_area_m2 * ratios["floor"]
+    floor_area  = (spec.footprint_length_m * spec.footprint_width_m
+                   if getattr(spec, "footprint_length_m", None)
+                   and getattr(spec, "footprint_width_m", None)
+                   else spec.floor_area_m2 * ratios["floor"])
     window_area = wall_area * spec.window_to_wall_ratio
     opaque_wall = wall_area - window_area
 
-    material_cost = (
-        opaque_wall * env.wall.cost_m2 +
-        roof_area   * env.roof.cost_m2 +
-        floor_area  * env.floor.cost_m2 +
-        window_area * window["cost_per_m2"]
-    )
+    wall_material = opaque_wall * env.wall.cost_m2
+    roof_material = roof_area * env.roof.cost_m2
+    floor_material = floor_area * env.floor.cost_m2
+    window_material = window_area * window["cost_per_m2"]
+    material_cost = wall_material + roof_material + floor_material + window_material
 
     labour_hours = (
         opaque_wall * env.wall_hours_per_m2 +
@@ -110,6 +112,15 @@ def estimate_cost(spec, env, window, mech) -> dict:
         "total_per_unit":    round(total, 0),
         "cost_per_m2":       round(total / spec.floor_area_m2, 0),
         "labour_hours":      round(labour_hours, 1),
+        "surface_areas_m2": {
+            "opaque_wall": round(opaque_wall, 1), "windows": round(window_area, 1),
+            "roof": round(roof_area, 1), "floor_footprint": round(floor_area, 1),
+        },
+        "envelope_material_split": {
+            "walls": round(wall_material, 0), "roof": round(roof_material, 0),
+            "floor_foundation": round(floor_material, 0),
+            "windows": round(window_material, 0),
+        },
     }
 
 
@@ -128,7 +139,10 @@ def estimate_schedule(spec, env) -> dict:
     ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
     wall_area  = spec.floor_area_m2 * ratios["wall"]
     roof_area  = spec.floor_area_m2 * ratios["roof"]
-    floor_area = spec.floor_area_m2 * ratios["floor"]
+    floor_area = (spec.footprint_length_m * spec.footprint_width_m
+                  if getattr(spec, "footprint_length_m", None)
+                  and getattr(spec, "footprint_width_m", None)
+                  else spec.floor_area_m2 * ratios["floor"])
     window_area = wall_area * spec.window_to_wall_ratio
     opaque_wall = wall_area - window_area
 
