@@ -36,10 +36,10 @@ class EnvelopeCombo:
     roof_hours_per_m2: float
     floor_hours_per_m2: float
 
-# Coarse thickness sweeps (inches). Kept small so the optimizer stays fast.
-WALL_EXT_RIGID_IN = [0, 2, 4]      # exterior continuous mineral wool
-ROOF_DECK_RIGID_IN = [0, 2, 4]     # rigid above the roof deck
-FLOOR_RIGID_IN = [2, 4]            # under-slab / under-floor rigid (Phase 4 refines slab)
+# Coarse thickness sweeps. Kept small so the optimizer stays fast.
+WALL_EXT_RIGID_IN = [0, 2, 4]      # exterior continuous mineral wool (inches)
+ROOF_DECK_RIGID_IN = [0, 2, 4]     # rigid above the roof deck (inches)
+# Slab sub-slab EPS is swept in mm — see engine.foundation.EPS_MM_OPTIONS.
 
 
 # ── Wall builders ────────────────────────────────────────────────────────────
@@ -84,16 +84,15 @@ def _roof_mineral(joist_depth_in: float, deck_rigid_in: float) -> Assembly:
 
 
 # ── Floor builders ───────────────────────────────────────────────────────────
-# Slab-on-grade concrete + sub-slab rigid is detailed in Phase 4 (foundation).
-# Here the floor's thermal layer is the rigid under it.
+# The slab is a real foundation model (engine.foundation): perimeter-strip EPS,
+# ground-coupled heat loss, frost wall sized by the location's frost depth.
 
-def _floor_slab(rigid_in: float) -> Assembly:
-    return Assembly("Slab on grade + sub-slab rigid", "floor",
-                    [Layer("concrete", 4), Layer("eps", rigid_in)],
-                    exterior_film=False)
+def _floor_slab(eps_mm: float, *, floor_area_m2: float = 150.0, storeys: int = 1,
+                frost_depth_m: float = 1.2) -> SlabOnGrade:
+    return SlabOnGrade(eps_mm, floor_area_m2, storeys, frost_depth_m)
 
 
-def _floor_cassette(rigid_in: float) -> Assembly:
+def _floor_cassette(rigid_in: float, **_geom) -> Assembly:
     layers = [Layer("osb", 0.75)]
     return Assembly("Raised floor cassette", "floor", layers,
                     FramedCavity("mineral_wool_batt", 9.25, framing_factor=0.10),
