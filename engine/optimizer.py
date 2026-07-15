@@ -130,14 +130,22 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     catalog = load_catalog()
     ach50 = _ach50_for_label(spec.target_label)
 
+    # A location, if given, overrides the climate zone and supplies regional
+    # energy rates and the structural snow tier.
+    loc = resolve_location(spec.location) if spec.location else None
+    climate_zone = loc.climate_zone if loc else spec.climate_zone
+
     solar_option = next(
         (s for s in catalog["solar"] if s["id"] == spec.solar_option_id),
         catalog["solar"][0],
     )
-    climate = catalog["climate_zones"][spec.climate_zone]
+    climate = catalog["climate_zones"][climate_zone]
     solar = calculate_solar(solar_option, climate, spec.orientation)
 
-    rates = catalog["energy_rates"]
+    rates = dict(catalog["energy_rates"])
+    if loc:
+        rates["electricity_cad_per_kwh"] = loc.electricity_cad_per_kwh
+        rates["natural_gas_cad_per_kwh"] = loc.natural_gas_cad_per_kwh
     solar_rebate = rates.get("solar_rebate_cad", 0) if solar["capacity_kw"] > 0 else 0
 
     building = BuildingSpec(
