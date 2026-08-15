@@ -818,3 +818,85 @@ is presented as the recommended configuration.
 ## 13. Assembly catalog
 
 {{CATALOG_TABLES}}
+
+---
+
+## 14. Site planning
+
+Source: `engine/site.py`
+
+Given a building footprint (already fixed by the optimizer above) and a lot,
+this module computes where the building and driveway sit on the lot, and how
+well the fixed orientation captures passive solar gain. It does not choose or
+change the building's orientation — that is a `ProjectSpec` input that already
+drove the energy simulation (section 3), so re-optimizing it here would
+invalidate the energy results upstream. What it optimizes is placement within
+the buildable envelope.
+
+### Inputs
+
+A `SiteSpec`: lot width (east-west) and depth (north-south) in metres, which
+lot edge fronts the street, and front/side/rear setbacks in metres (defaults
+6.0 / 1.2 / 7.5 m, typical suburban Ontario zoning figures — confirm against
+the actual municipal bylaw before relying on them).
+
+### Buildable envelope
+
+The lot minus setbacks. The setback that applies to each edge depends on
+which edge fronts the street:
+
+```
+street on N or S:  x-envelope = [side_setback, lot_width - side_setback]
+                    y-envelope = front/rear setback from whichever edge is the street
+street on E or W:  axes swap
+```
+
+### Passive-solar placement
+
+Per NREL/DOE passive-solar guidance and the LEED orientation credit, main
+glazing facing true south captures the most winter solar gain, with a
+majority of the benefit retained within about 30 degrees of south. The
+footprint's longer dimension is placed along the facade that faces the
+project's fixed orientation, since a longer solar-facing wall carries more
+glazing area:
+
+```
+orientation in {N, S}: east-west extent = long dimension, north-south extent = short dimension
+orientation in {E, W}: axes swap
+```
+
+The building is then centered in the buildable envelope. If the footprint
+does not fit the envelope at that orientation, the layout is still returned
+(centered, allowed to overflow) with `fits_on_lot = False` and a note — this
+surfaces the conflict rather than silently relocating or resizing the
+building.
+
+**Solar score** (0 to 1, informational, not a pass/fail gate): a cosine
+falloff from true south —
+
+```
+solar_score = 0.5 + 0.5 x cos(angular_distance_from_south)
+```
+
+giving 1.00 at due south, ~0.93 at 30 degrees off south, 0.50 at due east/west,
+and 0.00 at due north. This is the same relationship the cited guidance
+describes qualitatively, expressed as a continuous score instead of a
+threshold.
+
+### Driveway
+
+Sited as a 3 m-wide strip from the street edge to the building, offset to one
+side of the buildable envelope so it does not sit in front of the
+solar-facing facade.
+
+### Output
+
+A `SiteLayout` (building position/size, driveway polygon, orientation, solar
+score, `fits_on_lot`/`setbacks_ok` flags) and a hand-built SVG diagram (lot
+boundary, dashed setback line, building footprint with its solar-facing edge
+highlighted, driveway, north-up orientation label) — the technical,
+to-scale reference. An optional AI-generated concept illustration
+(`engine/ai.py`, OpenAI image generation) may accompany it for visual
+presentation, but is explicitly illustrative only: text-to-image models
+cannot hold exact setback distances or right angles, so the SVG — not the
+illustration — is the source of truth for any dimension.
