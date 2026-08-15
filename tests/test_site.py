@@ -90,9 +90,11 @@ class PlaceBuildingTests(unittest.TestCase):
             self.assertLessEqual(y, site.lot_depth_m)
 
     def test_all_street_sides_produce_valid_layout(self):
+        # Large enough in both axes that front+rear+2*side setbacks clear the
+        # footprint regardless of which axis the street-facing setback lands on.
         spec = FakeSpec(orientation="S", footprint_length_m=12.0, footprint_width_m=8.0)
         for side in ("N", "S", "E", "W"):
-            site = SiteSpec(lot_width_m=20.0, lot_depth_m=30.0, street_side=side)
+            site = SiteSpec(lot_width_m=30.0, lot_depth_m=30.0, street_side=side)
             layout = place_building(spec, site)
             self.assertTrue(layout.fits_on_lot, f"street_side={side}")
 
