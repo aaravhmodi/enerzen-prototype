@@ -15,63 +15,68 @@ export default function SitePlanView({
   const [showConcept, setShowConcept] = useState(false);
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-neutral-800">Site plan</h3>
+    <div className="panel overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="eyebrow">Site fit</p>
+          <h3 className="mt-1 text-xl font-semibold text-stone-950">Placement and solar exposure</h3>
+        </div>
         {conceptRenderB64 && (
           <button
             onClick={() => setShowConcept((v) => !v)}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+            className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:text-emerald-800"
           >
-            {showConcept ? "Show technical diagram" : "Show concept illustration"}
+            {showConcept ? "Technical diagram" : "Concept illustration"}
           </button>
         )}
       </div>
 
-      {showConcept && conceptRenderB64 ? (
-        <div>
-          <img
-            src={`data:image/png;base64,${conceptRenderB64}`}
-            alt="AI-generated concept illustration of the site plan"
-            className="w-full rounded-lg border border-neutral-200"
-          />
-          <p className="mt-2 text-xs text-amber-700">
-            Concept illustration only — not to scale, not authoritative. See the
-            technical diagram for accurate dimensions.
-          </p>
+      <div className="grid gap-0 lg:grid-cols-[1fr_260px]">
+        <div className="bg-white p-5">
+          {showConcept && conceptRenderB64 ? (
+            <div>
+              <img
+                src={`data:image/png;base64,${conceptRenderB64}`}
+                alt="AI-generated concept illustration of the site plan"
+                className="w-full rounded-xl border border-stone-200 shadow-sm"
+              />
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                Concept illustration only - not to scale or authoritative. Use the technical diagram for dimensions.
+              </p>
+            </div>
+          ) : (
+            <div
+              className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          )}
         </div>
-      ) : (
-        <div
-          className="[&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
-      )}
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-neutral-600 sm:grid-cols-4">
-        <div>
-          <dt className="text-neutral-400">Solar score</dt>
-          <dd className="font-medium text-neutral-800">{layout.solar_score.toFixed(2)}</dd>
-        </div>
-        <div>
-          <dt className="text-neutral-400">Fits on lot</dt>
-          <dd className={`font-medium ${layout.fits_on_lot ? "text-emerald-700" : "text-red-600"}`}>
-            {layout.fits_on_lot ? "Yes" : "No"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-neutral-400">Setbacks</dt>
-          <dd className={`font-medium ${layout.setbacks_ok ? "text-emerald-700" : "text-red-600"}`}>
-            {layout.setbacks_ok ? "OK" : "Violated"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-neutral-400">Orientation</dt>
-          <dd className="font-medium text-neutral-800">{layout.orientation}</dd>
-        </div>
-      </dl>
-      {layout.notes.length > 0 && (
-        <p className="mt-3 rounded-md bg-amber-50 p-2 text-xs text-amber-800">{layout.notes[0]}</p>
-      )}
+        <aside className="border-t border-stone-200 bg-stone-50/80 p-5 lg:border-l lg:border-t-0">
+          <dl className="grid gap-3 text-xs text-stone-600">
+            <Stat label="Solar score" value={layout.solar_score.toFixed(2)} />
+            <Stat label="Fits on lot" value={layout.fits_on_lot ? "Yes" : "No"} ok={layout.fits_on_lot} />
+            <Stat label="Setbacks" value={layout.setbacks_ok ? "OK" : "Violated"} ok={layout.setbacks_ok} />
+            <Stat label="Orientation" value={layout.orientation} />
+          </dl>
+          {layout.notes.length > 0 && (
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+              {layout.notes[0]}
+            </p>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+  const valueColor = ok === undefined ? "text-stone-950" : ok ? "text-emerald-700" : "text-red-600";
+
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
+      <dt className="text-stone-400">{label}</dt>
+      <dd className={`mt-1 text-base font-semibold ${valueColor}`}>{value}</dd>
     </div>
   );
 }

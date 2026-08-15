@@ -155,8 +155,8 @@ class Hot2000Runner:
         open_dlg.wait("visible", timeout=timeout)
         edit = open_dlg.child_window(class_name="Edit", found_index=0)
         edit.set_edit_text(str(h2k_path))
-        time.sleep(0.2)
-        open_dlg.child_window(title="&Open", class_name="Button").click()
+        time.sleep(0.5)
+        edit.type_keys("{ENTER}")
 
         deadline = time.time() + timeout
         while time.time() < deadline:

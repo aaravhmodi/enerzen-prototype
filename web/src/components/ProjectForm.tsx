@@ -84,18 +84,22 @@ export default function ProjectForm({
 
   return (
     <form
-      className="space-y-5"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit(state);
       }}
     >
-      <div className="rounded-xl border border-neutral-200 bg-white p-4">
-        <label className="text-xs font-medium text-neutral-500">
-          Describe the project (optional — AI will pre-fill the form)
+      <div className="panel p-5">
+        <div className="mb-3">
+          <p className="eyebrow">Project brief</p>
+          <h2 className="mt-1 text-lg font-semibold text-stone-950">Build inputs</h2>
+        </div>
+        <label className="text-xs font-medium text-stone-500">
+          Describe the project (optional - AI will pre-fill the form)
         </label>
         <textarea
-          className="mt-2 w-full rounded-md border border-neutral-300 p-2 text-sm"
+          className="input mt-2 min-h-24 resize-none"
           rows={3}
           placeholder="3-bed bungalow on a 50x120 ft lot in Ottawa, budget 450k, net-zero ready..."
           value={freeform}
@@ -105,13 +109,13 @@ export default function ProjectForm({
           type="button"
           onClick={handleParse}
           disabled={parsing || !freeform.trim()}
-          className="mt-2 rounded-md bg-neutral-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+          className="mt-3 rounded-lg bg-stone-950 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-stone-950/10 transition hover:-translate-y-0.5 hover:bg-stone-800 disabled:translate-y-0 disabled:opacity-40"
         >
           {parsing ? "Parsing..." : "Fill form with AI"}
         </button>
         {parseError && <p className="mt-2 text-xs text-red-600">{parseError}</p>}
         {assumptions.length > 0 && (
-          <ul className="mt-2 list-disc pl-4 text-xs text-neutral-500">
+          <ul className="mt-3 list-disc rounded-lg border border-emerald-100 bg-emerald-50/70 py-2 pl-6 pr-3 text-xs text-emerald-900">
             {assumptions.map((a, i) => (
               <li key={i}>{a}</li>
             ))}
@@ -119,8 +123,8 @@ export default function ProjectForm({
         )}
       </div>
 
-      <fieldset className="rounded-xl border border-neutral-200 bg-white p-4">
-        <legend className="px-1 text-xs font-semibold text-neutral-600">Building</legend>
+      <fieldset className="panel p-5">
+        <legend className="px-1 text-xs font-semibold text-stone-600">Building</legend>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Typology">
             <select
@@ -134,30 +138,57 @@ export default function ProjectForm({
             </select>
           </Field>
           <Field label="Storeys">
-            <input type="number" className="input" min={1} value={state.spec.storeys}
-              onChange={(e) => updateSpec("storeys", Number(e.target.value))} />
+            <input
+              type="number"
+              className="input"
+              min={1}
+              value={state.spec.storeys}
+              onChange={(e) => updateSpec("storeys", Number(e.target.value))}
+            />
           </Field>
-          <Field label="Floor area (m²)">
-            <input type="number" className="input" value={state.spec.floor_area_m2}
-              onChange={(e) => updateSpec("floor_area_m2", Number(e.target.value))} />
+          <Field label="Floor area (m2)">
+            <input
+              type="number"
+              className="input"
+              value={state.spec.floor_area_m2}
+              onChange={(e) => updateSpec("floor_area_m2", Number(e.target.value))}
+            />
           </Field>
-          <Field label="Footprint L × W (m)">
+          <Field label="Footprint L x W (m)">
             <div className="flex gap-2">
-              <input type="number" className="input" value={state.spec.footprint_length_m ?? ""}
-                onChange={(e) => updateSpec("footprint_length_m", Number(e.target.value))} />
-              <input type="number" className="input" value={state.spec.footprint_width_m ?? ""}
-                onChange={(e) => updateSpec("footprint_width_m", Number(e.target.value))} />
+              <input
+                type="number"
+                className="input"
+                value={state.spec.footprint_length_m ?? ""}
+                onChange={(e) => updateSpec("footprint_length_m", Number(e.target.value))}
+              />
+              <input
+                type="number"
+                className="input"
+                value={state.spec.footprint_width_m ?? ""}
+                onChange={(e) => updateSpec("footprint_width_m", Number(e.target.value))}
+              />
             </div>
           </Field>
           <Field label="Location">
-            <select className="input" value={state.spec.location ?? ""}
-              onChange={(e) => updateSpec("location", e.target.value)}>
-              {locations.map((l) => <option key={l} value={l}>{l}</option>)}
+            <select
+              className="input"
+              value={state.spec.location ?? ""}
+              onChange={(e) => updateSpec("location", e.target.value)}
+            >
+              {locations.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
             </select>
           </Field>
-          <Field label="Orientation (main facade)">
-            <select className="input" value={state.spec.orientation}
-              onChange={(e) => updateSpec("orientation", e.target.value as ProjectSpecInput["orientation"])}>
+          <Field label="Orientation">
+            <select
+              className="input"
+              value={state.spec.orientation}
+              onChange={(e) => updateSpec("orientation", e.target.value as ProjectSpecInput["orientation"])}
+            >
               <option value="N">North</option>
               <option value="S">South</option>
               <option value="E">East</option>
@@ -165,70 +196,120 @@ export default function ProjectForm({
             </select>
           </Field>
           <Field label="Window-to-wall ratio">
-            <input type="number" step={0.05} className="input" value={state.spec.window_to_wall_ratio}
-              onChange={(e) => updateSpec("window_to_wall_ratio", Number(e.target.value))} />
+            <input
+              type="number"
+              step={0.05}
+              className="input"
+              value={state.spec.window_to_wall_ratio}
+              onChange={(e) => updateSpec("window_to_wall_ratio", Number(e.target.value))}
+            />
           </Field>
           <Field label="Target">
-            <select className="input" value={state.spec.target_label}
-              onChange={(e) => updateSpec("target_label", e.target.value)}>
+            <select
+              className="input"
+              value={state.spec.target_label}
+              onChange={(e) => updateSpec("target_label", e.target.value)}
+            >
               <option value="code">Code minimum</option>
               <option value="nzr">Net Zero Ready</option>
               <option value="passive_house">Passive House</option>
             </select>
           </Field>
-          <Field label="Solar (rooftop PV)">
-            <select className="input" value={state.spec.solar_option_id}
-              onChange={(e) => updateSpec("solar_option_id", e.target.value)}>
-              {solarOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          <Field label="Solar">
+            <select
+              className="input"
+              value={state.spec.solar_option_id}
+              onChange={(e) => updateSpec("solar_option_id", e.target.value)}
+            >
+              {solarOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Budget per unit (CAD)">
-            <input type="number" className="input" value={state.spec.budget_per_unit}
-              onChange={(e) => updateSpec("budget_per_unit", Number(e.target.value))} />
+            <input
+              type="number"
+              className="input"
+              value={state.spec.budget_per_unit}
+              onChange={(e) => updateSpec("budget_per_unit", Number(e.target.value))}
+            />
           </Field>
         </div>
-        <div className="mt-3 flex gap-4 text-xs text-neutral-600">
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={state.spec.has_ac}
-              onChange={(e) => updateSpec("has_ac", e.target.checked)} />
-            Include air conditioning
+        <div className="mt-4 grid gap-2 text-xs text-stone-600 sm:grid-cols-2">
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2">
+            <span>Include air conditioning</span>
+            <input
+              className="h-4 w-4 accent-emerald-700"
+              type="checkbox"
+              checked={state.spec.has_ac}
+              onChange={(e) => updateSpec("has_ac", e.target.checked)}
+            />
           </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={state.spec.allow_gas}
-              onChange={(e) => updateSpec("allow_gas", e.target.checked)} />
-            Allow natural gas systems
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2">
+            <span>Allow natural gas systems</span>
+            <input
+              className="h-4 w-4 accent-emerald-700"
+              type="checkbox"
+              checked={state.spec.allow_gas}
+              onChange={(e) => updateSpec("allow_gas", e.target.checked)}
+            />
           </label>
         </div>
       </fieldset>
 
-      <fieldset className="rounded-xl border border-neutral-200 bg-white p-4">
-        <legend className="px-1 text-xs font-semibold text-neutral-600">Lot / site</legend>
+      <fieldset className="panel p-5">
+        <legend className="px-1 text-xs font-semibold text-stone-600">Lot / site</legend>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Lot width (E-W, m)">
-            <input type="number" className="input" value={state.site.lot_width_m}
-              onChange={(e) => updateSite("lot_width_m", Number(e.target.value))} />
+            <input
+              type="number"
+              className="input"
+              value={state.site.lot_width_m}
+              onChange={(e) => updateSite("lot_width_m", Number(e.target.value))}
+            />
           </Field>
           <Field label="Lot depth (N-S, m)">
-            <input type="number" className="input" value={state.site.lot_depth_m}
-              onChange={(e) => updateSite("lot_depth_m", Number(e.target.value))} />
+            <input
+              type="number"
+              className="input"
+              value={state.site.lot_depth_m}
+              onChange={(e) => updateSite("lot_depth_m", Number(e.target.value))}
+            />
           </Field>
           <Field label="Street-facing side">
-            <select className="input" value={state.site.street_side}
-              onChange={(e) => updateSite("street_side", e.target.value as SiteSpecInput["street_side"])}>
+            <select
+              className="input"
+              value={state.site.street_side}
+              onChange={(e) => updateSite("street_side", e.target.value as SiteSpecInput["street_side"])}
+            >
               <option value="N">North</option>
               <option value="S">South</option>
               <option value="E">East</option>
               <option value="W">West</option>
             </select>
           </Field>
-          <Field label="Front / side / rear setback (m)">
+          <Field label="Setbacks front / side / rear">
             <div className="flex gap-2">
-              <input type="number" className="input" value={state.site.front_setback_m}
-                onChange={(e) => updateSite("front_setback_m", Number(e.target.value))} />
-              <input type="number" className="input" value={state.site.side_setback_m}
-                onChange={(e) => updateSite("side_setback_m", Number(e.target.value))} />
-              <input type="number" className="input" value={state.site.rear_setback_m}
-                onChange={(e) => updateSite("rear_setback_m", Number(e.target.value))} />
+              <input
+                type="number"
+                className="input"
+                value={state.site.front_setback_m}
+                onChange={(e) => updateSite("front_setback_m", Number(e.target.value))}
+              />
+              <input
+                type="number"
+                className="input"
+                value={state.site.side_setback_m}
+                onChange={(e) => updateSite("side_setback_m", Number(e.target.value))}
+              />
+              <input
+                type="number"
+                className="input"
+                value={state.site.rear_setback_m}
+                onChange={(e) => updateSite("rear_setback_m", Number(e.target.value))}
+              />
             </div>
           </Field>
         </div>
@@ -237,7 +318,7 @@ export default function ProjectForm({
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+        className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:translate-y-0 disabled:opacity-50"
       >
         {submitting ? "Evaluating..." : "Evaluate project"}
       </button>
@@ -248,7 +329,7 @@ export default function ProjectForm({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block text-xs">
-      <span className="mb-1 block text-neutral-500">{label}</span>
+      <span className="mb-1.5 block font-medium text-stone-500">{label}</span>
       {children}
     </label>
   );
