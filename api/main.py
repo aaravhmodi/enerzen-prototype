@@ -156,6 +156,11 @@ def run_report(req: ReportRequest):
     if not spec.location:
         raise HTTPException(422, "A location is required to generate a report.")
     resolved = resolve_location(spec.location)
+    if spec.footprint_length_m is None or spec.footprint_width_m is None:
+        import math
+        side = math.sqrt(spec.floor_area_m2)
+        spec.footprint_length_m = spec.footprint_length_m or side
+        spec.footprint_width_m = spec.footprint_width_m or side
 
     results = optimize(spec)
     if not results:
