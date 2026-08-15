@@ -64,6 +64,16 @@ sources, adequate for directional comparison in a prototype.
 against measured EnerZen data — a structured confidence estimate, not a
 validated statistic.
 
+**Site placement is rule-based, not a planning-compliance check.** The
+placement engine (section 14) applies passive-solar siting heuristics and the
+lot dimensions/setbacks the user supplies; it does not consult municipal
+zoning bylaws, real parcel geometry, easements, tree cover or grading, and its
+output is not a substitute for a survey or a site plan approval. No suitable
+open dataset pairing real parcel geometry with energy-efficient siting
+outcomes was found during development (see the project's site-plan research
+notes), so this section's rules are derived from published passive-solar
+design guidance rather than fitted to Ontario-specific data.
+
 ---
 
 ## 2. What the engine does
