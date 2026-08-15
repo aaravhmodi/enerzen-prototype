@@ -157,12 +157,16 @@ class Hot2000Runner:
         edit.set_edit_text(str(h2k_path))
         time.sleep(0.2)
         open_dlg.child_window(title="&Open", class_name="Button").click()
-        time.sleep(1.5)
-        self._dismiss_stray_dialogs()
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            time.sleep(0.5)
+            self._dismiss_stray_dialogs()
+            if h2k_path.stem in self.win.window_text():
+                return
 
         title = self.win.window_text()
-        if h2k_path.stem not in title:
-            raise Hot2000Error(f"HOT2000 did not open {h2k_path.name}; window title={title!r}")
+        raise Hot2000Error(f"HOT2000 did not open {h2k_path.name}; window title={title!r}")
 
     def calculate(self, timeout: float = 60.0) -> None:
         self.win.set_focus()
