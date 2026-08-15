@@ -99,6 +99,11 @@ def _serialize_layout(layout: SiteLayout) -> dict:
     return dataclasses.asdict(layout)
 
 
+def _validate_location(location: Optional[str]) -> None:
+    if location and location not in location_names():
+        raise HTTPException(422, f"Unknown location {location!r}. Must be one of the /locations values.")
+
+
 # ── Endpoints ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -119,6 +124,7 @@ def catalog():
 @app.post("/optimize")
 def run_optimize(req: OptimizeRequest):
     spec = req.spec.to_engine_spec()
+    _validate_location(spec.location)
     results = optimize(spec, req.weights)
     if not results:
         raise HTTPException(422, "No configurations fit the given budget and target.")
@@ -155,6 +161,7 @@ def run_report(req: ReportRequest):
     spec = req.spec.to_engine_spec()
     if not spec.location:
         raise HTTPException(422, "A location is required to generate a report.")
+    _validate_location(spec.location)
     resolved = resolve_location(spec.location)
     if spec.footprint_length_m is None or spec.footprint_width_m is None:
         import math
