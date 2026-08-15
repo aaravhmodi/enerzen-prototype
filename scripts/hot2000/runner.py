@@ -39,7 +39,9 @@ from pywinauto.timings import TimeoutError as PywinautoTimeoutError
 
 HOT2000_DIR = Path("C:/HOT2000 v11.13b13")
 HOT2000_EXE = HOT2000_DIR / "HOT2000.exe"
-MAIN_FRAME_CLASS = "Afx:001A0000:8:00010003:00000000:055F0DB9"
+# The MFC main-frame window class name (Afx:<module-base>:...) is derived
+# from the process's runtime module address, so it differs on every launch
+# and can't be hardcoded — find the frame by title instead.
 
 GJ_TO_KWH = 277.777778
 
@@ -95,8 +97,24 @@ class Hot2000Runner:
     def launch(self):
         self.app = Application(backend="win32").start(str(HOT2000_EXE))
         time.sleep(3)
-        self.win = self.app.window(class_name=MAIN_FRAME_CLASS)
-        self.win.wait("exists", timeout=15)
+
+        deadline = time.time() + 15
+        frame = None
+        while time.time() < deadline and frame is None:
+            for w in self.app.windows():
+                text = w.window_text()
+                if text == "HOT2000" or text.startswith("HOT2000 - ["):
+                    frame = w
+                    break
+            if frame is None:
+                time.sleep(0.5)
+        if frame is None:
+            raise Hot2000Error("HOT2000 main window never appeared")
+
+        self.win = frame
+        if self.win.is_minimized():
+            self.win.restore()
+            time.sleep(0.5)
         self._dismiss_stray_dialogs()
 
     def _dismiss_stray_dialogs(self, max_dialogs: int = 5):
