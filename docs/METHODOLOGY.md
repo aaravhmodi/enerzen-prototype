@@ -799,6 +799,34 @@ score = w_cost   x norm(cost)
 Results are sorted by Pareto rank first, then by weighted score. The top result
 is presented as the recommended configuration.
 
+### 11.5 HOT2000 surrogate correction
+
+Source: `engine/surrogate.py`, trained by `scripts/hot2000/train_surrogate.py`
+on real HOT2000 v11.13b13 output (`scripts/hot2000/sample_and_run.py` drives
+the actual NRCan application via UI automation — see
+`scripts/hot2000/HANDOFF.md` for the full pipeline).
+
+Section 3's degree-day model is a closed-form approximation, general across
+any floor area, storey count, orientation and climate zone. For one specific
+project geometry — Toronto (climate zone 6), ~153 m² floor area, 2-storey,
+south-facing, slab-on-grade foundation, gas furnace — a gradient-boosted
+model trained on 800 real HOT2000 runs is available instead. Where a project
+matches that geometry (floor area within 15 m², matching storeys/
+orientation/climate zone, `FA1` slab foundation, gas heating), the optimizer
+replaces the approximation's `eui_kwh_m2_yr` and `tedi_kwh_m2_yr` with the
+surrogate's prediction, recomputes NZR compliance and EnerGuide score from
+the corrected TEDI/EUI, and populates `peak_heating_load_w` (not otherwise
+available from the degree-day model). Held-out validation against the
+training run: R²=0.979 (EUI), 0.989 (TEDI), 0.989 (peak heating load);
+re-verifying the surrogate's top-20 ranked configurations against fresh real
+HOT2000 runs matched within 0.2-0.4 kWh/m²/yr on EUI.
+
+Every other project geometry — which is to say, almost every real project —
+falls back to the section 3 model unchanged. Extending surrogate coverage to
+other geometries means training on additional HOT2000 base house files
+(different storeys/orientation/foundation/fuel combinations), not something
+this pass attempted.
+
 ---
 
 ## 12. Reference data
