@@ -39,7 +39,7 @@ import time
 from pathlib import Path
 
 from engine.assemblies import WALLS, ROOFS
-from scripts.hot2000.runner import Hot2000Runner, Hot2000Error
+from scripts.hot2000.runner import Hot2000Runner
 from scripts.hot2000.variant_generator import VariantParams, generate_variant
 
 VARIANTS_DIR = Path(__file__).parent.parent.parent / "data" / "hot2000" / "variants"
@@ -119,13 +119,28 @@ def run(n: int, out_csv: Path, seed: int = 0):
                     "error": "",
                 })
                 print(f"EUI={result.eui_kwh_m2_yr:.1f}")
-            except Hot2000Error as e:
-                row["error"] = str(e)
-                print(f"FAILED: {e}")
+            except Exception as e:
+                # Broad on purpose: an overnight run must survive pywinauto
+                # timing races (ElementNotEnabled etc.), not just the
+                # Hot2000Error cases we anticipated. Log and keep going.
+                row["error"] = f"{type(e).__name__}: {e}"
+                print(f"FAILED: {row['error']}")
                 try:
                     runner.close_file()
                 except Exception:
-                    pass
+                    # The runner itself may be wedged — nuke the process and
+                    # start a fresh HOT2000 session rather than losing the
+                    # rest of the batch.
+                    print("  runner looks stuck — restarting HOT2000")
+                    try:
+                        runner.quit()
+                    except Exception:
+                        pass
+                    import subprocess
+                    subprocess.run(["taskkill", "/IM", "HOT2000.exe", "/F"], capture_output=True)
+                    time.sleep(1)
+                    runner = Hot2000Runner()
+                    runner.launch()
 
             writer.writerow(row)
             csv_file.flush()

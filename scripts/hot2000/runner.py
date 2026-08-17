@@ -148,7 +148,21 @@ class Hot2000Runner:
                 return w
         return None
 
+    def _wait_ready(self, timeout: float = 15.0):
+        """The main frame is briefly disabled while a modal dialog (e.g. the
+        Calculation Result popup) is still settling — menu_select during that
+        window raises ElementNotEnabled. Dismiss anything in front and wait
+        for the frame to actually be interactable before proceeding."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            self._dismiss_stray_dialogs()
+            if self.win.is_enabled():
+                return
+            time.sleep(0.3)
+        raise Hot2000Error("Main window stayed disabled — a dialog may be stuck open")
+
     def open_file(self, h2k_path: Path, timeout: float = 20.0):
+        self._wait_ready()
         self.win.set_focus()
         self.win.menu_select("File->Open...")
         open_dlg = self.app.window(title="Open", class_name="#32770")
@@ -169,6 +183,7 @@ class Hot2000Runner:
         raise Hot2000Error(f"HOT2000 did not open {h2k_path.name}; window title={title!r}")
 
     def calculate(self, timeout: float = 60.0) -> None:
+        self._wait_ready()
         self.win.set_focus()
         self.win.menu_select("Reports->Calculate")
 
@@ -193,12 +208,14 @@ class Hot2000Runner:
         time.sleep(0.3)
 
     def save(self):
+        self._wait_ready()
         self.win.set_focus()
         self.win.menu_select("File->Save")
         time.sleep(1.0)
         self._dismiss_stray_dialogs()
 
     def close_file(self):
+        self._wait_ready()
         self.win.set_focus()
         self.win.menu_select("File->Close")
         time.sleep(0.5)
