@@ -13,13 +13,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from engine.simulator import BuildingSpec, AssemblyConfig, simulate, EnergyResult, nzr_probability
+from engine.simulator import (BuildingSpec, AssemblyConfig, simulate, EnergyResult,
+                               nzr_probability, energuide_score_for)
 from engine.carbon import calculate_carbon
 from engine.cost import estimate_cost, estimate_schedule
 from engine.solar import calculate_solar
 from engine.finance import monthly_utility, lifecycle_cost
 from engine.location import resolve as resolve_location
 from engine.assemblies import WALLS, ROOFS, FLOORS, EnvelopeCombo
+from engine import surrogate
 
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
@@ -64,6 +66,13 @@ class ConfigResult:
     nzr_compliant: bool
     nzr_probability: float
     energuide_score: float
+
+    # Set when engine.surrogate corrected eui/tedi against a GBM trained on
+    # real HOT2000 output (only applies to configs matching the trained
+    # geometry — see engine/surrogate.py). peak_heating_load_w is only
+    # populated in that case; simulator.py has no equivalent field.
+    surrogate_verified: bool = False
+    peak_heating_load_w: float = 0.0
 
     # Solar / net energy
     pv_capacity_kw: float = 0.0
@@ -220,6 +229,31 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
             )
 
             energy = simulate(building, assembly)
+
+            # Accuracy upgrade for the one geometry the HOT2000 surrogate was
+            # trained on (see engine/surrogate.py) — replaces the degree-day
+            # approximation's eui/tedi with a GBM trained on real HOT2000
+            # output. No-ops (surrogate_verified stays False) for every
+            # other project; simulator.py's numbers are used unchanged.
+            surrogate_verified = False
+            peak_heating_load_w = 0.0
+            if (surrogate.applies_to(spec, wall_opt.id, roof_opt.id, floor_opt.id, mech["type"])
+                    and surrogate.matches_trained_geometry(
+                        spec.floor_area_m2, spec.storeys, spec.orientation, climate_zone)):
+                pred = surrogate.predict(
+                    wall_id=wall_opt.id, wall_ext_rigid_in=w_rigid,
+                    roof_id=roof_opt.id, roof_deck_rigid_in=r_rigid,
+                    window_u_value=window["u_value"], window_shgc=window["shgc"],
+                    furnace_efficiency_pct=mech.get("heating_cop", 0.8) * 100,
+                )
+                if pred is not None:
+                    energy.eui_kwh_m2_yr = round(pred.eui_kwh_m2_yr, 1)
+                    energy.tedi_kwh_m2_yr = round(pred.tedi_kwh_m2_yr, 1)
+                    energy.nzr_compliant = energy.tedi_kwh_m2_yr <= energy.nzr_threshold
+                    energy.energuide_score = round(energuide_score_for(energy.eui_kwh_m2_yr), 1)
+                    surrogate_verified = True
+                    peak_heating_load_w = round(pred.peak_heating_load_w, 0)
+
             cost_data = estimate_cost(spec, env, window, mech)
             carbon_data = calculate_carbon(spec, env, window, mech, energy)
             schedule = estimate_schedule(spec, env)
@@ -251,6 +285,8 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 nzr_compliant=energy.nzr_compliant,
                 nzr_probability=0.0,   # deferred; computed for top configs below
                 energuide_score=energy.energuide_score,
+                surrogate_verified=surrogate_verified,
+                peak_heating_load_w=peak_heating_load_w,
                 pv_capacity_kw=solar["capacity_kw"],
                 pv_generation_kwh_yr=solar["annual_generation_kwh"],
                 net_operational_energy_kwh_yr=round(net_operational, 0),

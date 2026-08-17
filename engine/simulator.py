@@ -92,6 +92,14 @@ WINDOW_FRAME_FACTOR = 0.70   # glazed fraction of rough opening
 SHADING_FACTOR      = 0.85   # overhangs, neighbours, dirt
 
 
+def energuide_score_for(eui: float) -> float:
+    """Approximation (inverse of EUI, scaled to ~100 for NZR homes) — shared
+    so callers correcting eui_kwh_m2_yr after the fact (e.g. the HOT2000
+    surrogate in engine/surrogate.py) can recompute a consistent score
+    instead of leaving the pre-correction value in place."""
+    return max(0, min(100, 100 - (eui - 30) * 0.8))
+
+
 def occupants_for(floor_area_m2: float) -> float:
     """
     Derived occupancy. Canadian average household is ~2.4 people; this scales
@@ -203,8 +211,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     tedi = heating_net / spec.floor_area_m2
     meui = (heating_demand + cooling_demand + hot_water) / spec.floor_area_m2
 
-    # EnerGuide score approximation (inverse of EUI, scaled to ~100 for NZR homes)
-    energuide_score = max(0, min(100, 100 - (eui - 30) * 0.8))
+    energuide_score = energuide_score_for(eui)
 
     return EnergyResult(
         eui_kwh_m2_yr=round(eui, 1),
