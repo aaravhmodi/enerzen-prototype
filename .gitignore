@@ -7,3 +7,10 @@ streamlit.log
 # Generated docs — rebuild with: python docs/generate_pdf.py
 *.pdf
 *.md
+
+# Generated HOT2000 training data — regenerate with scripts/hot2000/sample_and_run.py
+data/hot2000/variants/
+data/hot2000/verify_variants/
+data/hot2000/training_data.csv
+data/hot2000/surrogate_models/
+data/hot2000/surrogate_search_*.csv
