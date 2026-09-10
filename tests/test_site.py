@@ -109,7 +109,7 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertTrue(svg.startswith("<svg"))
         self.assertTrue(svg.endswith("</svg>"))
         self.assertIn("<polygon", svg)  # driveway
-        self.assertIn("solar score", svg)
+        self.assertIn("Solar score", svg)
 
 
 if __name__ == "__main__":

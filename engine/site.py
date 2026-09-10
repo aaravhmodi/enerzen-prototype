@@ -180,13 +180,25 @@ _MARGIN_PX = 40
 
 
 def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
-    """Hand-built SVG (no rendering dependency) of the lot, setbacks,
-    building footprint, north arrow, and driveway."""
-    w_px = site.lot_width_m * _SCALE_PX_PER_M + 2 * _MARGIN_PX
-    h_px = site.lot_depth_m * _SCALE_PX_PER_M + 2 * _MARGIN_PX
+    """SVG site plan in the style of a land-development drawing: landscaped
+    ground texture, a street band on the street-facing edge, a compass rose,
+    a scale bar, setback dimension callouts, and a title block — built from
+    the same placement numbers as the technical layout, not a one-off
+    illustration."""
+    from engine import svg_kit
+
+    top = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "N" else 0)
+    bottom = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "S" else 0) + 46
+    left = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "W" else 0)
+    right = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "E" else 0)
+
+    lot_w_px = site.lot_width_m * _SCALE_PX_PER_M
+    lot_h_px = site.lot_depth_m * _SCALE_PX_PER_M
+    w_px = lot_w_px + left + right
+    h_px = lot_h_px + top + bottom
 
     def px(x_m, y_m):
-        return (_MARGIN_PX + x_m * _SCALE_PX_PER_M, _MARGIN_PX + y_m * _SCALE_PX_PER_M)
+        return (left + x_m * _SCALE_PX_PER_M, top + y_m * _SCALE_PX_PER_M)
 
     envelope = _buildable_envelope(site)
     e_x0, e_y0 = px(envelope.x0, envelope.y0)
@@ -207,21 +219,33 @@ def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w_px:.0f}" height="{h_px:.0f}" '
         f'viewBox="0 0 {w_px:.0f} {h_px:.0f}" font-family="sans-serif">',
-        f'<rect x="{_MARGIN_PX}" y="{_MARGIN_PX}" width="{site.lot_width_m * _SCALE_PX_PER_M:.1f}" '
-        f'height="{site.lot_depth_m * _SCALE_PX_PER_M:.1f}" fill="#eef6ea" stroke="#4a7c3c" stroke-width="2"/>',
+        svg_kit.defs_block(),
+        svg_kit.street_band(site.street_side, left, top, lot_w_px, lot_h_px),
+        svg_kit.lot_ground(left, top, lot_w_px, lot_h_px),
+        svg_kit.tree_row(left, top, left + lot_w_px, top, max(2, int(site.lot_width_m // 8))) if site.street_side != "N" else "",
+        svg_kit.tree_row(left, top + lot_h_px, left + lot_w_px, top + lot_h_px, max(2, int(site.lot_width_m // 8))) if site.street_side != "S" else "",
         f'<rect x="{e_x0:.1f}" y="{e_y0:.1f}" width="{e_x1 - e_x0:.1f}" height="{e_y1 - e_y0:.1f}" '
         f'fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"/>',
+        svg_kit.setback_dimensions(site.street_side, e_x0, e_y0, e_x1, e_y1, left, top, lot_w_px, lot_h_px,
+                                    site.front_setback_m, site.side_setback_m, site.rear_setback_m),
         f'<polygon points="{drive_pts}" fill="#c9ccd1" stroke="#6b7280" stroke-width="1"/>',
         f'<rect x="{b_x0:.1f}" y="{b_y0:.1f}" width="{b_x1 - b_x0:.1f}" height="{b_y1 - b_y0:.1f}" '
-        f'fill="#f4e6c8" stroke="#8a6d3b" stroke-width="2"/>',
+        f'fill="#f7f1e3" stroke="#8a6d3b" stroke-width="2" rx="1.5"/>',
         f'<line x1="{solar_edge[0]:.1f}" y1="{solar_edge[1]:.1f}" x2="{solar_edge[2]:.1f}" y2="{solar_edge[3]:.1f}" '
         f'stroke="#e08e2b" stroke-width="5"/>',
-        f'<text x="{w_px - _MARGIN_PX:.0f}" y="{_MARGIN_PX - 12:.0f}" text-anchor="end" font-size="12" fill="#374151">'
-        f'N ↑ street: {site.street_side} | solar score: {layout.solar_score:.2f}</text>',
+        svg_kit.compass(w_px - right / 2, top / 2 + 4 if top > 20 else 16),
+        svg_kit.scale_bar(left, top + lot_h_px + (svg_kit.STREET_BAND_PX if site.street_side == "S" else 0) + 20,
+                           _SCALE_PX_PER_M),
+        svg_kit.title_block(
+            left, top + lot_h_px + (svg_kit.STREET_BAND_PX if site.street_side == "S" else 0) + 40,
+            "Site plan",
+            f"Street: {site.street_side} | Solar score: {layout.solar_score:.2f} | "
+            f"Lot {site.lot_width_m:g}×{site.lot_depth_m:g} m",
+        ),
     ]
     if layout.notes:
         parts.append(
-            f'<text x="{_MARGIN_PX}" y="{h_px - 10:.0f}" font-size="11" fill="#b91c1c">'
+            f'<text x="{left:.0f}" y="{h_px - 8:.0f}" font-size="10" fill="#b91c1c">'
             f'{layout.notes[0]}</text>'
         )
     parts.append('</svg>')
