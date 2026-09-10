@@ -18,6 +18,9 @@ const ARCHETYPE_LABELS: Record<string, string> = {
   townhouse:    "Townhouse",
 };
 
+// Shared column template so the header legend and every data row line up.
+const METRICS_GRID = "grid grid-cols-[minmax(0,1fr)_52px_88px_84px_68px_92px] gap-3";
+
 export default function DevResults({
   mixes,
   selectedIndex,
@@ -41,24 +44,25 @@ export default function DevResults({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-        <span className="flex items-center gap-1">
+      <div className={`${METRICS_GRID} border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400`}>
+        <span />
+        <span className="flex items-center justify-end gap-1 text-right">
           Units
           <InfoTooltip text="How many total dwelling units this mix places on the lot. More units generally means more revenue potential." />
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center justify-end gap-1 text-right">
           Total cost
           <InfoTooltip text="Combined construction cost for every unit in this mix." />
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center justify-end gap-1 text-right">
           Avg EUI
           <InfoTooltip text="Average Energy Use Intensity across the mix, kWh per m² per year. Lower is more efficient." />
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center justify-end gap-1 text-right">
           NZR units
           <InfoTooltip text="How many of the units meet Net Zero Ready out of the total. A full ratio means the whole mix qualifies." />
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center justify-end gap-1 text-right">
           Avg utility/mo
           <InfoTooltip text="Average estimated monthly electricity + gas bill per unit." />
         </span>
@@ -75,8 +79,8 @@ export default function DevResults({
                 : "bg-white hover:bg-stone-50"
             }`}
           >
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="flex-1">
+            <div className={`${METRICS_GRID} items-center`}>
+              <div>
                 <div className="flex flex-wrap gap-1.5">
                   {Object.entries(mix.units).map(([id, count]) =>
                     count > 0 ? (
@@ -96,13 +100,14 @@ export default function DevResults({
                 </p>
               </div>
 
-              <div className="flex shrink-0 gap-4 text-right text-xs">
-                <Metric label="Units" value={String(mix.total_units)} highlight />
-                <Metric label="Total cost" value={fmtCad(mix.total_cost)} />
-                <Metric label="Avg EUI" value={`${mix.avg_eui_kwh_m2_yr} kWh/${M2}`} />
-                <Metric label="NZR units" value={`${mix.nzr_unit_count}/${mix.total_units}`} ok={mix.nzr_unit_count === mix.total_units} />
-                <Metric label="Avg utility/mo" value={fmtCad(mix.avg_monthly_utility)} />
-              </div>
+              <Metric value={String(mix.total_units)} highlight />
+              <Metric value={fmtCad(mix.total_cost)} />
+              <Metric value={`${mix.avg_eui_kwh_m2_yr} kWh/${M2}`} />
+              <Metric
+                value={`${mix.nzr_unit_count}/${mix.total_units}`}
+                ok={mix.nzr_unit_count === mix.total_units}
+              />
+              <Metric value={fmtCad(mix.avg_monthly_utility)} />
             </div>
 
             {i === selectedIndex && (
@@ -118,12 +123,10 @@ export default function DevResults({
 }
 
 function Metric({
-  label,
   value,
   highlight,
   ok,
 }: {
-  label: string;
   value: string;
   highlight?: boolean;
   ok?: boolean;
@@ -133,10 +136,5 @@ function Metric({
     ok === false ? "text-amber-600" :
     highlight ? "text-stone-950" : "text-stone-700";
 
-  return (
-    <div>
-      <p className="text-[10px] text-stone-400">{label}</p>
-      <p className={`text-sm font-semibold ${color}`}>{value}</p>
-    </div>
-  );
+  return <p className={`text-right text-sm font-semibold ${color}`}>{value}</p>;
 }
