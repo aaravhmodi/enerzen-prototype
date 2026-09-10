@@ -14,7 +14,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from engine.ai import AiUnavailableError, generate_concept_render, generate_design_rationale, parse_freeform_spec
+from engine.archetypes import archetype_list
+from engine.dev_optimizer import DevSpec, optimize_dev_mix
 from engine.location import location_names, resolve as resolve_location
+from engine.multi_site import multi_site_plan_svg, place_units
 from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize
 from engine.report import generate_results_pdf
 from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
@@ -85,6 +88,33 @@ class ReportRequest(BaseModel):
 
 class ParseSpecRequest(BaseModel):
     text: str
+
+
+class DevSpecIn(BaseModel):
+    lot_width_m: float
+    lot_depth_m: float
+    street_side: str = "N"
+    front_setback_m: float = 6.0
+    side_setback_m: float = 1.2
+    rear_setback_m: float = 7.5
+    total_budget_cad: float
+    location: str
+    target_label: str = "nzr"
+    allowed_types: list[str]
+    orientation: str = "S"
+
+    def to_engine_spec(self) -> DevSpec:
+        return DevSpec(**self.model_dump())
+
+
+class DevOptimizeRequest(BaseModel):
+    spec: DevSpecIn
+    top_n: int = 10
+
+
+class DevSitePlanRequest(BaseModel):
+    spec: DevSpecIn
+    mix: dict[str, int]
 
 
 def _serialize_result(result: ConfigResult) -> dict:
@@ -181,6 +211,54 @@ def run_report(req: ReportRequest):
 
     pdf_bytes = generate_results_pdf(spec, top, resolved, labels)
     return {"pdf_b64": base64.b64encode(pdf_bytes).decode("ascii")}
+
+
+@app.get("/archetypes")
+def get_archetypes():
+    return {"archetypes": archetype_list()}
+
+
+@app.post("/dev-optimize")
+def run_dev_optimize(req: DevOptimizeRequest):
+    dev = req.spec.to_engine_spec()
+    _validate_location(dev.location)
+    mixes = optimize_dev_mix(dev, req.top_n)
+    if not mixes:
+        raise HTTPException(422, "No feasible unit-mix configurations found for the given lot, budget, and unit types.")
+    return {
+        "mixes": [
+            {
+                "units": m.units,
+                "total_units": m.total_units,
+                "total_cost": round(m.total_cost),
+                "avg_eui_kwh_m2_yr": m.avg_eui_kwh_m2_yr,
+                "avg_carbon_kg_co2e_m2": m.avg_carbon_kg_co2e_m2,
+                "nzr_unit_count": m.nzr_unit_count,
+                "fits_on_lot": m.fits_on_lot,
+                "total_floor_area_m2": m.total_floor_area_m2,
+                "avg_monthly_utility": m.avg_monthly_utility,
+                "mix_label": m.mix_label,
+            }
+            for m in mixes
+        ]
+    }
+
+
+@app.post("/dev-site-plan")
+def run_dev_site_plan(req: DevSitePlanRequest):
+    dev = req.spec.to_engine_spec()
+    _validate_location(dev.location)
+    site = SiteSpec(
+        lot_width_m=dev.lot_width_m,
+        lot_depth_m=dev.lot_depth_m,
+        street_side=dev.street_side,
+        front_setback_m=dev.front_setback_m,
+        side_setback_m=dev.side_setback_m,
+        rear_setback_m=dev.rear_setback_m,
+    )
+    placements = place_units(req.mix, site)
+    svg = multi_site_plan_svg(placements, site, req.mix)
+    return {"svg": svg}
 
 
 def _report_labels(top: ConfigResult, spec: ProjectSpec, catalog: dict) -> dict:

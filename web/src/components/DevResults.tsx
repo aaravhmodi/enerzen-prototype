@@ -1,0 +1,121 @@
+"use client";
+
+import type { DevMixResult } from "@/lib/api";
+
+const ARCHETYPE_COLORS: Record<string, string> = {
+  garden_suite: "bg-emerald-100 text-emerald-800",
+  three_bhk:    "bg-blue-100 text-blue-800",
+  murb:         "bg-pink-100 text-pink-800",
+  townhouse:    "bg-amber-100 text-amber-800",
+};
+
+const ARCHETYPE_LABELS: Record<string, string> = {
+  garden_suite: "Garden Suite",
+  three_bhk:    "3 BHK",
+  murb:         "MURB",
+  townhouse:    "Townhouse",
+};
+
+function fmt(n: number) {
+  return n.toLocaleString("en-CA", { maximumFractionDigits: 0 });
+}
+
+export default function DevResults({
+  mixes,
+  selectedIndex,
+  onSelect,
+}: {
+  mixes: DevMixResult[];
+  selectedIndex: number;
+  onSelect: (i: number) => void;
+}) {
+  if (mixes.length === 0) return null;
+
+  return (
+    <div className="panel overflow-hidden">
+      <div className="border-b border-stone-200 px-5 py-4">
+        <p className="eyebrow">Development configurations</p>
+        <h3 className="mt-1 text-xl font-semibold text-stone-950">
+          {mixes.length} feasible unit mix{mixes.length > 1 ? "es" : ""} found
+        </h3>
+        <p className="mt-1 text-xs text-stone-500">
+          Click a row to update the site plan. Ranked by total units, then energy efficiency.
+        </p>
+      </div>
+
+      <div className="divide-y divide-stone-100">
+        {mixes.map((mix, i) => (
+          <button
+            key={i}
+            onClick={() => onSelect(i)}
+            className={`w-full px-5 py-4 text-left transition ${
+              i === selectedIndex
+                ? "bg-emerald-50"
+                : "bg-white hover:bg-stone-50"
+            }`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex-1">
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(mix.units).map(([id, count]) =>
+                    count > 0 ? (
+                      <span
+                        key={id}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                          ARCHETYPE_COLORS[id] ?? "bg-stone-100 text-stone-700"
+                        }`}
+                      >
+                        {count}× {ARCHETYPE_LABELS[id] ?? id}
+                      </span>
+                    ) : null
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs text-stone-500">
+                  {mix.total_floor_area_m2.toLocaleString()} m² total built area
+                </p>
+              </div>
+
+              <div className="flex shrink-0 gap-4 text-right text-xs">
+                <Metric label="Units" value={String(mix.total_units)} highlight />
+                <Metric label="Total cost" value={`$${fmt(mix.total_cost)}`} />
+                <Metric label="Avg EUI" value={`${mix.avg_eui_kwh_m2_yr} kWh/m²`} />
+                <Metric label="NZR units" value={`${mix.nzr_unit_count}/${mix.total_units}`} ok={mix.nzr_unit_count === mix.total_units} />
+                <Metric label="Avg utility/mo" value={`$${fmt(mix.avg_monthly_utility)}`} />
+              </div>
+            </div>
+
+            {i === selectedIndex && (
+              <p className="mt-2 text-[10px] font-semibold text-emerald-700">
+                ✓ Showing site plan for this configuration
+              </p>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  highlight,
+  ok,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  ok?: boolean;
+}) {
+  const color =
+    ok === true ? "text-emerald-700" :
+    ok === false ? "text-amber-600" :
+    highlight ? "text-stone-950" : "text-stone-700";
+
+  return (
+    <div>
+      <p className="text-[10px] text-stone-400">{label}</p>
+      <p className={`text-sm font-semibold ${color}`}>{value}</p>
+    </div>
+  );
+}

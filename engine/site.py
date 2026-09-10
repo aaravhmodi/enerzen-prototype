@@ -81,7 +81,7 @@ def solar_score_for_orientation(orientation: str) -> float:
     return round(0.5 + 0.5 * math.cos(math.radians(diff)), 3)
 
 
-def _buildable_envelope(site: SiteSpec) -> BuildableEnvelope:
+def buildable_envelope(site: SiteSpec) -> BuildableEnvelope:
     """Lot minus setbacks, in a coordinate system where x=0 is the west edge
     and y=0 is the north edge (both increasing east/south respectively)."""
     if site.street_side in ("N", "S"):
@@ -99,6 +99,10 @@ def _buildable_envelope(site: SiteSpec) -> BuildableEnvelope:
     else:
         raise ValueError(f"street_side must be one of N/S/E/W, got {site.street_side!r}")
     return BuildableEnvelope(x0, y0, x1, y1)
+
+
+# Keep private-name alias for internal callers and multi_site.py
+_buildable_envelope = buildable_envelope
 
 
 def place_building(spec, site: SiteSpec) -> SiteLayout:

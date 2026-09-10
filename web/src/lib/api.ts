@@ -115,3 +115,61 @@ export async function runReport(
 export async function runParseSpec(text: string): Promise<Partial<ProjectSpecInput & SiteSpecInput> & { assumptions: string[] }> {
   return postJson("/parse-spec", { text });
 }
+
+export type ArchetypeInfo = {
+  id: string;
+  name: string;
+  floor_area_m2: number;
+  storeys: number;
+  footprint_length_m: number;
+  footprint_width_m: number;
+  typology: string;
+  units_per_building: number;
+};
+
+export type DevSpecInput = {
+  lot_width_m: number;
+  lot_depth_m: number;
+  street_side: "N" | "S" | "E" | "W";
+  front_setback_m: number;
+  side_setback_m: number;
+  rear_setback_m: number;
+  total_budget_cad: number;
+  location: string;
+  target_label: string;
+  allowed_types: string[];
+  orientation: "N" | "S" | "E" | "W";
+};
+
+export type DevMixResult = {
+  units: Record<string, number>;
+  total_units: number;
+  total_cost: number;
+  avg_eui_kwh_m2_yr: number;
+  avg_carbon_kg_co2e_m2: number;
+  nzr_unit_count: number;
+  fits_on_lot: boolean;
+  total_floor_area_m2: number;
+  avg_monthly_utility: number;
+  mix_label: string;
+};
+
+export async function fetchArchetypes(): Promise<ArchetypeInfo[]> {
+  const res = await fetch(`${API_BASE}/archetypes`);
+  const data = await res.json();
+  return data.archetypes;
+}
+
+export async function runDevOptimize(
+  spec: DevSpecInput,
+  top_n = 10
+): Promise<{ mixes: DevMixResult[] }> {
+  return postJson("/dev-optimize", { spec, top_n });
+}
+
+export async function runDevSitePlan(
+  spec: DevSpecInput,
+  mix: Record<string, number>
+): Promise<{ svg: string }> {
+  return postJson("/dev-site-plan", { spec, mix });
+}
