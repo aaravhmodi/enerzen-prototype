@@ -89,6 +89,28 @@ export async function fetchCatalog(): Promise<{ solar: { id: string; name: strin
   return res.json();
 }
 
+export type LocationDetail = {
+  name: string;
+  climate_zone: string;
+  region_name: string;
+  ground_snow_load_kpa: number;
+  associated_rain_load_kpa: number;
+  roof_snow_load_kpa: number;
+  snow_tier: { id: string; name: string; joist_depth_in: number; max_ground_load_kpa: number };
+  joist_depth_in: number;
+  over_snow_range: boolean;
+  allowable_bearing_kpa: number;
+  frost_depth_m: number;
+  electricity_cad_per_kwh: number;
+  natural_gas_cad_per_kwh: number;
+};
+
+export async function fetchLocationDetail(name: string): Promise<LocationDetail> {
+  const res = await fetch(`${API_BASE}/locations/${encodeURIComponent(name)}`);
+  if (!res.ok) throw new Error("Failed to fetch location detail");
+  return res.json();
+}
+
 export async function runOptimize(
   spec: ProjectSpecInput,
   weights?: Record<string, number>,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchLocations, DevSpecInput } from "@/lib/api";
+import LocationInfoPanel from "@/components/LocationInfoPanel";
 
 const ARCHETYPE_OPTIONS = [
   { id: "garden_suite", label: "Garden Suite (1 BR)", desc: "46 m² · 1 storey" },
@@ -81,6 +82,7 @@ export default function DevForm({
             <option value={state.location}>{state.location}</option>
           )}
         </select>
+        <LocationInfoPanel location={state.location} />
       </div>
 
       {/* Lot dimensions */}

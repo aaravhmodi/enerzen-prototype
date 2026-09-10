@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchCatalog, fetchLocations, runParseSpec, ProjectSpecInput, SiteSpecInput } from "@/lib/api";
+import LocationInfoPanel from "@/components/LocationInfoPanel";
 
 export type FormState = {
   spec: ProjectSpecInput;
@@ -239,6 +240,10 @@ export default function ProjectForm({
               <option value="W">West</option>
             </select>
           </Field>
+        </div>
+
+        <div className="mt-4">
+          <LocationInfoPanel location={state.spec.location} />
         </div>
       </fieldset>
 

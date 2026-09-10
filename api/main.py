@@ -146,6 +146,27 @@ def locations():
     return {"locations": location_names()}
 
 
+@app.get("/locations/{name}")
+def location_detail(name: str):
+    _validate_location(name)
+    loc = resolve_location(name)
+    return {
+        "name": loc.name,
+        "climate_zone": loc.climate_zone,
+        "region_name": loc.region_name,
+        "ground_snow_load_kpa": loc.ss,
+        "associated_rain_load_kpa": loc.sr,
+        "roof_snow_load_kpa": loc.roof_snow_load_kpa,
+        "snow_tier": loc.snow_tier,
+        "joist_depth_in": loc.joist_depth_in,
+        "over_snow_range": loc.over_snow_range,
+        "allowable_bearing_kpa": loc.allowable_bearing_kpa,
+        "frost_depth_m": loc.frost_depth_m,
+        "electricity_cad_per_kwh": loc.electricity_cad_per_kwh,
+        "natural_gas_cad_per_kwh": loc.natural_gas_cad_per_kwh,
+    }
+
+
 @app.get("/catalog")
 def catalog():
     return load_catalog()
