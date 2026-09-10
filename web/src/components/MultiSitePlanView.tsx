@@ -1,6 +1,8 @@
 "use client";
 
 import type { DevMixResult } from "@/lib/api";
+import { fmtEui, fmtArea, fmtCad } from "@/lib/units";
+import InfoTooltip from "@/components/InfoTooltip";
 
 const ARCHETYPE_LABELS: Record<string, string> = {
   garden_suite: "Garden Suite",
@@ -56,19 +58,25 @@ export default function MultiSitePlanView({
             <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
               <dt className="text-stone-400">Built area</dt>
               <dd className="mt-1 text-base font-semibold text-stone-950">
-                {mix.total_floor_area_m2.toLocaleString()} m²
+                {fmtArea(mix.total_floor_area_m2)}
               </dd>
             </div>
 
             <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="text-stone-400">Avg EUI</dt>
+              <dt className="flex items-center gap-1.5 text-stone-400">
+                Avg EUI
+                <InfoTooltip text="Average Energy Use Intensity across all units in this mix. Lower means less energy consumed per m² each year." />
+              </dt>
               <dd className="mt-1 text-base font-semibold text-stone-950">
-                {mix.avg_eui_kwh_m2_yr} kWh/m²·yr
+                {fmtEui(mix.avg_eui_kwh_m2_yr)}
               </dd>
             </div>
 
             <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="text-stone-400">NZR compliant</dt>
+              <dt className="flex items-center gap-1.5 text-stone-400">
+                NZR compliant
+                <InfoTooltip text="How many units in this mix meet the Net Zero Ready envelope threshold, out of the total." />
+              </dt>
               <dd className={`mt-1 text-base font-semibold ${
                 mix.nzr_unit_count === mix.total_units ? "text-emerald-700" : "text-amber-600"
               }`}>
@@ -79,7 +87,7 @@ export default function MultiSitePlanView({
             <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
               <dt className="text-stone-400">Avg monthly utility</dt>
               <dd className="mt-1 text-base font-semibold text-stone-950">
-                ${mix.avg_monthly_utility.toLocaleString()}/unit
+                {fmtCad(mix.avg_monthly_utility)}/unit
               </dd>
             </div>
           </dl>

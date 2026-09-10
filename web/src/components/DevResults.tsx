@@ -1,6 +1,8 @@
 "use client";
 
 import type { DevMixResult } from "@/lib/api";
+import { fmtCad, fmtArea, M2 } from "@/lib/units";
+import InfoTooltip from "@/components/InfoTooltip";
 
 const ARCHETYPE_COLORS: Record<string, string> = {
   garden_suite: "bg-emerald-100 text-emerald-800",
@@ -15,10 +17,6 @@ const ARCHETYPE_LABELS: Record<string, string> = {
   murb:         "MURB",
   townhouse:    "Townhouse",
 };
-
-function fmt(n: number) {
-  return n.toLocaleString("en-CA", { maximumFractionDigits: 0 });
-}
 
 export default function DevResults({
   mixes,
@@ -41,6 +39,29 @@ export default function DevResults({
         <p className="mt-1 text-xs text-stone-500">
           Click a row to update the site plan. Ranked by total units, then energy efficiency.
         </p>
+      </div>
+
+      <div className="flex flex-wrap gap-x-5 gap-y-1 border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+        <span className="flex items-center gap-1">
+          Units
+          <InfoTooltip text="How many total dwelling units this mix places on the lot. More units generally means more revenue potential." />
+        </span>
+        <span className="flex items-center gap-1">
+          Total cost
+          <InfoTooltip text="Combined construction cost for every unit in this mix." />
+        </span>
+        <span className="flex items-center gap-1">
+          Avg EUI
+          <InfoTooltip text="Average Energy Use Intensity across the mix, kWh per m² per year. Lower is more efficient." />
+        </span>
+        <span className="flex items-center gap-1">
+          NZR units
+          <InfoTooltip text="How many of the units meet Net Zero Ready out of the total. A full ratio means the whole mix qualifies." />
+        </span>
+        <span className="flex items-center gap-1">
+          Avg utility/mo
+          <InfoTooltip text="Average estimated monthly electricity + gas bill per unit." />
+        </span>
       </div>
 
       <div className="divide-y divide-stone-100">
@@ -71,16 +92,16 @@ export default function DevResults({
                   )}
                 </div>
                 <p className="mt-1.5 text-xs text-stone-500">
-                  {mix.total_floor_area_m2.toLocaleString()} m² total built area
+                  {fmtArea(mix.total_floor_area_m2)} total built area
                 </p>
               </div>
 
               <div className="flex shrink-0 gap-4 text-right text-xs">
                 <Metric label="Units" value={String(mix.total_units)} highlight />
-                <Metric label="Total cost" value={`$${fmt(mix.total_cost)}`} />
-                <Metric label="Avg EUI" value={`${mix.avg_eui_kwh_m2_yr} kWh/m²`} />
+                <Metric label="Total cost" value={fmtCad(mix.total_cost)} />
+                <Metric label="Avg EUI" value={`${mix.avg_eui_kwh_m2_yr} kWh/${M2}`} />
                 <Metric label="NZR units" value={`${mix.nzr_unit_count}/${mix.total_units}`} ok={mix.nzr_unit_count === mix.total_units} />
-                <Metric label="Avg utility/mo" value={`$${fmt(mix.avg_monthly_utility)}`} />
+                <Metric label="Avg utility/mo" value={fmtCad(mix.avg_monthly_utility)} />
               </div>
             </div>
 

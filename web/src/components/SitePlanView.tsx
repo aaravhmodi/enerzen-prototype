@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SiteLayout } from "@/lib/api";
+import InfoTooltip from "@/components/InfoTooltip";
 
 export default function SitePlanView({
   svg,
@@ -54,10 +55,28 @@ export default function SitePlanView({
 
         <aside className="border-t border-stone-200 bg-stone-50/80 p-5 lg:border-l lg:border-t-0">
           <dl className="grid gap-3 text-xs text-stone-600">
-            <Stat label="Solar score" value={layout.solar_score.toFixed(2)} />
-            <Stat label="Fits on lot" value={layout.fits_on_lot ? "Yes" : "No"} ok={layout.fits_on_lot} />
-            <Stat label="Setbacks" value={layout.setbacks_ok ? "OK" : "Violated"} ok={layout.setbacks_ok} />
-            <Stat label="Orientation" value={layout.orientation} />
+            <Stat
+              label="Solar score"
+              value={layout.solar_score.toFixed(2)}
+              tip="0-1 scale of how well the building's orientation captures passive solar gain. South-facing scores near 1.0; north-facing scores lowest."
+            />
+            <Stat
+              label="Fits on lot"
+              value={layout.fits_on_lot ? "Yes" : "No"}
+              ok={layout.fits_on_lot}
+              tip="Whether the building footprint fits inside the buildable envelope (lot minus setbacks) without overflow."
+            />
+            <Stat
+              label="Setbacks"
+              value={layout.setbacks_ok ? "OK" : "Violated"}
+              ok={layout.setbacks_ok}
+              tip="Whether the placement respects the front/side/rear setback distances you entered."
+            />
+            <Stat
+              label="Orientation"
+              value={layout.orientation}
+              tip="The direction the building's main facade faces, as placed on this lot."
+            />
           </dl>
           {layout.notes.length > 0 && (
             <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
@@ -70,12 +89,15 @@ export default function SitePlanView({
   );
 }
 
-function Stat({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+function Stat({ label, value, ok, tip }: { label: string; value: string; ok?: boolean; tip?: string }) {
   const valueColor = ok === undefined ? "text-stone-950" : ok ? "text-emerald-700" : "text-red-600";
 
   return (
     <div className="tile p-3">
-      <dt className="tile-label">{label}</dt>
+      <dt className="flex items-center gap-1.5 tile-label">
+        {label}
+        {tip && <InfoTooltip text={tip} />}
+      </dt>
       <dd className={`mt-1.5 text-base font-semibold ${valueColor}`}>{value}</dd>
     </div>
   );
