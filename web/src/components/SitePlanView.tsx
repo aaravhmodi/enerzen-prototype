@@ -74,9 +74,9 @@ function Stat({ label, value, ok }: { label: string; value: string; ok?: boolean
   const valueColor = ok === undefined ? "text-stone-950" : ok ? "text-emerald-700" : "text-red-600";
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-      <dt className="text-stone-400">{label}</dt>
-      <dd className={`mt-1 text-base font-semibold ${valueColor}`}>{value}</dd>
+    <div className="tile p-3">
+      <dt className="tile-label">{label}</dt>
+      <dd className={`mt-1.5 text-base font-semibold ${valueColor}`}>{value}</dd>
     </div>
   );
 }

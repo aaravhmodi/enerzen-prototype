@@ -5,17 +5,16 @@ function Metric({ label, value, tone = "default" }: { label: string; value: stri
 
   return (
     <div
-      className={[
-        "rounded-xl border p-4 shadow-sm",
+      className={
         isAccent
-          ? "border-emerald-200 bg-emerald-900 text-white shadow-emerald-900/10"
-          : "border-stone-200 bg-white/90 text-stone-950",
-      ].join(" ")}
+          ? "rounded-xl border border-emerald-200 bg-emerald-900 p-4 text-white shadow-sm shadow-emerald-900/10"
+          : "tile"
+      }
     >
-      <div className={isAccent ? "text-xs font-medium text-emerald-100" : "text-xs font-medium text-stone-400"}>
+      <div className={isAccent ? "text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-emerald-100" : "tile-label"}>
         {label}
       </div>
-      <div className="mt-1 text-xl font-semibold tracking-tight">{value}</div>
+      <div className={isAccent ? "mt-1.5 break-words text-lg font-semibold leading-tight tracking-tight text-white sm:text-xl" : "tile-value"}>{value}</div>
     </div>
   );
 }
@@ -45,7 +44,7 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
               Optimized against cost, embodied carbon, operating energy, lifecycle performance, and NZR probability.
             </p>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-3">
               <Metric label="Construction cost" value={`$${top.construction_cost.toLocaleString()}`} tone="accent" />
               <Metric label="Build schedule" value={`${top.construction_weeks.toFixed(1)} wk`} />
               <Metric label="EUI" value={`${top.eui_kwh_m2_yr.toFixed(0)} kWh/m2/yr`} />
