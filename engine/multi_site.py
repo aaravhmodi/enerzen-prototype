@@ -157,16 +157,17 @@ def multi_site_plan_svg(
     lot: SiteSpec,
     mix: dict[str, int],
 ) -> str:
-    """SVG site plan in the style of a land-development drawing: landscaped
-    ground, a street band, numbered building badges with a legend (as in a
-    land-dev site-plan sheet), a compass rose, a scale bar, and a title
-    block — built from the same placement numbers, not a one-off illustration."""
+    """SVG site plan as a clean technical drawing — white background, black
+    linework, numbered building badges keyed to a legend, full dimension
+    strings, and a bordered title block — matching an actual site-plan
+    submission rather than a marketing illustration."""
     from engine import svg_kit
 
-    top = _MARGIN_PX + (svg_kit.STREET_BAND_PX if lot.street_side == "N" else 0)
-    bottom = _MARGIN_PX + (svg_kit.STREET_BAND_PX if lot.street_side == "S" else 0) + 96
-    left = _MARGIN_PX + (svg_kit.STREET_BAND_PX if lot.street_side == "W" else 0)
-    right = _MARGIN_PX + (svg_kit.STREET_BAND_PX if lot.street_side == "E" else 0)
+    band = svg_kit.STREET_BAND_PX
+    top = _MARGIN_PX + (band if lot.street_side == "N" else 0)
+    bottom = (band if lot.street_side == "S" else 0) + 190
+    left = _MARGIN_PX + (band if lot.street_side == "W" else 0)
+    right = _MARGIN_PX + (band if lot.street_side == "E" else 0) + 30
 
     lot_w_px = lot.lot_width_m * _SCALE_PX_PER_M
     lot_h_px = lot.lot_depth_m * _SCALE_PX_PER_M
@@ -182,16 +183,19 @@ def multi_site_plan_svg(
 
     total_units = sum(mix.values())
 
+    width_dim_offset = (band if lot.street_side == "S" else 0) + 16
+    depth_dim_offset = -(16 + (band if lot.street_side == "E" else 0))
+
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w_px:.0f}" height="{h_px:.0f}" '
         f'viewBox="0 0 {w_px:.0f} {h_px:.0f}" font-family="sans-serif">',
         svg_kit.defs_block(),
-        svg_kit.street_band(lot.street_side, left, top, lot_w_px, lot_h_px),
-        svg_kit.lot_ground(left, top, lot_w_px, lot_h_px),
-        svg_kit.tree_row(left, top, left + lot_w_px, top, max(2, int(lot.lot_width_m // 8))) if lot.street_side != "N" else "",
-        svg_kit.tree_row(left, top + lot_h_px, left + lot_w_px, top + lot_h_px, max(2, int(lot.lot_width_m // 8))) if lot.street_side != "S" else "",
+        svg_kit.street_edge(lot.street_side, left, top, lot_w_px, lot_h_px),
+        svg_kit.lot_boundary(left, top, lot_w_px, lot_h_px),
         f'<rect x="{e_x0:.1f}" y="{e_y0:.1f}" width="{e_x1 - e_x0:.1f}" height="{e_y1 - e_y0:.1f}" '
-        f'fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"/>',
+        f'fill="none" stroke="{svg_kit.DASH_ENVELOPE}" stroke-width="1.25" stroke-dasharray="5,3"/>',
+        svg_kit.overall_dimensions(left, top, lot_w_px, lot_h_px, lot.lot_width_m, lot.lot_depth_m,
+                                    width_dim_offset, depth_dim_offset),
     ]
 
     # Buildings — numbered badges so the legend below can key them, like a
@@ -207,25 +211,28 @@ def multi_site_plan_svg(
         cy = by0 + bh_px / 2
         parts.append(
             f'<rect x="{bx0:.1f}" y="{by0:.1f}" width="{bw_px:.1f}" height="{bh_px:.1f}" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="2" rx="2"/>'
+            f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
         )
         if bw_px > 16 and bh_px > 16:
             parts.append(svg_kit.numbered_badge(cx, cy, number_by_archetype.get(p.archetype_id, 0), stroke))
 
-    parts.append(svg_kit.compass(w_px - right / 2, top / 2 + 4 if top > 20 else 16))
-    parts.append(svg_kit.scale_bar(
-        left, top + lot_h_px + (svg_kit.STREET_BAND_PX if lot.street_side == "S" else 0) + 20, _SCALE_PX_PER_M
-    ))
+    parts.append(svg_kit.compass(w_px - (right - 30) / 2 if right > 30 else w_px - 20,
+                                  top / 2 + 4 if top > 20 else 16))
+    scale_y = top + lot_h_px + (band if lot.street_side == "S" else 0) + 34
+    parts.append(svg_kit.scale_bar(left, scale_y, _SCALE_PX_PER_M))
 
-    # Legend — numbered like the buildings, plus the mix summary line.
-    legend_y = top + lot_h_px + (svg_kit.STREET_BAND_PX if lot.street_side == "S" else 0) + 44
+    # Title block, then a numbered legend keyed to the building badges.
+    title_y = scale_y + 20
     parts.append(svg_kit.title_block(
-        left, legend_y,
+        left, title_y, min(260, lot_w_px),
         "Development site plan",
-        f"Total: {total_units} unit{'s' if total_units != 1 else ''} | "
-        f"Lot {lot.lot_width_m:g}x{lot.lot_depth_m:g} m | Street: {lot.street_side}",
+        [
+            ("Total units", f"{total_units}"),
+            ("Lot size", f"{lot.lot_width_m:g} x {lot.lot_depth_m:g} m"),
+            ("Street", lot.street_side),
+        ],
     ))
-    legend_y += 30
+    legend_y = title_y + 20 + 15 * 3 + 20
     legend_x = left
     from engine.archetypes import ARCHETYPES
     for arch_id in archetype_order:
@@ -234,10 +241,13 @@ def multi_site_plan_svg(
         fill, stroke = _ARCHETYPE_COLORS.get(arch_id, _DEFAULT_COLOR)
         parts.append(svg_kit.numbered_badge(legend_x + 8, legend_y - 3, number_by_archetype[arch_id], stroke))
         parts.append(
-            f'<text x="{legend_x + 22:.0f}" y="{legend_y:.0f}" font-size="10" fill="#374151">'
-            f'{arch.name} × {count}</text>'
+            f'<text x="{legend_x + 22:.0f}" y="{legend_y:.0f}" font-size="9.5" fill="{svg_kit.LINE}">'
+            f'{arch.name} x {count}</text>'
         )
         legend_x += 170
+        if legend_x > w_px - 150:
+            legend_x = left
+            legend_y += 18
 
     parts.append('</svg>')
     return "".join(parts)

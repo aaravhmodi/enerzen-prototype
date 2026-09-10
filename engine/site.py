@@ -180,17 +180,16 @@ _MARGIN_PX = 40
 
 
 def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
-    """SVG site plan in the style of a land-development drawing: landscaped
-    ground texture, a street band on the street-facing edge, a compass rose,
-    a scale bar, setback dimension callouts, and a title block — built from
-    the same placement numbers as the technical layout, not a one-off
-    illustration."""
+    """SVG site plan as a clean technical drawing — white background, black
+    linework, full dimension strings, a bordered title block — matching an
+    actual site-plan submission rather than a marketing illustration."""
     from engine import svg_kit
 
-    top = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "N" else 0)
-    bottom = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "S" else 0) + 46
-    left = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "W" else 0)
-    right = _MARGIN_PX + (svg_kit.STREET_BAND_PX if site.street_side == "E" else 0)
+    band = svg_kit.STREET_BAND_PX
+    top = _MARGIN_PX + (band if site.street_side == "N" else 0)
+    bottom = (band if site.street_side == "S" else 0) + 150
+    left = _MARGIN_PX + (band if site.street_side == "W" else 0)
+    right = _MARGIN_PX + (band if site.street_side == "E" else 0) + 30
 
     lot_w_px = site.lot_width_m * _SCALE_PX_PER_M
     lot_h_px = site.lot_depth_m * _SCALE_PX_PER_M
@@ -216,36 +215,43 @@ def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
         "W": (b_x0, b_y0, b_x0, b_y1),
     }[layout.orientation]
 
+    width_dim_offset = (band if site.street_side == "S" else 0) + 16
+    depth_dim_offset = -(16 + (band if site.street_side == "E" else 0))
+
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{w_px:.0f}" height="{h_px:.0f}" '
         f'viewBox="0 0 {w_px:.0f} {h_px:.0f}" font-family="sans-serif">',
         svg_kit.defs_block(),
-        svg_kit.street_band(site.street_side, left, top, lot_w_px, lot_h_px),
-        svg_kit.lot_ground(left, top, lot_w_px, lot_h_px),
-        svg_kit.tree_row(left, top, left + lot_w_px, top, max(2, int(site.lot_width_m // 8))) if site.street_side != "N" else "",
-        svg_kit.tree_row(left, top + lot_h_px, left + lot_w_px, top + lot_h_px, max(2, int(site.lot_width_m // 8))) if site.street_side != "S" else "",
+        svg_kit.street_edge(site.street_side, left, top, lot_w_px, lot_h_px),
+        svg_kit.lot_boundary(left, top, lot_w_px, lot_h_px),
         f'<rect x="{e_x0:.1f}" y="{e_y0:.1f}" width="{e_x1 - e_x0:.1f}" height="{e_y1 - e_y0:.1f}" '
-        f'fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"/>',
+        f'fill="none" stroke="{svg_kit.DASH_ENVELOPE}" stroke-width="1.25" stroke-dasharray="5,3"/>',
         svg_kit.setback_dimensions(site.street_side, e_x0, e_y0, e_x1, e_y1, left, top, lot_w_px, lot_h_px,
                                     site.front_setback_m, site.side_setback_m, site.rear_setback_m),
-        f'<polygon points="{drive_pts}" fill="#c9ccd1" stroke="#6b7280" stroke-width="1"/>',
+        svg_kit.overall_dimensions(left, top, lot_w_px, lot_h_px, site.lot_width_m, site.lot_depth_m,
+                                    width_dim_offset, depth_dim_offset),
+        f'<polygon points="{drive_pts}" fill="#e5e7eb" stroke="{svg_kit.LINE}" stroke-width="1"/>',
         f'<rect x="{b_x0:.1f}" y="{b_y0:.1f}" width="{b_x1 - b_x0:.1f}" height="{b_y1 - b_y0:.1f}" '
-        f'fill="#f7f1e3" stroke="#8a6d3b" stroke-width="2" rx="1.5"/>',
+        f'fill="{svg_kit.BUILDING_FILL}" stroke="{svg_kit.INK}" stroke-width="1.75"/>',
+        f'<text x="{(b_x0 + b_x1) / 2:.1f}" y="{(b_y0 + b_y1) / 2 + 3:.1f}" text-anchor="middle" '
+        f'font-size="8.5" fill="{svg_kit.LINE}">{layout.building_w_m:.1f} x {layout.building_h_m:.1f} m</text>',
         f'<line x1="{solar_edge[0]:.1f}" y1="{solar_edge[1]:.1f}" x2="{solar_edge[2]:.1f}" y2="{solar_edge[3]:.1f}" '
-        f'stroke="#e08e2b" stroke-width="5"/>',
-        svg_kit.compass(w_px - right / 2, top / 2 + 4 if top > 20 else 16),
-        svg_kit.scale_bar(left, top + lot_h_px + (svg_kit.STREET_BAND_PX if site.street_side == "S" else 0) + 20,
-                           _SCALE_PX_PER_M),
+        f'stroke="#b45309" stroke-width="3"/>',
+        svg_kit.compass(w_px - (right - 30) / 2 if right > 30 else w_px - 20, top / 2 + 4 if top > 20 else 16),
+        svg_kit.scale_bar(left, top + lot_h_px + (band if site.street_side == "S" else 0) + 34, _SCALE_PX_PER_M),
         svg_kit.title_block(
-            left, top + lot_h_px + (svg_kit.STREET_BAND_PX if site.street_side == "S" else 0) + 40,
+            left, top + lot_h_px + (band if site.street_side == "S" else 0) + 54, min(220, lot_w_px),
             "Site plan",
-            f"Street: {site.street_side} | Solar score: {layout.solar_score:.2f} | "
-            f"Lot {site.lot_width_m:g}×{site.lot_depth_m:g} m",
+            [
+                ("Street", site.street_side),
+                ("Solar score", f"{layout.solar_score:.2f}"),
+                ("Lot size", f"{site.lot_width_m:g} x {site.lot_depth_m:g} m"),
+            ],
         ),
     ]
     if layout.notes:
         parts.append(
-            f'<text x="{left:.0f}" y="{h_px - 8:.0f}" font-size="10" fill="#b91c1c">'
+            f'<text x="{left:.0f}" y="{h_px - 8:.0f}" font-size="9" fill="#b91c1c">'
             f'{layout.notes[0]}</text>'
         )
     parts.append('</svg>')

@@ -30,7 +30,7 @@ export default function MultiSitePlanView({
       <div className="grid gap-0 lg:grid-cols-[1fr_240px]">
         <div className="bg-white p-5">
           <div
-            className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+            className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:overflow-visible"
             dangerouslySetInnerHTML={{ __html: svg }}
           />
           <p className="mt-3 text-[10px] text-stone-400 text-center">

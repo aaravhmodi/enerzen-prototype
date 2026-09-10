@@ -1,33 +1,22 @@
 """
-Shared SVG "chrome" for site plans — landscaped ground texture, a street
-band, a compass rose, a scale bar, dimension lines, and a title block —
-so the technical site-plan drawings read like a land-development site
-plan (rounded card, greenery, numbered buildings, legend) rather than a
-bare CAD-style rectangle diagram.
-
-Deliberately still a schematic, not a rendered aerial photo: every shape
-here is generated from the same numbers driving the placement math, so
-it stays accurate as inputs change, unlike a one-off AI illustration.
+Shared SVG chrome for site plans: a clean technical drawing — white
+background, black/grey linework, full dimension strings, a bordered title
+block — matching what an actual site-plan submission or client drawing
+looks like, not a marketing illustration.
 """
 
-GRASS_FILL = "#e4edd8"
-GRASS_STROKE = "#4a7c3c"
-ASPHALT = "#52565c"
-ASPHALT_EDGE = "#d8d8d2"
-INK = "#374151"
-TREE_CANOPY = "#8fb377"
-TREE_CANOPY_DARK = "#729a5c"
+INK = "#1f2937"
+LINE = "#4b5563"
+DIM_LINE = "#374151"
+DASH_ENVELOPE = "#9ca3af"
+BUILDING_FILL = "#f8fafc"
 
-STREET_BAND_PX = 26
+STREET_BAND_PX = 22
 
 
 def defs_block() -> str:
     return (
         '<defs>'
-        '<pattern id="grassTex" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(18)">'
-        f'<rect width="16" height="16" fill="{GRASS_FILL}"/>'
-        '<line x1="0" y1="0" x2="0" y2="16" stroke="#d3e2c2" stroke-width="2"/>'
-        '</pattern>'
         '<marker id="svgKitArrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">'
         f'<path d="M0,0 L8,4 L0,8 z" fill="{INK}"/>'
         '</marker>'
@@ -35,59 +24,48 @@ def defs_block() -> str:
     )
 
 
-def lot_ground(x: float, y: float, w: float, h: float, rx: float = 12) -> str:
-    return (
-        f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" rx="{rx}" '
-        f'fill="url(#grassTex)" stroke="{GRASS_STROKE}" stroke-width="2"/>'
+def lot_boundary(x: float, y: float, w: float, h: float) -> str:
+    return f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="white" stroke="{INK}" stroke-width="1.75"/>'
+
+
+def street_edge(street_side: str, lot_x: float, lot_y: float, lot_w: float, lot_h: float,
+                 label: str = "STREET", band_px: float = STREET_BAND_PX) -> str:
+    """A line + perpendicular hatch ticks along the street-facing edge,
+    with a label — the way a road allowance reads on a real site plan."""
+    if street_side == "N":
+        x0, y0, x1, y1 = lot_x, lot_y - band_px, lot_x + lot_w, lot_y - band_px
+        lx, ly = lot_x + lot_w / 2, y0 - 6
+        ticks = [(lot_x + t * lot_w, y0 - 5, lot_x + t * lot_w, y0 + 5) for t in (0.15, 0.5, 0.85)]
+    elif street_side == "S":
+        x0, y0, x1, y1 = lot_x, lot_y + lot_h + band_px, lot_x + lot_w, lot_y + lot_h + band_px
+        lx, ly = lot_x + lot_w / 2, y0 + 14
+        ticks = [(lot_x + t * lot_w, y0 - 5, lot_x + t * lot_w, y0 + 5) for t in (0.15, 0.5, 0.85)]
+    elif street_side == "W":
+        x0, y0, x1, y1 = lot_x - band_px, lot_y, lot_x - band_px, lot_y + lot_h
+        lx, ly = x0 - 8, lot_y + lot_h / 2
+        ticks = [(x0 - 5, lot_y + t * lot_h, x0 + 5, lot_y + t * lot_h) for t in (0.15, 0.5, 0.85)]
+    else:  # "E"
+        x0, y0, x1, y1 = lot_x + lot_w + band_px, lot_y, lot_x + lot_w + band_px, lot_y + lot_h
+        lx, ly = x0 + 8, lot_y + lot_h / 2
+        ticks = [(x0 - 5, lot_y + t * lot_h, x0 + 5, lot_y + t * lot_h) for t in (0.15, 0.5, 0.85)]
+
+    parts = [f'<line x1="{x0:.1f}" y1="{y0:.1f}" x2="{x1:.1f}" y2="{y1:.1f}" stroke="{LINE}" stroke-width="1.25"/>']
+    for tx0, ty0, tx1, ty1 in ticks:
+        parts.append(f'<line x1="{tx0:.1f}" y1="{ty0:.1f}" x2="{tx1:.1f}" y2="{ty1:.1f}" stroke="{LINE}" stroke-width="1"/>')
+    rot = f' transform="rotate(-90 {lx:.1f} {ly:.1f})"' if street_side in ("W", "E") else ""
+    parts.append(
+        f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="middle" font-size="9" '
+        f'letter-spacing="1" fill="{LINE}"{rot}>{label}</text>'
     )
-
-
-def tree(cx: float, cy: float, r: float = 5) -> str:
-    return (
-        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="{TREE_CANOPY}" '
-        f'stroke="{TREE_CANOPY_DARK}" stroke-width="0.75"/>'
-    )
-
-
-def tree_row(x0: float, y0: float, x1: float, y1: float, count: int, r: float = 4.5) -> str:
-    """A row of small tree canopies along a straight edge, evenly spaced."""
-    if count <= 0:
-        return ""
-    parts = []
-    for i in range(count):
-        t = (i + 0.5) / count
-        parts.append(tree(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r))
     return "".join(parts)
 
 
-def street_band(street_side: str, lot_x: float, lot_y: float, lot_w: float, lot_h: float,
-                 band_px: float = STREET_BAND_PX) -> str:
-    """An asphalt strip with a dashed centreline along the street-facing edge,
-    drawn just outside the lot boundary."""
-    if street_side == "N":
-        x, y, w, h = lot_x, lot_y - band_px, lot_w, band_px
-        cl = f'<line x1="{x:.1f}" y1="{y + h / 2:.1f}" x2="{x + w:.1f}" y2="{y + h / 2:.1f}"'
-    elif street_side == "S":
-        x, y, w, h = lot_x, lot_y + lot_h, lot_w, band_px
-        cl = f'<line x1="{x:.1f}" y1="{y + h / 2:.1f}" x2="{x + w:.1f}" y2="{y + h / 2:.1f}"'
-    elif street_side == "W":
-        x, y, w, h = lot_x - band_px, lot_y, band_px, lot_h
-        cl = f'<line x1="{x + w / 2:.1f}" y1="{y:.1f}" x2="{x + w / 2:.1f}" y2="{y + h:.1f}"'
-    else:  # "E"
-        x, y, w, h = lot_x + lot_w, lot_y, band_px, lot_h
-        cl = f'<line x1="{x + w / 2:.1f}" y1="{y:.1f}" x2="{x + w / 2:.1f}" y2="{y + h:.1f}"'
+def compass(cx: float, cy: float, r: float = 13) -> str:
     return (
-        f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{ASPHALT}"/>'
-        f'{cl} stroke="{ASPHALT_EDGE}" stroke-width="1.5" stroke-dasharray="6,5"/>'
-    )
-
-
-def compass(cx: float, cy: float, r: float = 15) -> str:
-    return (
-        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="white" stroke="{INK}" stroke-width="1.2"/>'
+        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}" fill="white" stroke="{INK}" stroke-width="1"/>'
         f'<line x1="{cx:.1f}" y1="{cy + r - 3:.1f}" x2="{cx:.1f}" y2="{cy - r + 4:.1f}" '
-        f'stroke="{INK}" stroke-width="1.6" marker-end="url(#svgKitArrow)"/>'
-        f'<text x="{cx:.1f}" y="{cy - r - 4:.1f}" text-anchor="middle" font-size="10" '
+        f'stroke="{INK}" stroke-width="1.4" marker-end="url(#svgKitArrow)"/>'
+        f'<text x="{cx:.1f}" y="{cy - r - 4:.1f}" text-anchor="middle" font-size="9" '
         f'font-weight="700" fill="{INK}">N</text>'
     )
 
@@ -95,49 +73,57 @@ def compass(cx: float, cy: float, r: float = 15) -> str:
 def scale_bar(x: float, y: float, px_per_m: float, metres: float = 10) -> str:
     length = metres * px_per_m
     return (
-        f'<line x1="{x:.0f}" y1="{y:.0f}" x2="{x + length:.0f}" y2="{y:.0f}" stroke="{INK}" stroke-width="2"/>'
-        f'<line x1="{x:.0f}" y1="{y - 4:.0f}" x2="{x:.0f}" y2="{y + 4:.0f}" stroke="{INK}" stroke-width="1.5"/>'
+        f'<line x1="{x:.0f}" y1="{y:.0f}" x2="{x + length:.0f}" y2="{y:.0f}" stroke="{INK}" stroke-width="1.5"/>'
+        f'<line x1="{x:.0f}" y1="{y - 4:.0f}" x2="{x:.0f}" y2="{y + 4:.0f}" stroke="{INK}" stroke-width="1"/>'
         f'<line x1="{x + length:.0f}" y1="{y - 4:.0f}" x2="{x + length:.0f}" y2="{y + 4:.0f}" '
-        f'stroke="{INK}" stroke-width="1.5"/>'
-        f'<text x="{x + length / 2:.0f}" y="{y - 6:.0f}" text-anchor="middle" font-size="10" '
+        f'stroke="{INK}" stroke-width="1"/>'
+        f'<text x="{x + length / 2:.0f}" y="{y - 6:.0f}" text-anchor="middle" font-size="9" '
         f'fill="{INK}">{metres:g} m</text>'
     )
 
 
-def title_block(x: float, y: float, title: str, subtitle: str = "") -> str:
+def title_block(x: float, y: float, w: float, title: str, fields: list[tuple[str, str]]) -> str:
+    """A bordered title block with labelled fields, like a real drawing sheet."""
+    row_h = 15
+    h = 20 + row_h * len(fields)
     parts = [
-        f'<text x="{x:.0f}" y="{y:.0f}" font-size="13" font-weight="700" letter-spacing="1.5" '
-        f'fill="{INK}">{title.upper()}</text>'
+        f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="white" stroke="{INK}" stroke-width="1"/>',
+        f'<line x1="{x:.1f}" y1="{y + 22:.1f}" x2="{x + w:.1f}" y2="{y + 22:.1f}" stroke="{INK}" stroke-width="1"/>',
+        f'<text x="{x + 8:.1f}" y="{y + 15:.1f}" font-size="11" font-weight="700" letter-spacing="1" '
+        f'fill="{INK}">{title.upper()}</text>',
     ]
-    if subtitle:
+    fy = y + 22 + 13
+    for label, value in fields:
         parts.append(
-            f'<text x="{x:.0f}" y="{y + 15:.0f}" font-size="9.5" fill="#78716c">{subtitle}</text>'
+            f'<text x="{x + 8:.1f}" y="{fy:.1f}" font-size="8.5" fill="#6b7280">{label}: '
+            f'<tspan fill="{INK}" font-weight="600">{value}</tspan></text>'
         )
+        fy += row_h
     return "".join(parts)
 
 
 def dimension_line(x0: float, y0: float, x1: float, y1: float, label: str, offset: float = 10) -> str:
-    """A short dimension line with end ticks and a centred label, offset
-    perpendicular to the run — used to call out setback distances."""
+    """A dimension line with end ticks and a centred label, offset
+    perpendicular to the run — the standard way to call out a distance."""
     horizontal = abs(x1 - x0) >= abs(y1 - y0)
     if horizontal:
         ly = y0 - offset
         cx = (x0 + x1) / 2
         return (
             f'<line x1="{x0:.1f}" y1="{ly:.1f}" x2="{x1:.1f}" y2="{ly:.1f}" '
-            f'stroke="{INK}" stroke-width="1" stroke-dasharray="3,2"/>'
-            f'<line x1="{x0:.1f}" y1="{ly - 3:.1f}" x2="{x0:.1f}" y2="{ly + 3:.1f}" stroke="{INK}" stroke-width="1"/>'
-            f'<line x1="{x1:.1f}" y1="{ly - 3:.1f}" x2="{x1:.1f}" y2="{ly + 3:.1f}" stroke="{INK}" stroke-width="1"/>'
-            f'<text x="{cx:.1f}" y="{ly - 3:.1f}" text-anchor="middle" font-size="8.5" fill="{INK}">{label}</text>'
+            f'stroke="{DIM_LINE}" stroke-width="0.9" stroke-dasharray="3,2"/>'
+            f'<line x1="{x0:.1f}" y1="{ly - 3:.1f}" x2="{x0:.1f}" y2="{ly + 3:.1f}" stroke="{DIM_LINE}" stroke-width="1"/>'
+            f'<line x1="{x1:.1f}" y1="{ly - 3:.1f}" x2="{x1:.1f}" y2="{ly + 3:.1f}" stroke="{DIM_LINE}" stroke-width="1"/>'
+            f'<text x="{cx:.1f}" y="{ly - 3:.1f}" text-anchor="middle" font-size="8.5" fill="{DIM_LINE}">{label}</text>'
         )
     lx = x0 - offset
     cy = (y0 + y1) / 2
     return (
         f'<line x1="{lx:.1f}" y1="{y0:.1f}" x2="{lx:.1f}" y2="{y1:.1f}" '
-        f'stroke="{INK}" stroke-width="1" stroke-dasharray="3,2"/>'
-        f'<line x1="{lx - 3:.1f}" y1="{y0:.1f}" x2="{lx + 3:.1f}" y2="{y0:.1f}" stroke="{INK}" stroke-width="1"/>'
-        f'<line x1="{lx - 3:.1f}" y1="{y1:.1f}" x2="{lx + 3:.1f}" y2="{y1:.1f}" stroke="{INK}" stroke-width="1"/>'
-        f'<text x="{lx:.1f}" y="{cy:.1f}" text-anchor="middle" font-size="8.5" fill="{INK}" '
+        f'stroke="{DIM_LINE}" stroke-width="0.9" stroke-dasharray="3,2"/>'
+        f'<line x1="{lx - 3:.1f}" y1="{y0:.1f}" x2="{lx + 3:.1f}" y2="{y0:.1f}" stroke="{DIM_LINE}" stroke-width="1"/>'
+        f'<line x1="{lx - 3:.1f}" y1="{y1:.1f}" x2="{lx + 3:.1f}" y2="{y1:.1f}" stroke="{DIM_LINE}" stroke-width="1"/>'
+        f'<text x="{lx:.1f}" y="{cy:.1f}" text-anchor="middle" font-size="8.5" fill="{DIM_LINE}" '
         f'transform="rotate(-90 {lx:.1f} {cy:.1f})">{label}</text>'
     )
 
@@ -173,9 +159,19 @@ def setback_dimensions(street_side: str, e_x0: float, e_y0: float, e_x1: float, 
     return "".join(parts)
 
 
-def numbered_badge(cx: float, cy: float, number: int, fill: str = "#0f766e") -> str:
+def overall_dimensions(lot_x: float, lot_y: float, lot_w: float, lot_h: float,
+                        width_m: float, depth_m: float, width_offset: float, depth_offset: float) -> str:
+    """Overall lot width/depth dimension strings, offset further out than
+    the setback callouts so the two don't collide."""
     return (
-        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="9" fill="{fill}" stroke="white" stroke-width="1.5"/>'
-        f'<text x="{cx:.1f}" y="{cy + 3.2:.1f}" text-anchor="middle" font-size="9.5" '
+        dimension_line(lot_x, lot_y + lot_h, lot_x + lot_w, lot_y + lot_h, f"{width_m:g} m", offset=width_offset)
+        + dimension_line(lot_x + lot_w, lot_y, lot_x + lot_w, lot_y + lot_h, f"{depth_m:g} m", offset=depth_offset)
+    )
+
+
+def numbered_badge(cx: float, cy: float, number: int, fill: str = "#374151") -> str:
+    return (
+        f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="8.5" fill="{fill}" stroke="white" stroke-width="1.25"/>'
+        f'<text x="{cx:.1f}" y="{cy + 3:.1f}" text-anchor="middle" font-size="9" '
         f'font-weight="700" fill="white">{number}</text>'
     )

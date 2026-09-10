@@ -47,7 +47,7 @@ export default function SitePlanView({
             </div>
           ) : (
             <div
-              className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+              className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:overflow-visible"
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           )}
