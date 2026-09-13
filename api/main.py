@@ -26,7 +26,10 @@ app = FastAPI(title="EnerZen API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "https://enerzen-prototype.vercel.app"],
+    # Preview deployments get per-build URLs like
+    # enerzen-prototype-<hash>-aaravhmodis-projects.vercel.app; allow those too.
+    allow_origin_regex=r"https://enerzen-prototype-[a-z0-9]+-aaravhmodis-projects\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
