@@ -217,12 +217,15 @@ def md_to_flowables(md: str, styles) -> list:
 
 def climate_table(cat) -> str:
     rows = ["### Climate zones", "",
-            "| Zone | Region | HDD | CDD | Design temp | NZR EUI threshold | Solar yield |",
-            "| --- | --- | --- | --- | --- | --- | --- |"]
+            "| Zone | Region | HDD | CDD | Design temp | NZR EUI threshold | Solar yield | Frost depth |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for z, c in cat["climate_zones"].items():
+        if z.startswith("_"):
+            continue
         rows.append(f"| {z} | {c['name']} | {c['hdd']} | {c['cdd']} | "
                     f"{c['design_temp_heating']} C | {c['nzr_eui_threshold']} kWh/m2/yr | "
-                    f"{c.get('solar_yield_kwh_per_kwp', '-')} kWh/kWp |")
+                    f"{c.get('solar_yield_kwh_per_kwp', '-')} kWh/kWp | "
+                    f"{c.get('frost_depth_m', '-')} m |")
     return "\n".join(rows)
 
 
@@ -250,14 +253,14 @@ def benchmark_table(cat) -> str:
 
 def regions_table(cat) -> str:
     rows = ["### Regional rates and soil", "",
-            "| Region | Electricity $/kWh | Gas $/kWh | Bearing kPa | Frost m |",
+            "| Region | Electricity $/kWh | Gas $/kWh | Bearing kPa | Terrain exposure |",
             "| --- | --- | --- | --- | --- |"]
     for k, r in cat["regions"].items():
         if k == "_note":
             continue
         rows.append(f"| {r['name']} | {r['electricity_cad_per_kwh']} | "
                     f"{r['natural_gas_cad_per_kwh']} | {r['allowable_bearing_kpa']} | "
-                    f"{r['frost_depth_m']} |")
+                    f"{r.get('terrain_exposure', '-')} |")
     return "\n".join(rows)
 
 

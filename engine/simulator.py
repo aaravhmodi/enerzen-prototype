@@ -22,6 +22,7 @@ class BuildingSpec:
     infiltration_ach50: float  # blower door target
     footprint_length_m: float | None = None
     footprint_width_m: float | None = None
+    terrain_exposure: str = "suburban"  # see SHIELDING_MULTIPLIER
 
 
 @dataclass
@@ -90,6 +91,27 @@ _SIDES = {"S": ("E", "W"), "N": ("E", "W"), "E": ("N", "S"), "W": ("N", "S")}
 
 WINDOW_FRAME_FACTOR = 0.70   # glazed fraction of rough opening
 SHADING_FACTOR      = 0.85   # overhangs, neighbours, dirt
+
+# ── Wind/terrain exposure correction to infiltration ─────────────────────────
+# The plain "divide by 20" rule (ACH50 -> natural infiltration) is itself an
+# approximation of what a detailed wind/stack infiltration model produces for
+# an "average" site — it doesn't vary with how exposed or sheltered a
+# building actually is. NRCan's HOT2000 (the AIM-2 infiltration model) shows
+# natural infiltration varying by roughly a factor of 2.5 across its
+# shielding-class range (1 = very exposed, 8 = heavily sheltered) for the
+# same blower-door result — driven by wind speed/pressure differences at the
+# site, which is exactly what varies with terrain. This table applies that
+# documented spread as a multiplier on the ÷20 baseline, calibrated so
+# "suburban" (a typical subdivision — light-to-moderate shielding from
+# neighbouring buildings and trees) reproduces the model's previous,
+# unadjusted behaviour exactly.
+# Source: "Implementation of the AIM-2 Infiltration Model in HOT2000" (NRCan/CMHC).
+SHIELDING_MULTIPLIER = {
+    "urban":    0.75,   # dense city core — tall neighbouring buildings shelter the site
+    "suburban": 1.00,   # typical subdivision — this model's original calibration point
+    "rural":    1.35,   # small town / open lot edges — lighter shielding
+    "exposed":  1.65,   # open farmland, near-shore, far north — minimal shielding
+}
 
 
 def energuide_score_for(eui: float) -> float:
@@ -162,8 +184,10 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     ua_floor   = floor_area       * config.floor_u
     ua_windows = window_area      * config.window_u
 
-    # Infiltration losses — convert ACH50 to natural infiltration (÷ 20 rule of thumb)
-    ach_natural = spec.infiltration_ach50 * infiltration_factor / 20
+    # Infiltration losses — convert ACH50 to natural infiltration (÷ 20 rule of
+    # thumb), corrected for site wind/terrain exposure (see SHIELDING_MULTIPLIER).
+    shielding = SHIELDING_MULTIPLIER.get(spec.terrain_exposure, 1.0)
+    ach_natural = spec.infiltration_ach50 * infiltration_factor * shielding / 20
     volume_m3 = spec.floor_area_m2 * 2.7
     ua_infiltration = (ach_natural * volume_m3 * 0.33)  # W/K, 0.33 = air heat capacity factor
 

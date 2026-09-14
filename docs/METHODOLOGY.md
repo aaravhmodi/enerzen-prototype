@@ -206,16 +206,35 @@ UA_windows = window_area      x window_U
 
 Air leakage is handled separately. A blower-door test reports ACH50 (air changes
 per hour at 50 pascals of pressure). Real-world infiltration is far lower than
-the test condition; the model uses the standard **divide-by-20 rule of thumb**:
+the test condition; the model uses the standard **divide-by-20 rule of thumb**,
+corrected for how exposed the site actually is to wind:
 
 ```
-ACH_natural     = ACH50 / 20
+shielding       = SHIELDING_MULTIPLIER[terrain_exposure]
+ACH_natural     = ACH50 x shielding / 20
 volume          = total_conditioned_floor_area x 2.7
 UA_infiltration = ACH_natural x volume x 0.33
 ```
 
 - `2.7` is the assumed storey height in metres.
 - `0.33` is the volumetric heat capacity of air in Wh/(m3.K).
+- The plain divide-by-20 rule is itself an approximation of what a detailed
+  wind/stack infiltration model produces for an "average" site — it doesn't
+  vary with how exposed or sheltered a building actually is. NRCan's HOT2000
+  (the AIM-2 infiltration model) documents roughly a 2.5x spread in natural
+  infiltration across its shielding-class range (1 = very exposed site, 8 =
+  heavily sheltered) for the same blower-door result, driven by wind
+  speed/pressure differences at the site. `terrain_exposure` applies that
+  documented spread as a per-location multiplier: `urban` 0.75 (dense city
+  core — heavy shielding from neighbouring buildings), `suburban` 1.00 (a
+  typical subdivision — this is the model's original calibration point, so
+  this setting reproduces the un-corrected divide-by-20 result exactly),
+  `rural` 1.35 (small town / open lot edges), `exposed` 1.65 (open farmland,
+  near-shore, far north). It's assigned per region (`data/assemblies.json →
+  regions`), not per site — a real improvement over ignoring wind exposure
+  entirely, but still a coarse default rather than a site-specific value.
+  Source: "Implementation of the AIM-2 Infiltration Model in HOT2000"
+  (NRCan/CMHC).
 
 A heat recovery ventilator (HRV) reclaims heat from exhaust air, so only the
 unrecovered fraction counts:
@@ -461,7 +480,13 @@ A single location choice (one of 227 Ontario places) resolves four things.
   by a city-name classifier, user-overridable.
 - **Snow load** (Ss, Sr) — real, from the NBCC 2015 workbook.
 - **Regional energy rates** — electricity varies by delivery region (section 12).
-- **Soil** — allowable bearing and frost depth, conservative regional defaults.
+- **Terrain exposure** — feeds the infiltration wind/shielding correction
+  (section 3.2), assigned per delivery region.
+- **Soil** — allowable bearing (conservative regional default — soil bearing
+  capacity is not climate-driven, and a real value needs a geotechnical
+  report per site, not a lookup table) and frost depth (by **climate zone**,
+  not delivery region — frost penetration follows winter severity/latitude;
+  see section 12 for the sourcing and the correction made to zone 7a).
 
 ### 5.2 Roof snow load and joist depth
 

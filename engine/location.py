@@ -70,6 +70,7 @@ class ResolvedLocation:
     natural_gas_cad_per_kwh: float
     allowable_bearing_kpa: float
     frost_depth_m: float
+    terrain_exposure: str       # feeds engine.simulator's wind/shielding infiltration correction
     over_snow_range: bool      # True if S exceeds the top standard tier -> review
 
     @property
@@ -87,6 +88,7 @@ def resolve(name: str) -> ResolvedLocation:
     S = roof_snow_load(loc["ss"], loc["sr"], cat)
     tier = snow_tier(loc["ss"], cat)
     region = cat["regions"][loc["region"]]
+    zone = cat["climate_zones"][loc["climate_zone"]]
 
     return ResolvedLocation(
         name=name,
@@ -100,6 +102,7 @@ def resolve(name: str) -> ResolvedLocation:
         electricity_cad_per_kwh=region["electricity_cad_per_kwh"],
         natural_gas_cad_per_kwh=region["natural_gas_cad_per_kwh"],
         allowable_bearing_kpa=region["allowable_bearing_kpa"],
-        frost_depth_m=region["frost_depth_m"],
+        frost_depth_m=zone["frost_depth_m"],
+        terrain_exposure=region.get("terrain_exposure", "suburban"),
         over_snow_range=loc["ss"] > 3.0,
     )

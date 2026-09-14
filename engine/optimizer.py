@@ -181,6 +181,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         infiltration_ach50=ach50,
         footprint_length_m=spec.footprint_length_m,
         footprint_width_m=spec.footprint_width_m,
+        terrain_exposure=loc.terrain_exposure if loc else "suburban",
     )
 
     # Roof joist depth is set by the structural snow tier (from location).

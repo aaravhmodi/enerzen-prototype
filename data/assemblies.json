@@ -91,11 +91,11 @@
     "natural_gas_fixed_source": "Enbridge Ontario monthly customer charge, 2025"
   },
   "regions": {
-    "_note": "Regional electricity rates reflect delivery-charge differences (energy commodity is uniform province-wide). Hydro One rural/northern delivery runs 15-50% above Toronto Hydro (OEB / Hydro One 2025). Soil values are conservative regional defaults for foundation sizing and are overridable per project.",
-    "toronto":  {"name": "Toronto (Toronto Hydro)",        "electricity_cad_per_kwh": 0.155, "natural_gas_cad_per_kwh": 0.055, "allowable_bearing_kpa": 150, "frost_depth_m": 1.2},
-    "southern": {"name": "Southern Ontario (mixed LDCs)",  "electricity_cad_per_kwh": 0.165, "natural_gas_cad_per_kwh": 0.055, "allowable_bearing_kpa": 150, "frost_depth_m": 1.2},
-    "eastern":  {"name": "Eastern/Central (Hydro One)",    "electricity_cad_per_kwh": 0.175, "natural_gas_cad_per_kwh": 0.058, "allowable_bearing_kpa": 125, "frost_depth_m": 1.5},
-    "northern": {"name": "Northern Ontario (Hydro One)",   "electricity_cad_per_kwh": 0.195, "natural_gas_cad_per_kwh": 0.060, "allowable_bearing_kpa": 125, "frost_depth_m": 1.8}
+    "_note": "Regional electricity rates reflect delivery-charge differences (energy commodity is uniform province-wide). Hydro One rural/northern delivery runs 15-50% above Toronto Hydro (OEB / Hydro One 2025). allowable_bearing_kpa is a conservative regional default for foundation sizing, overridable per project -- unlike frost depth, real soil bearing capacity is not climate-driven and needs a genuine geotechnical/local-authority source per site, not a table like this one. frost_depth_m moved to climate_zones (see its _frost_depth_note) since frost penetration follows winter severity, not utility territory. terrain_exposure feeds engine.simulator's wind/shielding infiltration correction (SHIELDING_MULTIPLIER) -- a coarse per-region default (dense city core vs. typical subdivision vs. small-town/open edges vs. open far-north terrain), not a per-site value.",
+    "toronto":  {"name": "Toronto (Toronto Hydro)",        "electricity_cad_per_kwh": 0.155, "natural_gas_cad_per_kwh": 0.055, "allowable_bearing_kpa": 150, "terrain_exposure": "urban"},
+    "southern": {"name": "Southern Ontario (mixed LDCs)",  "electricity_cad_per_kwh": 0.165, "natural_gas_cad_per_kwh": 0.055, "allowable_bearing_kpa": 150, "terrain_exposure": "suburban"},
+    "eastern":  {"name": "Eastern/Central (Hydro One)",    "electricity_cad_per_kwh": 0.175, "natural_gas_cad_per_kwh": 0.058, "allowable_bearing_kpa": 125, "terrain_exposure": "rural"},
+    "northern": {"name": "Northern Ontario (Hydro One)",   "electricity_cad_per_kwh": 0.195, "natural_gas_cad_per_kwh": 0.060, "allowable_bearing_kpa": 125, "terrain_exposure": "exposed"}
   },
   "snow": {
     "_note": "Ground snow Ss selects the preliminary joist option requested for the MVP. Roof load S = Is[Ss(Cb.Cw.Cs.Ca) + Sr] is also calculated and displayed for engineering review. Residential defaults give S = 0.8*Ss + Sr. Joist depths are placeholders, not structural design.",
@@ -141,6 +141,7 @@
     }
   ],
   "climate_zones": {
+    "_frost_depth_note": "frost_depth_m keyed by climate zone, not utility region -- frost penetration follows winter severity/latitude, not electricity-distributor territory. Zone 6 (1.2m) and zone 7b (2.1m) match the published Ontario banding (~1200mm southern, ~2100mm far north). Zone 7a was corrected from an earlier 1.5m regional-bucket estimate to 1.8m after two independent sources confirmed the City of Ottawa's actual footing-depth requirement is 1800mm -- notable since zone 7a is named for Ottawa and covers 148 of 227 locations. The OBC directs frost depth to 'local experience' (municipal building departments), so these remain zone-level defaults, not verified per-municipality values.",
     "6": {
       "name": "Toronto / Southern Ontario",
       "hdd": 3520,
@@ -151,7 +152,8 @@
       "code_roof_r": 40,
       "code_window_u": 1.4,
       "nzr_eui_threshold": 60,
-      "solar_yield_kwh_per_kwp": 1250
+      "solar_yield_kwh_per_kwp": 1250,
+      "frost_depth_m": 1.2
     },
     "7a": {
       "name": "Ottawa / Eastern Ontario",
@@ -163,7 +165,8 @@
       "code_roof_r": 50,
       "code_window_u": 1.2,
       "nzr_eui_threshold": 55,
-      "solar_yield_kwh_per_kwp": 1200
+      "solar_yield_kwh_per_kwp": 1200,
+      "frost_depth_m": 1.8
     },
     "7b": {
       "name": "Northern Ontario / Sudbury",
@@ -175,7 +178,8 @@
       "code_roof_r": 60,
       "code_window_u": 1.0,
       "nzr_eui_threshold": 50,
-      "solar_yield_kwh_per_kwp": 1150
+      "solar_yield_kwh_per_kwp": 1150,
+      "frost_depth_m": 2.1
     }
   }
 }
