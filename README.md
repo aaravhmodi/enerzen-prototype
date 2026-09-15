@@ -31,6 +31,7 @@ Open http://localhost:3000. The frontend expects the API at `http://localhost:80
 **Legacy Streamlit UI** (kept temporarily as a reference during the migration to `api/` + `web/`; does not have the site-plan feature):
 
 ```bash
+pip install -r ui/requirements.txt
 streamlit run ui/app.py
 ```
 
