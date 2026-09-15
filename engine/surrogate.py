@@ -51,14 +51,29 @@ def is_available() -> bool:
     return (MODEL_DIR / "eui_kwh_m2_yr.joblib").exists()
 
 
+_TARGETS = ("eui_kwh_m2_yr", "tedi_kwh_m2_yr", "peak_heating_load_w")
+
+
 def _load_models() -> dict:
+    """Fails soft: any loading problem (missing joblib/scikit-learn, a
+    corrupted or version-mismatched model file, etc.) is treated as "no
+    surrogate available" rather than crashing the caller. This correction is
+    an accuracy upgrade for one specific project profile (see module
+    docstring) -- it must never be the thing that takes down optimize() or
+    dev-optimize() for everyone else. Learned the hard way: joblib/
+    scikit-learn were never added to requirements.txt, so every production
+    request matching the trained geometry 500'd until this was caught here
+    and the dependency was fixed."""
     global _models
     if _models is None:
-        import joblib
-        _models = {}
-        for target in ("eui_kwh_m2_yr", "tedi_kwh_m2_yr", "peak_heating_load_w"):
-            path = MODEL_DIR / f"{target}.joblib"
-            _models[target] = joblib.load(path) if path.exists() else None
+        try:
+            import joblib
+            _models = {}
+            for target in _TARGETS:
+                path = MODEL_DIR / f"{target}.joblib"
+                _models[target] = joblib.load(path) if path.exists() else None
+        except Exception:
+            _models = {target: None for target in _TARGETS}
     return _models
 
 
