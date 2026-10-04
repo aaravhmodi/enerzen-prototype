@@ -8,6 +8,7 @@ from engine.site import (
     solar_score_for_orientation,
     site_plan_svg,
 )
+from engine.multi_site import multi_site_plan_svg, place_units
 
 
 @dataclass
@@ -110,6 +111,15 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertTrue(svg.endswith("</svg>"))
         self.assertIn("<polygon", svg)  # driveway
         self.assertIn("Solar score", svg)
+
+    def test_development_svg_includes_concept_site_layers(self):
+        site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
+        mix = {"garden_suite": 2}
+        svg = multi_site_plan_svg(place_units(mix, site), site, mix)
+
+        self.assertIn('id="pedestrian-walkway"', svg)
+        self.assertIn('id="shared-green-space"', svg)
+        self.assertIn("Shared green / amenity", svg)
 
 
 if __name__ == "__main__":

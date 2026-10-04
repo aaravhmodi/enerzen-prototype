@@ -198,6 +198,44 @@ def multi_site_plan_svg(
                                     width_dim_offset, depth_dim_offset),
     ]
 
+    # Concept layers requested by the development flow: pedestrian access and
+    # shared open space. These are planning context, not permit or landscape
+    # design determinations.
+    if lot.street_side == "N":
+        walk_points = (lot.lot_width_m / 2, 0, lot.lot_width_m / 2, envelope.y0)
+    elif lot.street_side == "S":
+        walk_points = (lot.lot_width_m / 2, lot.lot_depth_m, lot.lot_width_m / 2, envelope.y1)
+    elif lot.street_side == "W":
+        walk_points = (0, lot.lot_depth_m / 2, envelope.x0, lot.lot_depth_m / 2)
+    else:
+        walk_points = (lot.lot_width_m, lot.lot_depth_m / 2, envelope.x1, lot.lot_depth_m / 2)
+    wx1, wy1 = px(walk_points[0], walk_points[1])
+    wx2, wy2 = px(walk_points[2], walk_points[3])
+    parts.append(
+        f'<path id="pedestrian-walkway" d="M {wx1:.1f},{wy1:.1f} L {wx2:.1f},{wy2:.1f}" '
+        'fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="6,4" opacity="0.8"/>'
+    )
+
+    green_w = min(4.0, max(2.5, lot.lot_width_m * 0.18), lot.lot_width_m)
+    green_h = min(4.0, max(2.5, lot.lot_depth_m * 0.10), lot.lot_depth_m)
+    if lot.street_side == "N":
+        green_x, green_y = lot.lot_width_m - lot.side_setback_m - green_w, lot.lot_depth_m - green_h
+    elif lot.street_side == "S":
+        green_x, green_y = lot.lot_width_m - lot.side_setback_m - green_w, 0
+    elif lot.street_side == "W":
+        green_x, green_y = lot.lot_width_m - green_w, lot.lot_depth_m - lot.side_setback_m - green_h
+    else:
+        green_x, green_y = 0, lot.lot_depth_m - lot.side_setback_m - green_h
+    gx, gy = px(max(0, green_x), max(0, green_y))
+    parts.append(
+        f'<rect id="shared-green-space" x="{gx:.1f}" y="{gy:.1f}" width="{green_w * _SCALE_PX_PER_M:.1f}" '
+        f'height="{green_h * _SCALE_PX_PER_M:.1f}" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="3,2"/>'
+    )
+    parts.append(
+        f'<text x="{gx + 4:.1f}" y="{gy + 12:.1f}" font-size="8" fill="#166534">'
+        'Shared green / amenity</text>'
+    )
+
     # Buildings — numbered badges so the legend below can key them, like a
     # land-dev site plan's numbered building callouts.
     archetype_order = [a for a in mix if mix.get(a, 0) > 0]
@@ -248,6 +286,11 @@ def multi_site_plan_svg(
         if legend_x > w_px - 150:
             legend_x = left
             legend_y += 18
+
+    parts.append(
+        f'<text x="{left:.0f}" y="{legend_y + 18:.0f}" font-size="8.5" fill="{svg_kit.LINE}">'
+        'Dashed path: pedestrian walkway / green marker: shared open space concept</text>'
+    )
 
     parts.append('</svg>')
     return "".join(parts)
