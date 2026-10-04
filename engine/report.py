@@ -114,6 +114,11 @@ def generate_results_pdf(spec, result, location, labels: dict) -> bytes:
                                  ("FONTSIZE", (0, 1), (-1, 1), 12)]))
     story += [summary, Paragraph("Site and design basis", styles["h2"])]
 
+    tedi_limit = (
+        f"TEDI limit {result.tedi_threshold_kwh_m2_yr:g} kWh/m2/yr"
+        if result.tedi_threshold_kwh_m2_yr is not None
+        else "TEDI target not enforced by current model"
+    )
     story.append(_table([
         ["Input", "Resolved value", "Design implication"],
         ["Location", location.name, f"Climate zone {location.climate_zone}; {location.region_name}"],
@@ -122,7 +127,7 @@ def generate_results_pdf(spec, result, location, labels: dict) -> bytes:
         ["Soil defaults", f"{location.allowable_bearing_kpa:g} kPa bearing; "
                           f"{location.frost_depth_m:g} m frost depth",
          "Regional defaults; confirm by geotechnical investigation"],
-        ["Target", labels["target"], f"TEDI limit {result.energy.nzr_threshold:g} kWh/m2/yr"],
+        ["Target", labels["target"], tedi_limit],
     ], [1.25 * inch, 2.25 * inch, 3.7 * inch]))
 
     story += [Paragraph("Selected systems", styles["h2"]), _table([

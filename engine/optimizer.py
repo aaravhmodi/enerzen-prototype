@@ -25,6 +25,7 @@ from engine import surrogate
 
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "assemblies.json"
+PASSIVE_HOUSE_TEDI_KWH_M2_YR = 15.0
 
 
 @dataclass
@@ -67,7 +68,7 @@ class ConfigResult:
     eui_kwh_m2_yr: float
     tedi_kwh_m2_yr: float
     meui_kwh_m2_yr: float
-    tedi_threshold_kwh_m2_yr: float
+    tedi_threshold_kwh_m2_yr: float | None
     nzr_compliant: bool
     nzr_probability: float
     energuide_score: float
@@ -114,6 +115,26 @@ class ConfigResult:
 def load_catalog() -> dict:
     with open(DATA_PATH) as f:
         return json.load(f)
+
+
+def target_tedi_threshold(spec: ProjectSpec, energy: EnergyResult) -> float | None:
+    """Return the simplified TEDI gate for the selected target.
+
+    Code compliance is not modeled by this engine yet, so the code target has
+    no TEDI gate. Passive House uses the residential heating-demand criterion
+    as a preliminary screen; full certification still requires PHPP and other
+    criteria such as airtightness and primary energy.
+    """
+    if spec.target_label == "passive_house":
+        return PASSIVE_HOUSE_TEDI_KWH_M2_YR
+    if spec.target_label == "nzr":
+        return energy.nzr_threshold
+    return None
+
+
+def target_performance_passes(spec: ProjectSpec, energy: EnergyResult) -> bool:
+    threshold = target_tedi_threshold(spec, energy)
+    return threshold is None or energy.tedi_kwh_m2_yr <= threshold
 
 
 def _ach50_for_label(label: str) -> float:
@@ -270,7 +291,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
 
             if total_cost > spec.budget_per_unit:
                 continue
-            if spec.target_label == "nzr" and not energy.nzr_compliant:
+            if not target_performance_passes(spec, energy):
                 continue
 
             utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
@@ -298,7 +319,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
                 tedi_kwh_m2_yr=energy.tedi_kwh_m2_yr,
                 meui_kwh_m2_yr=energy.meui_kwh_m2_yr,
-                tedi_threshold_kwh_m2_yr=energy.nzr_threshold,
+                tedi_threshold_kwh_m2_yr=target_tedi_threshold(spec, energy),
                 nzr_compliant=energy.nzr_compliant,
                 nzr_probability=0.0,   # deferred; computed for top configs below
                 energuide_score=energy.energuide_score,

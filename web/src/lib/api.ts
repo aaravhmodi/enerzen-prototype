@@ -48,7 +48,7 @@ export type ConfigResult = {
   eui_kwh_m2_yr: number;
   tedi_kwh_m2_yr: number;
   meui_kwh_m2_yr: number;
-  tedi_threshold_kwh_m2_yr: number;
+  tedi_threshold_kwh_m2_yr: number | null;
   nzr_compliant: boolean;
   nzr_probability: number;
   energuide_score: number;

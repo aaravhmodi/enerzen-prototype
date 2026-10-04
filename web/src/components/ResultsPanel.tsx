@@ -145,7 +145,11 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
         <Metric
           label="TEDI"
           value={fmtEui(top.tedi_kwh_m2_yr)}
-          tip={`Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. Target threshold here is ${top.tedi_threshold_kwh_m2_yr} kWh/m²/yr.`}
+          tip={
+            top.tedi_threshold_kwh_m2_yr === null
+              ? "Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. The current code target does not enforce a TEDI threshold."
+              : `Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. Target threshold here is ${top.tedi_threshold_kwh_m2_yr} kWh/m²/yr.`
+          }
         />
         <Metric
           label="MEUI"
