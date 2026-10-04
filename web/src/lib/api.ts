@@ -18,6 +18,13 @@ export type ProjectSpecInput = {
   footprint_width_m: number | null;
 };
 
+export type OptimizationWeights = {
+  cost: number;
+  speed: number;
+  carbon: number;
+  energy: number;
+};
+
 export type SiteSpecInput = {
   lot_width_m: number;
   lot_depth_m: number;
@@ -113,7 +120,7 @@ export async function fetchLocationDetail(name: string): Promise<LocationDetail>
 
 export async function runOptimize(
   spec: ProjectSpecInput,
-  weights?: Record<string, number>,
+  weights?: OptimizationWeights,
   top_n = 20
 ): Promise<{ results: ConfigResult[] }> {
   return postJson("/optimize", { spec, weights, top_n });

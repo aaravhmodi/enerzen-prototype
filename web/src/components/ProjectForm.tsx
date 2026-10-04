@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchCatalog, fetchLocations, runParseSpec, ProjectSpecInput, SiteSpecInput } from "@/lib/api";
+import {
+  fetchCatalog,
+  fetchLocations,
+  runParseSpec,
+  OptimizationWeights,
+  ProjectSpecInput,
+  SiteSpecInput,
+} from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 
 export type FormState = {
   spec: ProjectSpecInput;
   site: SiteSpecInput;
+  weights: OptimizationWeights;
 };
 
 const DEFAULT_STATE: FormState = {
@@ -34,6 +42,12 @@ const DEFAULT_STATE: FormState = {
     front_setback_m: 6,
     side_setback_m: 1.2,
     rear_setback_m: 7.5,
+  },
+  weights: {
+    cost: 25,
+    speed: 25,
+    carbon: 25,
+    energy: 25,
   },
 };
 
@@ -66,6 +80,9 @@ export default function ProjectForm({
   const updateSite = <K extends keyof SiteSpecInput>(key: K, value: SiteSpecInput[K]) =>
     setState((s) => ({ ...s, site: { ...s.site, [key]: value } }));
 
+  const updateWeight = (key: keyof OptimizationWeights, value: number) =>
+    setState((s) => ({ ...s, weights: { ...s.weights, [key]: value } }));
+
   async function handleParse() {
     if (!freeform.trim()) return;
     setParsing(true);
@@ -75,6 +92,7 @@ export default function ProjectForm({
       setState((s) => ({
         spec: { ...s.spec, ...stripUndefined(parsed) },
         site: { ...s.site, ...stripUndefined(parsed) },
+        weights: s.weights,
       }));
       setAssumptions(parsed.assumptions ?? []);
     } catch (e) {
@@ -327,6 +345,40 @@ export default function ProjectForm({
       <fieldset className="section-card">
         <div className="section-heading">
           <span className="section-badge">3</span>
+          <div>
+            <legend className="text-sm font-semibold text-stone-800">Decision priorities</legend>
+            <p className="text-xs text-stone-500">Soft priorities used to rank feasible configurations.</p>
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          {([
+            ["cost", "Capital cost"],
+            ["energy", "Operating energy"],
+            ["speed", "Construction speed"],
+            ["carbon", "Embodied carbon"],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="block text-xs">
+              <span className="mb-1 flex items-center justify-between font-medium text-stone-600">
+                <span>{label}</span>
+                <span className="font-semibold text-emerald-700">{state.weights[key]}%</span>
+              </span>
+              <input
+                className="w-full accent-emerald-700"
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={state.weights[key]}
+                onChange={(e) => updateWeight(key, Number(e.target.value))}
+              />
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="section-card">
+        <div className="section-heading">
+          <span className="section-badge">4</span>
           <div>
             <legend className="text-sm font-semibold text-stone-800">Lot / site</legend>
             <p className="text-xs text-stone-500">Required — used to check placement and solar exposure.</p>

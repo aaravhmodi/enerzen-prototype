@@ -42,7 +42,7 @@ export default function Home() {
     setLastState(state);
     try {
       const [optimizeRes, siteRes] = await Promise.all([
-        runOptimize(state.spec),
+        runOptimize(state.spec, normalizeWeights(state.weights)),
         runSitePlan(state.spec, state.site),
       ]);
       setResults(optimizeRes.results);
@@ -254,4 +254,14 @@ export default function Home() {
       </main>
     </div>
   );
+}
+
+function normalizeWeights(weights: FormState["weights"]): FormState["weights"] {
+  const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
+  if (total === 0) {
+    return { cost: 0.25, speed: 0.25, carbon: 0.25, energy: 0.25 };
+  }
+  return Object.fromEntries(
+    Object.entries(weights).map(([key, value]) => [key, value / total])
+  ) as FormState["weights"];
 }
