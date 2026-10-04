@@ -428,7 +428,7 @@ def multi_site_plan_svg(
 
     parts.append(
         f'<text x="{left:.0f}" y="{legend_y + 18:.0f}" font-size="8.5" fill="{svg_kit.LINE}">'
-        'Dashed path: walkway / grey blocks: parking concept / green marker: shared open space</text>'
+        'Walkway / parking / shared green are concept layers</text>'
     )
 
     parts.append('</svg>')
