@@ -43,6 +43,8 @@ export type ConfigResult = {
   construction_cost: number;
   construction_weeks: number;
   embodied_carbon_kg_co2e_m2: number;
+  operational_carbon_30yr_kg_co2e_m2: number;
+  lifecycle_carbon_30yr_kg_co2e_m2: number;
   eui_kwh_m2_yr: number;
   nzr_compliant: boolean;
   nzr_probability: number;

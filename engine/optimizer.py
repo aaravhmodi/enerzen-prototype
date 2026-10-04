@@ -62,6 +62,8 @@ class ConfigResult:
     construction_cost: float
     construction_weeks: float
     embodied_carbon_kg_co2e_m2: float
+    operational_carbon_30yr_kg_co2e_m2: float
+    lifecycle_carbon_30yr_kg_co2e_m2: float
     eui_kwh_m2_yr: float
     nzr_compliant: bool
     nzr_probability: float
@@ -282,6 +284,14 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                 construction_weeks=schedule["weeks_to_envelope_close"],
                 embodied_carbon_kg_co2e_m2=carbon_data["total_per_m2"]
                     + solar["embodied_carbon_kg_co2e"] / spec.floor_area_m2,
+                operational_carbon_30yr_kg_co2e_m2=round(
+                    carbon_data["operational_30yr"] / spec.floor_area_m2, 1
+                ),
+                lifecycle_carbon_30yr_kg_co2e_m2=round(
+                    carbon_data["total_30yr_per_m2"]
+                    + solar["embodied_carbon_kg_co2e"] / spec.floor_area_m2,
+                    1,
+                ),
                 eui_kwh_m2_yr=energy.eui_kwh_m2_yr,
                 nzr_compliant=energy.nzr_compliant,
                 nzr_probability=0.0,   # deferred; computed for top configs below

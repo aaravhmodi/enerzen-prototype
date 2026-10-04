@@ -123,6 +123,11 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
           tip="Carbon footprint of the materials themselves (cradle-to-gate), independent of how the building is operated."
         />
         <Metric
+          label="30-yr lifecycle carbon"
+          value={fmtCarbon(top.lifecycle_carbon_30yr_kg_co2e_m2)}
+          tip="Embodied carbon plus estimated operational carbon over 30 years, per m²."
+        />
+        <Metric
           label="Avg. monthly utility"
           value={`$${top.avg_monthly_utility.toFixed(0)}`}
           tip="Estimated average monthly electricity + gas bill, based on typical Ontario seasonal usage profiles and current regional rates."

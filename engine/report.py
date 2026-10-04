@@ -165,6 +165,9 @@ def generate_results_pdf(spec, result, location, labels: dict) -> bytes:
 
     story += [Paragraph("Operating and lifecycle outlook", styles["h2"]), _table([
         ["Measure", "Estimate"],
+        ["Embodied carbon", f"{result.embodied_carbon_kg_co2e_m2:.0f} kgCO2e/m2"],
+        ["Operational carbon, 30 years", f"{result.operational_carbon_30yr_kg_co2e_m2:.0f} kgCO2e/m2"],
+        ["Lifecycle carbon, 30 years", f"{result.lifecycle_carbon_30yr_kg_co2e_m2:.0f} kgCO2e/m2"],
         ["Average utility bill", f"{_money(result.avg_monthly_utility)} / month"],
         ["Annual utility cost", f"{_money(result.annual_utility_cost)} / year"],
         ["20-year lifecycle cost", _money(result.lifecycle_cost_20yr)],
