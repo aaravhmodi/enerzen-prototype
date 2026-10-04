@@ -46,6 +46,9 @@ export type ConfigResult = {
   operational_carbon_30yr_kg_co2e_m2: number;
   lifecycle_carbon_30yr_kg_co2e_m2: number;
   eui_kwh_m2_yr: number;
+  tedi_kwh_m2_yr: number;
+  meui_kwh_m2_yr: number;
+  tedi_threshold_kwh_m2_yr: number;
   nzr_compliant: boolean;
   nzr_probability: number;
   energuide_score: number;

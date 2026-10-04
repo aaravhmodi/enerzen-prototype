@@ -142,6 +142,16 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
           value={top.energuide_score.toFixed(0)}
           tip="A 0-100 approximation of energy performance (100 = best) derived from EUI. Directional only — not an official EnerGuide rating."
         />
+        <Metric
+          label="TEDI"
+          value={fmtEui(top.tedi_kwh_m2_yr)}
+          tip={`Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. Target threshold here is ${top.tedi_threshold_kwh_m2_yr} kWh/m²/yr.`}
+        />
+        <Metric
+          label="MEUI"
+          value={fmtEui(top.meui_kwh_m2_yr)}
+          tip="Mechanical Energy Use Intensity: purchased heating, cooling, and domestic hot-water energy per m² per year."
+        />
       </div>
 
       <div className="panel overflow-hidden">
