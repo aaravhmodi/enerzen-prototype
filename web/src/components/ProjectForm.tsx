@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import {
   fetchCatalog,
+  fetchArchetypes,
   fetchLocations,
   runParseSpec,
+  ArchetypeInfo,
   OptimizationWeights,
   ProjectSpecInput,
   SiteSpecInput,
@@ -61,6 +63,8 @@ export default function ProjectForm({
   const [state, setState] = useState<FormState>(DEFAULT_STATE);
   const [locations, setLocations] = useState<string[]>([]);
   const [solarOptions, setSolarOptions] = useState<{ id: string; name: string }[]>([]);
+  const [archetypes, setArchetypes] = useState<ArchetypeInfo[]>([]);
+  const [selectedDesign, setSelectedDesign] = useState("");
   const [showAiAssist, setShowAiAssist] = useState(false);
   const [freeform, setFreeform] = useState("");
   const [parsing, setParsing] = useState(false);
@@ -72,6 +76,7 @@ export default function ProjectForm({
     fetchCatalog()
       .then((c) => setSolarOptions(c.solar))
       .catch(() => setSolarOptions([]));
+    fetchArchetypes().then(setArchetypes).catch(() => setArchetypes([]));
   }, []);
 
   const updateSpec = <K extends keyof ProjectSpecInput>(key: K, value: ProjectSpecInput[K]) =>
@@ -82,6 +87,23 @@ export default function ProjectForm({
 
   const updateWeight = (key: keyof OptimizationWeights, value: number) =>
     setState((s) => ({ ...s, weights: { ...s.weights, [key]: value } }));
+
+  function applyDesign(id: string) {
+    setSelectedDesign(id);
+    const design = archetypes.find((candidate) => candidate.id === id);
+    if (!design) return;
+    setState((s) => ({
+      ...s,
+      spec: {
+        ...s.spec,
+        typology: design.typology,
+        floor_area_m2: design.floor_area_m2,
+        storeys: design.storeys,
+        footprint_length_m: design.footprint_length_m,
+        footprint_width_m: design.footprint_width_m,
+      },
+    }));
+  }
 
   async function handleParse() {
     if (!freeform.trim()) return;
@@ -181,6 +203,20 @@ export default function ProjectForm({
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
+          <Field label="Catalog design" optional hint="Prefills the building fields from EnerZen's current design catalog.">
+            <select
+              className="input"
+              value={selectedDesign}
+              onChange={(e) => applyDesign(e.target.value)}
+            >
+              <option value="">Custom / enter manually</option>
+              {archetypes.map((design) => (
+                <option key={design.id} value={design.id}>
+                  {design.name}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Typology" required>
             <select
               className="input"
