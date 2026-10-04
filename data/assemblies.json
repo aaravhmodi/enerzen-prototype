@@ -66,6 +66,18 @@
       "code_built_new": 130,
       "_source": "NRCan residential end-use intensity; CHBA Net Zero program"
     },
+    "toronto_ewrb_2024_multifamily": {
+      "metric": "weather_normalized_site_eui",
+      "median_kwh_m2_yr": 243.9,
+      "p25_kwh_m2_yr": 194.0,
+      "p75_kwh_m2_yr": 287.4,
+      "reported_rows": 1225,
+      "usable_eui_rows": 1188,
+      "source_year": 2024,
+      "source": "Ontario EWRB 2024 dataset, filtered to City=Toronto and PrimPropTypCalc=Multifamily Housing; source values converted from kWh/ft2 using 10.7639",
+      "source_url": "https://data.ontario.ca/dataset/energy-and-water-usage-of-large-buildings-in-ontario",
+      "limitation": "Large-building benchmark only (100,000 ft2 threshold); not a low-rise residential calibration set."
+    },
     "cost_per_m2": {
       "conventional_new_build": 2200,
       "_source": "Ontario custom-build cost surveys 2025 (~$205/sqft avg)"
