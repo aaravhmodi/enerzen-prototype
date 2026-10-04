@@ -113,6 +113,23 @@ export default function LocationInfoPanel({ location }: { location: string | nul
               </p>
             </div>
           )}
+
+          <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50/70 p-3">
+            <p className="font-semibold text-amber-900">Planning / zoning intelligence</p>
+            <p className="mt-1 text-[11px] leading-4 text-amber-800">
+              {detail.regulatory_intelligence.label}: {detail.regulatory_intelligence.detail}
+            </p>
+            {detail.regulatory_intelligence.source_url && (
+              <a
+                className="mt-1 inline-block text-[10px] font-medium text-amber-700 underline"
+                href={detail.regulatory_intelligence.source_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {detail.regulatory_intelligence.source_label ?? "Open municipal source"}
+              </a>
+            )}
+          </div>
         </>
       )}
 

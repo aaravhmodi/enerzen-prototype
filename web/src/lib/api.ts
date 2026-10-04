@@ -115,6 +115,13 @@ export type LocationDetail = {
   frost_depth_m: number;
   electricity_cad_per_kwh: number;
   natural_gas_cad_per_kwh: number;
+  regulatory_intelligence: {
+    status: "not_checked" | "not_available";
+    label: string;
+    detail: string;
+    source_url?: string | null;
+    source_label?: string | null;
+  };
   multifamily_energy_benchmark?: {
     median_kwh_m2_yr: number;
     p25_kwh_m2_yr: number;

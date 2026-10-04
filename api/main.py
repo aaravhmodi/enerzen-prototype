@@ -156,10 +156,24 @@ def location_detail(name: str):
     _validate_location(name)
     loc = resolve_location(name)
     toronto_benchmark = None
+    regulatory_intelligence = {
+        "status": "not_available",
+        "label": "Municipal connector not configured",
+        "detail": "Parcel-level zoning and bylaw rules are not available for this municipality yet.",
+        "source_url": None,
+        "source_label": None,
+    }
     if name == "Toronto":
         toronto_benchmark = load_catalog().get("benchmarks", {}).get(
             "toronto_ewrb_2024_multifamily"
         )
+        regulatory_intelligence = {
+            "status": "not_checked",
+            "label": "Parcel lookup required",
+            "detail": "The city selection is not a zoning determination. Add parcel or address lookup before relying on use, height, setback, or parking rules.",
+            "source_url": "https://open.toronto.ca/dataset/zoning-by-law/",
+            "source_label": "City of Toronto Zoning By-law dataset",
+        }
     return {
         "name": loc.name,
         "climate_zone": loc.climate_zone,
@@ -175,6 +189,7 @@ def location_detail(name: str):
         "electricity_cad_per_kwh": loc.electricity_cad_per_kwh,
         "natural_gas_cad_per_kwh": loc.natural_gas_cad_per_kwh,
         "multifamily_energy_benchmark": toronto_benchmark,
+        "regulatory_intelligence": regulatory_intelligence,
     }
 
 
