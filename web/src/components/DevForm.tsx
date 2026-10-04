@@ -1,15 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchLocations, DevSpecInput } from "@/lib/api";
+import { fetchArchetypes, fetchLocations, ArchetypeInfo, DevSpecInput } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
-
-const ARCHETYPE_OPTIONS = [
-  { id: "garden_suite", label: "Garden Suite (1 BR)", desc: "46 m² · 1 storey" },
-  { id: "three_bhk",   label: "3-Bedroom Unit",      desc: "163 m² · 2 storeys" },
-  { id: "murb",        label: "MURB (6-storey)",      desc: "24 units per building" },
-  { id: "townhouse",   label: "Townhouse (3 BR)",     desc: "150 m²/unit · attached" },
-];
 
 const DEFAULT: DevSpecInput = {
   lot_width_m: 30,
@@ -34,10 +27,12 @@ export default function DevForm({
 }) {
   const [state, setState] = useState<DevSpecInput>(DEFAULT);
   const [locations, setLocations] = useState<string[]>([]);
+  const [archetypes, setArchetypes] = useState<ArchetypeInfo[]>([]);
   const [showSetbacks, setShowSetbacks] = useState(false);
 
   useEffect(() => {
     fetchLocations().then(setLocations).catch(() => setLocations([]));
+    fetchArchetypes().then(setArchetypes).catch(() => setArchetypes([]));
   }, []);
 
   function set<K extends keyof DevSpecInput>(key: K, value: DevSpecInput[K]) {
@@ -157,11 +152,14 @@ export default function DevForm({
       <div className="space-y-2">
         <label className="text-xs font-medium text-stone-600">Unit types to include</label>
         <div className="space-y-1.5">
-          {ARCHETYPE_OPTIONS.map((opt) => {
-            const checked = state.allowed_types.includes(opt.id);
+          {archetypes.map((archetype) => {
+            const checked = state.allowed_types.includes(archetype.id);
+            const description = archetype.units_per_building > 1
+              ? `${archetype.units_per_building} units per building`
+              : `${archetype.floor_area_m2} m² · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`;
             return (
               <label
-                key={opt.id}
+                key={archetype.id}
                 className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
                   checked
                     ? "border-emerald-400 bg-emerald-50"
@@ -172,13 +170,13 @@ export default function DevForm({
                   type="checkbox"
                   className="h-4 w-4 rounded accent-emerald-600"
                   checked={checked}
-                  onChange={() => toggleType(opt.id)}
+                  onChange={() => toggleType(archetype.id)}
                 />
                 <div>
                   <p className={`text-xs font-semibold ${checked ? "text-emerald-800" : "text-stone-700"}`}>
-                    {opt.label}
+                    {archetype.name}
                   </p>
-                  <p className="text-[10px] text-stone-400">{opt.desc}</p>
+                  <p className="text-[10px] text-stone-400">{description}</p>
                 </div>
               </label>
             );
