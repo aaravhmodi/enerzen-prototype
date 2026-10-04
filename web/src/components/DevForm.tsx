@@ -22,9 +22,11 @@ const DEFAULT: DevSpecInput = {
 export default function DevForm({
   onSubmit,
   submitting,
+  iteration,
 }: {
   onSubmit: (spec: DevSpecInput) => void;
   submitting: boolean;
+  iteration: number;
 }) {
   const [state, setState] = useState<DevSpecInput>(DEFAULT);
   const [locations, setLocations] = useState<string[]>([]);
@@ -58,13 +60,16 @@ export default function DevForm({
     onSubmit(state);
   }
 
-  const canSubmit = !submitting && state.allowed_types.length > 0;
+  const canSubmit = !submitting && state.allowed_types.length > 0 && iteration < 3;
 
   return (
     <form onSubmit={handleSubmit} className="panel space-y-5 p-5">
       <div>
         <p className="eyebrow">Development planner</p>
         <h2 className="mt-1 text-xl font-semibold text-stone-950">Site + unit mix</h2>
+        <p className="mt-1 text-[10px] text-stone-400">
+          Review iteration {Math.min(iteration + 1, 3)} of 3
+        </p>
       </div>
 
       {/* Location */}
@@ -284,7 +289,7 @@ export default function DevForm({
         disabled={!canSubmit}
         className="w-full rounded-xl bg-emerald-900 py-3 text-sm font-semibold text-white shadow-md transition hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-lg disabled:translate-y-0 disabled:opacity-40"
       >
-        {submitting ? "Optimizing…" : "Find best configurations"}
+        {submitting ? "Optimizing…" : iteration >= 3 ? "Review limit reached" : "Find best configurations"}
       </button>
     </form>
   );

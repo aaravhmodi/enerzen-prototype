@@ -34,6 +34,7 @@ export default function Home() {
   const [devSvg, setDevSvg] = useState<string | null>(null);
   const [selectedMix, setSelectedMix] = useState(0);
   const [lastDevSpec, setLastDevSpec] = useState<DevSpecInput | null>(null);
+  const [devIterations, setDevIterations] = useState(0);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   async function handleSingleSubmit(state: FormState) {
@@ -77,8 +78,13 @@ export default function Home() {
   }
 
   async function handleDevSubmit(spec: DevSpecInput) {
+    if (devIterations >= 3) {
+      setDevError("The development review loop is limited to 3 iterations. Start a new session to continue.");
+      return;
+    }
     setDevSubmitting(true);
     setDevError(null);
+    setDevIterations((count) => count + 1);
     setLastDevSpec(spec);
     setSelectedMix(0);
     try {
@@ -138,7 +144,11 @@ export default function Home() {
               Single Unit
             </button>
             <button
-              onClick={() => setMode("development")}
+              onClick={() => {
+                setMode("development");
+                setDevIterations(0);
+                setDevError(null);
+              }}
               className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition ${
                 mode === "development"
                   ? "bg-emerald-900 text-white shadow"
@@ -211,7 +221,11 @@ export default function Home() {
         {mode === "development" && (
           <>
             <section className="lg:sticky lg:top-24">
-              <DevForm onSubmit={handleDevSubmit} submitting={devSubmitting} />
+              <DevForm
+                onSubmit={handleDevSubmit}
+                submitting={devSubmitting}
+                iteration={devIterations}
+              />
             </section>
 
             <section className="space-y-6">
