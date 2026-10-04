@@ -44,6 +44,8 @@ const DEFAULT_STATE: FormState = {
     front_setback_m: 6,
     side_setback_m: 1.2,
     rear_setback_m: 7.5,
+    latitude: null,
+    longitude: null,
   },
   weights: {
     cost: 25,
@@ -297,7 +299,11 @@ export default function ProjectForm({
         </div>
 
         <div className="mt-4">
-          <LocationInfoPanel location={state.spec.location} />
+          <LocationInfoPanel
+            location={state.spec.location}
+            latitude={state.site.latitude}
+            longitude={state.site.longitude}
+          />
         </div>
       </fieldset>
 
@@ -478,6 +484,31 @@ export default function ProjectForm({
                 placeholder="Rear"
                 value={state.site.rear_setback_m}
                 onChange={(e) => updateSite("rear_setback_m", Number(e.target.value))}
+              />
+            </div>
+          </Field>
+          <Field
+            label="Parcel coordinates"
+            optional
+            hint="Optional: decimal latitude / longitude enables Toronto zoning lookup."
+            className="col-span-2"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                step="any"
+                className="input"
+                placeholder="Latitude"
+                value={state.site.latitude ?? ""}
+                onChange={(e) => updateSite("latitude", e.target.value ? Number(e.target.value) : null)}
+              />
+              <input
+                type="number"
+                step="any"
+                className="input"
+                placeholder="Longitude"
+                value={state.site.longitude ?? ""}
+                onChange={(e) => updateSite("longitude", e.target.value ? Number(e.target.value) : null)}
               />
             </div>
           </Field>

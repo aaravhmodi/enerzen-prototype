@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchLocationDetail, LocationDetail } from "@/lib/api";
+import { fetchLocationDetail, fetchZoningLookup, LocationDetail, ZoningLookup } from "@/lib/api";
 import InfoTooltip from "@/components/InfoTooltip";
 
-export default function LocationInfoPanel({ location }: { location: string | null | undefined }) {
+export default function LocationInfoPanel({
+  location,
+  latitude,
+  longitude,
+}: {
+  location: string | null | undefined;
+  latitude?: number | null;
+  longitude?: number | null;
+}) {
   const [detail, setDetail] = useState<LocationDetail | null>(null);
+  const [zoning, setZoning] = useState<ZoningLookup | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -29,6 +38,24 @@ export default function LocationInfoPanel({ location }: { location: string | nul
       cancelled = true;
     };
   }, [location]);
+
+  useEffect(() => {
+    if (!location || latitude == null || longitude == null) {
+      setZoning(null);
+      return;
+    }
+    let cancelled = false;
+    fetchZoningLookup(location, latitude, longitude)
+      .then((result) => {
+        if (!cancelled) setZoning(result);
+      })
+      .catch(() => {
+        if (!cancelled) setZoning(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [location, latitude, longitude]);
 
   if (!location) return null;
 
@@ -117,16 +144,27 @@ export default function LocationInfoPanel({ location }: { location: string | nul
           <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50/70 p-3">
             <p className="font-semibold text-amber-900">Planning / zoning intelligence</p>
             <p className="mt-1 text-[11px] leading-4 text-amber-800">
-              {detail.regulatory_intelligence.label}: {detail.regulatory_intelligence.detail}
+              {zoning ? `${zoning.label}: ${zoning.detail}` : `${detail.regulatory_intelligence.label}: ${detail.regulatory_intelligence.detail}`}
             </p>
-            {detail.regulatory_intelligence.source_url && (
+            {zoning?.parcel && (
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-amber-900">
+                {Object.entries(zoning.parcel).filter(([, value]) => value).map(([key, value]) => (
+                  <div key={key}>
+                    <span className="text-amber-600">{key.replaceAll("_", " ")}</span>
+                    <br />
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(zoning?.source_url ?? detail.regulatory_intelligence.source_url) && (
               <a
                 className="mt-1 inline-block text-[10px] font-medium text-amber-700 underline"
-                href={detail.regulatory_intelligence.source_url}
+                href={zoning?.source_url ?? detail.regulatory_intelligence.source_url ?? "#"}
                 target="_blank"
                 rel="noreferrer"
               >
-                {detail.regulatory_intelligence.source_label ?? "Open municipal source"}
+                {zoning?.source_label ?? detail.regulatory_intelligence.source_label ?? "Open municipal source"}
               </a>
             )}
           </div>

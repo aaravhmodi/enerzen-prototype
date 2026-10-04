@@ -20,6 +20,7 @@ from engine.location import location_names, resolve as resolve_location
 from engine.multi_site import multi_site_plan_svg, place_units
 from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize
 from engine.report import generate_results_pdf
+from engine.regulatory import toronto_zoning_lookup
 from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
 
 app = FastAPI(title="EnerZen API")
@@ -65,9 +66,11 @@ class SiteSpecIn(BaseModel):
     front_setback_m: float = 6.0
     side_setback_m: float = 1.2
     rear_setback_m: float = 7.5
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     def to_engine_spec(self) -> SiteSpec:
-        return SiteSpec(**self.model_dump())
+        return SiteSpec(**self.model_dump(exclude={"latitude", "longitude"}))
 
 
 class OptimizeRequest(BaseModel):
@@ -163,6 +166,7 @@ def location_detail(name: str):
         "source_url": None,
         "source_label": None,
     }
+
     if name == "Toronto":
         toronto_benchmark = load_catalog().get("benchmarks", {}).get(
             "toronto_ewrb_2024_multifamily"
@@ -191,6 +195,20 @@ def location_detail(name: str):
         "multifamily_energy_benchmark": toronto_benchmark,
         "regulatory_intelligence": regulatory_intelligence,
     }
+
+
+@app.get("/locations/{name}/zoning")
+def zoning_lookup(name: str, latitude: float, longitude: float):
+    _validate_location(name)
+    if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+        raise HTTPException(422, "Latitude must be between -90 and 90; longitude must be between -180 and 180.")
+    if name != "Toronto":
+        return {
+            "status": "not_available",
+            "label": "Municipal connector not configured",
+            "detail": "Parcel-level zoning lookup is currently available only for Toronto.",
+        }
+    return toronto_zoning_lookup(latitude, longitude)
 
 
 @app.get("/catalog")

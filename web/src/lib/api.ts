@@ -32,6 +32,8 @@ export type SiteSpecInput = {
   front_setback_m: number;
   side_setback_m: number;
   rear_setback_m: number;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type ConfigResult = {
@@ -136,6 +138,34 @@ export type LocationDetail = {
 export async function fetchLocationDetail(name: string): Promise<LocationDetail> {
   const res = await fetch(`${API_BASE}/locations/${encodeURIComponent(name)}`);
   if (!res.ok) throw new Error("Failed to fetch location detail");
+  return res.json();
+}
+
+export type ZoningLookup = {
+  status: "available" | "not_found" | "unavailable" | "not_available";
+  label: string;
+  detail: string;
+  parcel?: {
+    address?: string | null;
+    zoning?: string | null;
+    height?: string | null;
+    policy_area?: string | null;
+    rooming_house?: string | null;
+    lot_coverage?: string | null;
+    conversion?: string | null;
+  };
+  source_url?: string;
+  source_label?: string;
+};
+
+export async function fetchZoningLookup(
+  name: string,
+  latitude: number,
+  longitude: number
+): Promise<ZoningLookup> {
+  const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) });
+  const res = await fetch(`${API_BASE}/locations/${encodeURIComponent(name)}/zoning?${params}`);
+  if (!res.ok) throw new Error("Failed to fetch zoning lookup");
   return res.json();
 }
 

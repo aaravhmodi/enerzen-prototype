@@ -1,6 +1,10 @@
+import io
+import json
+
 from fastapi import HTTPException
 
-from api.main import OptimizeRequest, ProjectSpecIn, SiteSpecIn, run_optimize
+from api.main import OptimizeRequest, ProjectSpecIn, SiteSpecIn, run_optimize, zoning_lookup
+from engine import regulatory
 
 
 def test_optimize_rejects_site_that_cannot_fit():
@@ -25,3 +29,43 @@ def test_optimize_rejects_site_that_cannot_fit():
         assert "Site feasibility gate failed" in str(error.detail)
     else:
         raise AssertionError("Expected the site feasibility gate to reject the request")
+
+
+def test_zoning_lookup_returns_municipal_attributes(monkeypatch):
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.close()
+
+    payload = {
+        "features": [
+            {
+                "attributes": {
+                    "ADDRESS_F": "123 Example St",
+                    "ZN_STRING": "R 2.5",
+                    "HT_STRING": "10.0",
+                }
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        regulatory,
+        "urlopen",
+        lambda *args, **kwargs: FakeResponse(json.dumps(payload).encode()),
+    )
+
+    result = zoning_lookup("Toronto", 43.65, -79.38)
+
+    assert result["status"] == "available"
+    assert result["parcel"]["address"] == "123 Example St"
+    assert result["parcel"]["zoning"] == "R 2.5"
+
+
+def test_zoning_lookup_does_not_call_unconfigured_municipality(monkeypatch):
+    monkeypatch.setattr(regulatory, "urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError()))
+
+    result = zoning_lookup("Ottawa", 45.42, -75.69)
+
+    assert result["status"] == "not_available"
