@@ -182,6 +182,14 @@ export type DevSpecInput = {
   target_label: string;
   allowed_types: string[];
   orientation: "N" | "S" | "E" | "W";
+  weights: DevelopmentWeights;
+};
+
+export type DevelopmentWeights = {
+  yield: number;
+  cost: number;
+  energy: number;
+  carbon: number;
 };
 
 export type DevMixResult = {

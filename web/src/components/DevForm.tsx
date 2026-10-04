@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchArchetypes, fetchLocations, ArchetypeInfo, DevSpecInput } from "@/lib/api";
+import { fetchArchetypes, fetchLocations, ArchetypeInfo, DevelopmentWeights, DevSpecInput } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 
 const DEFAULT: DevSpecInput = {
@@ -16,6 +16,7 @@ const DEFAULT: DevSpecInput = {
   target_label: "nzr",
   allowed_types: ["garden_suite", "three_bhk"],
   orientation: "S",
+  weights: { yield: 100, cost: 0, energy: 0, carbon: 0 },
 };
 
 export default function DevForm({
@@ -45,6 +46,10 @@ export default function DevForm({
       const next = has ? s.allowed_types.filter((t) => t !== id) : [...s.allowed_types, id];
       return { ...s, allowed_types: next };
     });
+  }
+
+  function updateWeight(key: keyof DevelopmentWeights, value: number) {
+    setState((s) => ({ ...s, weights: { ...s.weights, [key]: value } }));
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -210,6 +215,38 @@ export default function DevForm({
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Soft priorities */}
+      <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+        <div>
+          <label className="text-xs font-medium text-stone-600">Decision priorities</label>
+          <p className="mt-1 text-[10px] leading-4 text-stone-400">
+            Yield, cost, energy, and carbon are currently modeled. Speed and resilience are not yet available for development ranking.
+          </p>
+        </div>
+        {([
+          ["yield", "Unit yield"],
+          ["cost", "Capital cost"],
+          ["energy", "Operating energy"],
+          ["carbon", "Embodied carbon"],
+        ] as const).map(([key, label]) => (
+          <label key={key} className="block text-xs">
+            <span className="mb-1 flex items-center justify-between font-medium text-stone-600">
+              <span>{label}</span>
+              <span className="font-semibold text-emerald-700">{state.weights[key]}%</span>
+            </span>
+            <input
+              className="w-full accent-emerald-700"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={state.weights[key]}
+              onChange={(e) => updateWeight(key, Number(e.target.value))}
+            />
+          </label>
+        ))}
       </div>
 
       {/* Setbacks (collapsible) */}

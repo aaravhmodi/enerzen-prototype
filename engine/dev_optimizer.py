@@ -33,6 +33,7 @@ class DevSpec:
     front_setback_m: float = 6.0
     side_setback_m: float = 1.2
     rear_setback_m: float = 7.5
+    weights: dict | None = None
 
 
 @dataclass
@@ -47,6 +48,7 @@ class DevMixResult:
     total_floor_area_m2: float
     avg_monthly_utility: float = 0.0
     mix_label: str = ""              # human-readable, e.g. "2× Garden Suite + 1× 3BHK"
+    weighted_score: float = field(repr=False, default=0.0)
 
 
 def _make_site_spec(dev: DevSpec) -> SiteSpec:
@@ -208,7 +210,37 @@ def optimize_dev_mix(dev: DevSpec, top_n: int = 10) -> list[DevMixResult]:
         ))
 
     # --- Step 5: rank ---
+    # Preserve the original default (maximize yield first), while allowing
+    # the development path to express soft priorities when supplied.
+    weights = dev.weights or {"yield": 1.0, "cost": 0.0, "energy": 0.0, "carbon": 0.0}
+    total_weight = sum(max(0.0, float(v)) for v in weights.values())
+    if total_weight == 0:
+        weights = {"yield": 1.0, "cost": 0.0, "energy": 0.0, "carbon": 0.0}
+        total_weight = 1.0
+    weights = {
+        key: max(0.0, float(weights.get(key, 0.0))) / total_weight
+        for key in ("yield", "cost", "energy", "carbon")
+    }
+
+    costs = [r.total_cost for r in candidates]
+    energies = [r.avg_eui_kwh_m2_yr for r in candidates]
+    carbons = [r.avg_carbon_kg_co2e_m2 for r in candidates]
+    yields = [r.total_units for r in candidates]
+
+    def norm(value: float, values: list[float]) -> float:
+        lo, hi = min(values), max(values)
+        return (value - lo) / (hi - lo) if hi > lo else 0.0
+
+    for candidate in candidates:
+        candidate.weighted_score = (
+            weights["yield"] * (1 - norm(candidate.total_units, yields))
+            + weights["cost"] * norm(candidate.total_cost, costs)
+            + weights["energy"] * norm(candidate.avg_eui_kwh_m2_yr, energies)
+            + weights["carbon"] * norm(candidate.avg_carbon_kg_co2e_m2, carbons)
+        )
+
     candidates.sort(key=lambda r: (
+        r.weighted_score,
         -r.total_units,
         r.avg_eui_kwh_m2_yr,
         -r.nzr_unit_count,

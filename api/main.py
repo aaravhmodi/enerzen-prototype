@@ -105,6 +105,7 @@ class DevSpecIn(BaseModel):
     target_label: str = "nzr"
     allowed_types: list[str]
     orientation: str = "S"
+    weights: Optional[dict] = None
 
     def to_engine_spec(self) -> DevSpec:
         return DevSpec(**self.model_dump())
