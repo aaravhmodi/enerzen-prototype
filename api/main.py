@@ -348,6 +348,7 @@ def run_dev_site_plan(req: DevSitePlanRequest):
         front_setback_m=dev.front_setback_m,
         side_setback_m=dev.side_setback_m,
         rear_setback_m=dev.rear_setback_m,
+        solar_orientation=dev.orientation,
     )
     placements = place_units(req.mix, site)
     svg = multi_site_plan_svg(placements, site, req.mix)

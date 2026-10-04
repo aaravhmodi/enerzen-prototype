@@ -121,6 +121,25 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertIn('id="shared-green-space"', svg)
         self.assertIn("Shared green / amenity", svg)
 
+    def test_development_layout_uses_a_shared_spine(self):
+        site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
+        placements = place_units({"garden_suite": 2, "three_bhk": 1}, site)
+
+        self.assertEqual(len(placements), 3)
+        # The central access spine remains open between the two building bands.
+        for placement in placements:
+            self.assertTrue(placement.x_m + placement.w_m <= 13.2 or placement.x_m >= 16.8)
+
+    def test_development_layout_rotates_for_east_facing_scheme(self):
+        south = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N", solar_orientation="S")
+        east = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N", solar_orientation="E")
+
+        south_unit = place_units({"garden_suite": 1}, south)[0]
+        east_unit = place_units({"garden_suite": 1}, east)[0]
+
+        self.assertAlmostEqual(south_unit.w_m, 7.0)
+        self.assertAlmostEqual(east_unit.w_m, 6.5)
+
 
 if __name__ == "__main__":
     unittest.main()

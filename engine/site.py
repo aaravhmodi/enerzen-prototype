@@ -36,6 +36,7 @@ class SiteSpec:
     front_setback_m: float = 6.0
     side_setback_m: float = 1.2
     rear_setback_m: float = 7.5
+    solar_orientation: str = "S"
 
 
 @dataclass

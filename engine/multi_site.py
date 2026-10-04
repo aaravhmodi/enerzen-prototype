@@ -15,6 +15,8 @@ from engine.site import SiteSpec, _buildable_envelope
 _SCALE_PX_PER_M = 8
 _MARGIN_PX = 50
 _GAP_M = 3.0       # gap between buildings (E-W and N-S)
+_PEDESTRIAN_SPINE_M = 1.8
+_SPINE_CLEARANCE_M = 1.5
 
 # Colour palette per archetype (fill, stroke)
 _ARCHETYPE_COLORS: dict[str, tuple[str, str]] = {
@@ -72,8 +74,20 @@ def place_units(mix: dict[str, int], lot: SiteSpec) -> list[UnitPlacement]:
             for _ in range(count):
                 blocks.append((arch_id, arch.footprint_length_m, arch.footprint_width_m))
 
+    # Orient the long face east-west for a south-facing solar strategy. For an
+    # east/west-facing scheme, rotate the blocks so the main face follows the
+    # selected orientation. This keeps the layout tied to the same orientation
+    # used by the energy model instead of treating buildings as unlabelled
+    # rectangles.
+    if lot.solar_orientation in ("E", "W"):
+        blocks = [(arch_id, bh, bw) for arch_id, bw, bh in blocks]
+
     # Sort blocks tallest-first (N-S) so large buildings go at the rear
     blocks.sort(key=lambda b: b[2], reverse=True)
+
+    courtyard = _courtyard_placements(blocks, envelope, lot.street_side)
+    if courtyard is not None:
+        return courtyard
 
     placements: list[UnitPlacement] = []
     cur_y = envelope.y0  # start at rear setback (north edge if street is N)
@@ -124,6 +138,65 @@ def place_units(mix: dict[str, int], lot: SiteSpec) -> list[UnitPlacement]:
         cur_y += row_h + _GAP_M
         i = j
 
+    return placements
+
+
+def _courtyard_placements(
+    blocks: list[tuple[str, float, float]],
+    envelope,
+    street_side: str,
+) -> list[UnitPlacement] | None:
+    """Place blocks on both sides of a shared pedestrian spine.
+
+    This creates a legible cluster with a continuous access route rather than
+    filling rows blindly. It returns ``None`` when the buildable envelope is
+    too narrow or shallow, allowing the conservative row fallback to handle
+    tight lots.
+    """
+    if not blocks:
+        return []
+
+    side_width = (envelope.width - _PEDESTRIAN_SPINE_M - 2 * _SPINE_CLEARANCE_M) / 2
+    if side_width <= 0:
+        return None
+
+    # The spine runs from the street into the site, leaving two coherent
+    # building bands. This prioritizes legible arrival over blind area packing.
+    if street_side in ("N", "S"):
+        if any(bw > side_width + 0.01 for _, bw, _ in blocks):
+            return None
+        cursors = [envelope.y0, envelope.y0]
+        placements: list[UnitPlacement] = []
+        for arch_id, bw, bh in blocks:
+            options = [i for i in range(2) if cursors[i] + bh <= envelope.y1 + 0.01]
+            if not options:
+                return None
+            band = min(options, key=lambda i: cursors[i])
+            x0 = envelope.x0 if band == 0 else envelope.x1 - side_width
+            x = x0 + (side_width - bw) / 2
+            y = cursors[band]
+            placements.append(UnitPlacement(arch_id, x, y, bw, bh, ""))
+            cursors[band] += bh + _GAP_M
+    else:
+        side_height = (envelope.height - _PEDESTRIAN_SPINE_M - 2 * _SPINE_CLEARANCE_M) / 2
+        if any(bh > side_height + 0.01 for _, _, bh in blocks):
+            return None
+        cursors = [envelope.x0, envelope.x0]
+        placements = []
+        for arch_id, bw, bh in blocks:
+            options = [i for i in range(2) if cursors[i] + bw <= envelope.x1 + 0.01]
+            if not options:
+                return None
+            band = min(options, key=lambda i: cursors[i])
+            y0 = envelope.y0 if band == 0 else envelope.y1 - side_height
+            x = cursors[band]
+            y = y0 + (side_height - bh) / 2
+            placements.append(UnitPlacement(arch_id, x, y, bw, bh, ""))
+            cursors[band] += bw + _GAP_M
+
+    from engine.archetypes import ARCHETYPES
+    for placement in placements:
+        placement.label = ARCHETYPES[placement.archetype_id].name.split("(")[0].strip()
     return placements
 
 

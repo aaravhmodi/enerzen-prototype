@@ -59,6 +59,7 @@ def _make_site_spec(dev: DevSpec) -> SiteSpec:
         front_setback_m=dev.front_setback_m,
         side_setback_m=dev.side_setback_m,
         rear_setback_m=dev.rear_setback_m,
+        solar_orientation=dev.orientation,
     )
 
 
