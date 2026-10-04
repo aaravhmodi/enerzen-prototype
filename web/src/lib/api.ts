@@ -112,6 +112,15 @@ export type LocationDetail = {
   frost_depth_m: number;
   electricity_cad_per_kwh: number;
   natural_gas_cad_per_kwh: number;
+  multifamily_energy_benchmark?: {
+    median_kwh_m2_yr: number;
+    p25_kwh_m2_yr: number;
+    p75_kwh_m2_yr: number;
+    reported_rows: number;
+    usable_eui_rows: number;
+    source_year: number;
+    limitation: string;
+  } | null;
 };
 
 export async function fetchLocationDetail(name: string): Promise<LocationDetail> {

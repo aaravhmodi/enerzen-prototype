@@ -153,6 +153,11 @@ def locations():
 def location_detail(name: str):
     _validate_location(name)
     loc = resolve_location(name)
+    toronto_benchmark = None
+    if name == "Toronto":
+        toronto_benchmark = load_catalog().get("benchmarks", {}).get(
+            "toronto_ewrb_2024_multifamily"
+        )
     return {
         "name": loc.name,
         "climate_zone": loc.climate_zone,
@@ -167,6 +172,7 @@ def location_detail(name: str):
         "frost_depth_m": loc.frost_depth_m,
         "electricity_cad_per_kwh": loc.electricity_cad_per_kwh,
         "natural_gas_cad_per_kwh": loc.natural_gas_cad_per_kwh,
+        "multifamily_energy_benchmark": toronto_benchmark,
     }
 
 

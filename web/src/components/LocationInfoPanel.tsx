@@ -41,17 +41,18 @@ export default function LocationInfoPanel({ location }: { location: string | nul
       {loading && <p className="text-stone-400">Loading…</p>}
 
       {!loading && detail && (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-          <Stat
-            label="Climate zone"
-            value={`Zone ${detail.climate_zone}`}
-            tip="NBCC climate zone (6 / 7a / 7b). Sets the heating/cooling degree-days and the Net Zero Ready energy threshold used in the simulation."
-          />
-          <Stat
-            label="Utility region"
-            value={detail.region_name}
-            tip="Which electricity/gas delivery territory this location falls in — sets the utility rates used for your monthly bill estimate."
-          />
+        <>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <Stat
+              label="Climate zone"
+              value={`Zone ${detail.climate_zone}`}
+              tip="NBCC climate zone (6 / 7a / 7b). Sets the heating/cooling degree-days and the Net Zero Ready energy threshold used in the simulation."
+            />
+            <Stat
+              label="Utility region"
+              value={detail.region_name}
+              tip="Which electricity/gas delivery territory this location falls in — sets the utility rates used for your monthly bill estimate."
+            />
 
           <Stat
             label="Ground snow load"
@@ -92,12 +93,27 @@ export default function LocationInfoPanel({ location }: { location: string | nul
             value={`$${detail.electricity_cad_per_kwh.toFixed(3)}/kWh`}
             tip="All-in regional electricity rate used to estimate your monthly utility bill and 30-year lifecycle cost."
           />
-          <Stat
-            label="Natural gas rate"
-            value={`$${detail.natural_gas_cad_per_kwh.toFixed(3)}/kWh`}
-            tip="All-in regional natural gas rate, used only if the selected mechanical system burns gas."
-          />
-        </div>
+            <Stat
+              label="Natural gas rate"
+              value={`$${detail.natural_gas_cad_per_kwh.toFixed(3)}/kWh`}
+              tip="All-in regional natural gas rate, used only if the selected mechanical system burns gas."
+            />
+          </div>
+
+          {detail.multifamily_energy_benchmark && (
+            <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
+              <p className="font-semibold text-sky-900">Toronto multifamily benchmark</p>
+              <p className="mt-1 text-[11px] leading-4 text-sky-800">
+                2024 weather-normalized site EUI median: <strong>{detail.multifamily_energy_benchmark.median_kwh_m2_yr} kWh/m²·yr</strong>
+                <br />
+                Middle 50%: {detail.multifamily_energy_benchmark.p25_kwh_m2_yr}–{detail.multifamily_energy_benchmark.p75_kwh_m2_yr} kWh/m²·yr
+              </p>
+              <p className="mt-1 text-[10px] leading-4 text-sky-700">
+                Context only: {detail.multifamily_energy_benchmark.usable_eui_rows} large buildings in the Toronto slice; not a low-rise-home calibration.
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       <p className="mt-2 text-[10px] leading-4 text-stone-400">
