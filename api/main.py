@@ -90,6 +90,7 @@ class SitePlanRequest(BaseModel):
 class ReportRequest(BaseModel):
     spec: ProjectSpecIn
     site: Optional[SiteSpecIn] = None
+    weights: Optional[dict] = None
     top_n_index: int = 0
     include_rationale: bool = False
 
@@ -277,6 +278,7 @@ def run_report(req: ReportRequest):
     if not spec.location:
         raise HTTPException(422, "A location is required to generate a report.")
     _validate_location(spec.location)
+    _validate_mechanical_selection(req.spec)
     resolved = resolve_location(spec.location)
     if spec.footprint_length_m is None or spec.footprint_width_m is None:
         import math
@@ -284,7 +286,13 @@ def run_report(req: ReportRequest):
         spec.footprint_length_m = spec.footprint_length_m or side
         spec.footprint_width_m = spec.footprint_width_m or side
 
-    results = optimize(spec)
+    if req.site is not None:
+        layout = place_building(spec, req.site.to_engine_spec())
+        if not layout.fits_on_lot or not layout.setbacks_ok:
+            notes = "; ".join(layout.notes) or "The building does not fit within the supplied site constraints."
+            raise HTTPException(422, f"Site feasibility gate failed: {notes}")
+
+    results = optimize(spec, req.weights)
     if not results:
         raise HTTPException(422, "No configurations fit the given budget and target.")
     if req.top_n_index >= len(results):

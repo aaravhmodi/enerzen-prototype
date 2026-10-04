@@ -1,9 +1,10 @@
 import io
 import json
+import api.main as api_main
 
 from fastapi import HTTPException
 
-from api.main import OptimizeRequest, ProjectSpecIn, SiteSpecIn, run_optimize, zoning_lookup
+from api.main import OptimizeRequest, ProjectSpecIn, ReportRequest, SiteSpecIn, run_optimize, run_report, zoning_lookup
 from engine import regulatory
 
 
@@ -111,3 +112,34 @@ def test_optimize_rejects_gas_selection_when_gas_is_disabled():
         assert "gas systems are disabled" in str(error.detail)
     else:
         raise AssertionError("Expected incompatible mechanical selection to be rejected")
+
+
+def test_report_uses_selected_weights_and_site(monkeypatch):
+    captured = {}
+    spec = ProjectSpecIn(
+        typology="single_family",
+        floor_area_m2=150,
+        storeys=2,
+        orientation="S",
+        window_to_wall_ratio=0.2,
+        budget_per_unit=800000,
+        target_label="nzr",
+        location="Toronto",
+        footprint_length_m=10,
+        footprint_width_m=8,
+    )
+    site = SiteSpecIn(lot_width_m=20, lot_depth_m=30, street_side="N")
+    weights = {"cost": 0.6, "speed": 0.1, "carbon": 0.2, "energy": 0.1}
+
+    def fake_optimize(project_spec, selected_weights):
+        captured["weights"] = selected_weights
+        return [object()]
+
+    monkeypatch.setattr(api_main, "optimize", fake_optimize)
+    monkeypatch.setattr(api_main, "_report_labels", lambda *args: {})
+    monkeypatch.setattr(api_main, "generate_results_pdf", lambda *args: b"pdf")
+
+    result = run_report(ReportRequest(spec=spec, site=site, weights=weights))
+
+    assert result["pdf_b64"]
+    assert captured["weights"] == weights

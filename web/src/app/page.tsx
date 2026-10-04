@@ -61,7 +61,11 @@ export default function Home() {
     if (!lastState) return;
     setDownloadingReport(true);
     try {
-      const { pdf_b64 } = await runReport(lastState.spec);
+      const { pdf_b64 } = await runReport(
+        lastState.spec,
+        normalizeWeights(lastState.weights),
+        lastState.site,
+      );
       const bytes = Uint8Array.from(atob(pdf_b64), (c) => c.charCodeAt(0));
       const blob = new Blob([bytes], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);

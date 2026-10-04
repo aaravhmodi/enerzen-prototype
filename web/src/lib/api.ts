@@ -192,9 +192,11 @@ export async function runSitePlan(
 
 export async function runReport(
   spec: ProjectSpecInput,
+  weights?: OptimizationWeights,
+  site?: SiteSpecInput,
   top_n_index = 0
 ): Promise<{ pdf_b64: string }> {
-  return postJson("/report", { spec, top_n_index });
+  return postJson("/report", { spec, weights, site, top_n_index });
 }
 
 export async function runParseSpec(text: string): Promise<Partial<ProjectSpecInput & SiteSpecInput> & { assumptions: string[] }> {
