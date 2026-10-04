@@ -42,7 +42,7 @@ export default function Home() {
     setLastState(state);
     try {
       const [optimizeRes, siteRes] = await Promise.all([
-        runOptimize(state.spec, normalizeWeights(state.weights)),
+        runOptimize(state.spec, normalizeWeights(state.weights), 20, state.site),
         runSitePlan(state.spec, state.site),
       ]);
       setResults(optimizeRes.results);

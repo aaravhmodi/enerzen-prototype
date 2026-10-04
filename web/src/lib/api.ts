@@ -135,9 +135,10 @@ export async function fetchLocationDetail(name: string): Promise<LocationDetail>
 export async function runOptimize(
   spec: ProjectSpecInput,
   weights?: OptimizationWeights,
-  top_n = 20
+  top_n = 20,
+  site?: SiteSpecInput
 ): Promise<{ results: ConfigResult[] }> {
-  return postJson("/optimize", { spec, weights, top_n });
+  return postJson("/optimize", { spec, weights, top_n, site });
 }
 
 export async function runSitePlan(

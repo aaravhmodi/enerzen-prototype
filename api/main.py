@@ -74,6 +74,7 @@ class OptimizeRequest(BaseModel):
     spec: ProjectSpecIn
     weights: Optional[dict] = None
     top_n: int = 20
+    site: Optional[SiteSpecIn] = None
 
 
 class SitePlanRequest(BaseModel):
@@ -186,6 +187,11 @@ def catalog():
 def run_optimize(req: OptimizeRequest):
     spec = req.spec.to_engine_spec()
     _validate_location(spec.location)
+    if req.site is not None:
+        layout = place_building(spec, req.site.to_engine_spec())
+        if not layout.fits_on_lot or not layout.setbacks_ok:
+            notes = "; ".join(layout.notes) or "The building does not fit within the supplied site constraints."
+            raise HTTPException(422, f"Site feasibility gate failed: {notes}")
     results = optimize(spec, req.weights)
     if not results:
         raise HTTPException(422, "No configurations fit the given budget and target.")
