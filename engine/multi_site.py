@@ -200,6 +200,55 @@ def _courtyard_placements(
     return placements
 
 
+def _parking_spaces(total_units: int, lot: SiteSpec) -> list[tuple[float, float, float, float]]:
+    """Return a simple street-side parking concept when the frontage allows it.
+
+    The 2.7 x 5.5 m stall is a planning placeholder, not a municipal parking
+    standard. A missing result is intentionally visible in the plan rather than
+    silently drawing spaces that do not fit the supplied lot.
+    """
+    stall_w, stall_d = 2.7, 5.5
+    if total_units <= 0 or lot.front_setback_m < stall_d:
+        return []
+
+    spaces: list[tuple[float, float, float, float]] = []
+    if lot.street_side in ("N", "S"):
+        center = lot.lot_width_m / 2
+        left_start = lot.side_setback_m
+        left_end = center - _SPINE_CLEARANCE_M
+        right_start = center + _SPINE_CLEARANCE_M
+        right_end = lot.lot_width_m - lot.side_setback_m
+        left_capacity = int(max(0, left_end - left_start) // stall_w)
+        right_capacity = int(max(0, right_end - right_start) // stall_w)
+        if left_capacity + right_capacity < total_units:
+            return []
+        y0 = 0.25 if lot.street_side == "N" else lot.lot_depth_m - stall_d - 0.25
+        remaining = total_units
+        for i in range(min(remaining, left_capacity)):
+            spaces.append((left_start + i * stall_w, y0, stall_w - 0.15, stall_d))
+        remaining -= min(remaining, left_capacity)
+        for i in range(remaining):
+            spaces.append((right_start + i * stall_w, y0, stall_w - 0.15, stall_d))
+    else:
+        center = lot.lot_depth_m / 2
+        top_start = lot.side_setback_m
+        top_end = center - _SPINE_CLEARANCE_M
+        bottom_start = center + _SPINE_CLEARANCE_M
+        bottom_end = lot.lot_depth_m - lot.side_setback_m
+        top_capacity = int(max(0, top_end - top_start) // stall_w)
+        bottom_capacity = int(max(0, bottom_end - bottom_start) // stall_w)
+        if top_capacity + bottom_capacity < total_units:
+            return []
+        x0 = 0.25 if lot.street_side == "W" else lot.lot_width_m - stall_d - 0.25
+        remaining = total_units
+        for i in range(min(remaining, top_capacity)):
+            spaces.append((x0, top_start + i * stall_w, stall_d, stall_w - 0.15))
+        remaining -= min(remaining, top_capacity)
+        for i in range(remaining):
+            spaces.append((x0, bottom_start + i * stall_w, stall_d, stall_w - 0.15))
+    return spaces
+
+
 def fits_on_lot(mix: dict[str, int], lot: SiteSpec) -> bool:
     """Quick check: do all requested units fit within the buildable envelope?"""
     placements = place_units(mix, lot)
@@ -255,6 +304,7 @@ def multi_site_plan_svg(
     e_x1, e_y1 = px(envelope.x1, envelope.y1)
 
     total_units = sum(mix.values())
+    parking_spaces = _parking_spaces(total_units, lot)
 
     width_dim_offset = (band if lot.street_side == "S" else 0) + 16
     depth_dim_offset = -(16 + (band if lot.street_side == "E" else 0))
@@ -309,6 +359,19 @@ def multi_site_plan_svg(
         'Shared green / amenity</text>'
     )
 
+    for i, (px_m, py_m, pw_m, ph_m) in enumerate(parking_spaces, start=1):
+        parking_x, parking_y = px(px_m, py_m)
+        parts.append(
+            f'<rect id="parking-space-{i}" x="{parking_x:.1f}" y="{parking_y:.1f}" '
+            f'width="{pw_m * _SCALE_PX_PER_M:.1f}" height="{ph_m * _SCALE_PX_PER_M:.1f}" '
+            'fill="#e5e7eb" stroke="#6b7280" stroke-width="1"/>'
+        )
+        parts.append(
+            f'<text x="{parking_x + pw_m * _SCALE_PX_PER_M / 2:.1f}" '
+            f'y="{parking_y + ph_m * _SCALE_PX_PER_M / 2 + 3:.1f}" text-anchor="middle" '
+            'font-size="8" fill="#374151">P</text>'
+        )
+
     # Buildings — numbered badges so the legend below can key them, like a
     # land-dev site plan's numbered building callouts.
     archetype_order = [a for a in mix if mix.get(a, 0) > 0]
@@ -334,16 +397,19 @@ def multi_site_plan_svg(
 
     # Title block, then a numbered legend keyed to the building badges.
     title_y = scale_y + 20
+    parking_label = f"{len(parking_spaces)} concept stalls" if parking_spaces else "Not allocated on supplied lot"
+    title_fields = [
+        ("Total units", f"{total_units}"),
+        ("Lot size", f"{lot.lot_width_m:g} x {lot.lot_depth_m:g} m"),
+        ("Street", lot.street_side),
+        ("Parking", parking_label),
+    ]
     parts.append(svg_kit.title_block(
         left, title_y, min(260, lot_w_px),
         "Development site plan",
-        [
-            ("Total units", f"{total_units}"),
-            ("Lot size", f"{lot.lot_width_m:g} x {lot.lot_depth_m:g} m"),
-            ("Street", lot.street_side),
-        ],
+        title_fields,
     ))
-    legend_y = title_y + 20 + 15 * 3 + 20
+    legend_y = title_y + 20 + 15 * len(title_fields) + 20
     legend_x = left
     from engine.archetypes import ARCHETYPES
     for arch_id in archetype_order:
@@ -362,7 +428,7 @@ def multi_site_plan_svg(
 
     parts.append(
         f'<text x="{left:.0f}" y="{legend_y + 18:.0f}" font-size="8.5" fill="{svg_kit.LINE}">'
-        'Dashed path: pedestrian walkway / green marker: shared open space concept</text>'
+        'Dashed path: walkway / grey blocks: parking concept / green marker: shared open space</text>'
     )
 
     parts.append('</svg>')
