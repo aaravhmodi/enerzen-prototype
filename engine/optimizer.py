@@ -40,6 +40,7 @@ class ProjectSpec:
     budget_per_unit: float  # CAD
     target_label: str       # "code", "nzr", "passive_house"
     solar_option_id: str = "PV0"  # from catalog["solar"]; PV0 = none
+    mechanical_option_id: str | None = None  # None = optimize across catalog
     location: str = None    # Ontario place name; drives zone, snow tier, regional rates
     num_units: int = 1
     has_ac: bool = True     # add central AC when the heating plant is a furnace
@@ -215,7 +216,8 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     joist_depth = loc.joist_depth_in if loc else catalog["snow"]["tiers"][0]["joist_depth_in"]
 
     mech_options = [m for m in catalog["mechanical"]
-                    if spec.allow_gas or m["type"] != "gas"]
+                    if (spec.allow_gas or m["type"] != "gas")
+                    and (spec.mechanical_option_id is None or m["id"] == spec.mechanical_option_id)]
 
     all_configs = []
     for wall_opt, roof_opt, floor_opt, window, mech in itertools.product(

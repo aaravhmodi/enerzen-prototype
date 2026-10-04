@@ -19,10 +19,11 @@ export default function LocationInfoPanel({
 
   useEffect(() => {
     if (!location) {
-      setDetail(null);
       return;
     }
     let cancelled = false;
+    // Fetch state is intentionally reset when the external location request starts.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetchLocationDetail(location)
       .then((d) => {
@@ -41,7 +42,6 @@ export default function LocationInfoPanel({
 
   useEffect(() => {
     if (!location || latitude == null || longitude == null) {
-      setZoning(null);
       return;
     }
     let cancelled = false;
@@ -58,6 +58,9 @@ export default function LocationInfoPanel({
   }, [location, latitude, longitude]);
 
   if (!location) return null;
+  const hasZoningCoordinates = latitude != null && longitude != null;
+  const zoningSource = hasZoningCoordinates ? zoning?.source_url : undefined;
+  const zoningSourceLabel = hasZoningCoordinates ? zoning?.source_label : undefined;
 
   return (
     <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3 text-xs">
@@ -144,9 +147,9 @@ export default function LocationInfoPanel({
           <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50/70 p-3">
             <p className="font-semibold text-amber-900">Planning / zoning intelligence</p>
             <p className="mt-1 text-[11px] leading-4 text-amber-800">
-              {zoning ? `${zoning.label}: ${zoning.detail}` : `${detail.regulatory_intelligence.label}: ${detail.regulatory_intelligence.detail}`}
+              {hasZoningCoordinates && zoning ? `${zoning.label}: ${zoning.detail}` : `${detail.regulatory_intelligence.label}: ${detail.regulatory_intelligence.detail}`}
             </p>
-            {zoning?.parcel && (
+            {hasZoningCoordinates && zoning?.parcel && (
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-amber-900">
                 {Object.entries(zoning.parcel).filter(([, value]) => value).map(([key, value]) => (
                   <div key={key}>
@@ -157,14 +160,14 @@ export default function LocationInfoPanel({
                 ))}
               </div>
             )}
-            {(zoning?.source_url ?? detail.regulatory_intelligence.source_url) && (
+            {(zoningSource ?? detail.regulatory_intelligence.source_url) && (
               <a
                 className="mt-1 inline-block text-[10px] font-medium text-amber-700 underline"
-                href={zoning?.source_url ?? detail.regulatory_intelligence.source_url ?? "#"}
+                href={zoningSource ?? detail.regulatory_intelligence.source_url ?? "#"}
                 target="_blank"
                 rel="noreferrer"
               >
-                {zoning?.source_label ?? detail.regulatory_intelligence.source_label ?? "Open municipal source"}
+                {zoningSourceLabel ?? detail.regulatory_intelligence.source_label ?? "Open municipal source"}
               </a>
             )}
           </div>

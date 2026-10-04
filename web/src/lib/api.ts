@@ -10,6 +10,7 @@ export type ProjectSpecInput = {
   budget_per_unit: number;
   target_label: string;
   solar_option_id: string;
+  mechanical_option_id: string | null;
   location: string | null;
   num_units: number;
   has_ac: boolean;
@@ -98,7 +99,10 @@ export async function fetchLocations(): Promise<string[]> {
   return data.locations;
 }
 
-export async function fetchCatalog(): Promise<{ solar: { id: string; name: string }[] }> {
+export async function fetchCatalog(): Promise<{
+  solar: { id: string; name: string }[];
+  mechanical: { id: string; name: string; type: string }[];
+}> {
   const res = await fetch(`${API_BASE}/catalog`);
   return res.json();
 }

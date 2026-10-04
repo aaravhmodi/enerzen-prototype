@@ -69,3 +69,45 @@ def test_zoning_lookup_does_not_call_unconfigured_municipality(monkeypatch):
     result = zoning_lookup("Ottawa", 45.42, -75.69)
 
     assert result["status"] == "not_available"
+
+
+def test_optimize_can_lock_mechanical_system():
+    spec = ProjectSpecIn(
+        typology="single_family",
+        floor_area_m2=150,
+        storeys=2,
+        orientation="S",
+        window_to_wall_ratio=0.2,
+        budget_per_unit=800000,
+        target_label="nzr",
+        location="Toronto",
+        mechanical_option_id="M2",
+    )
+
+    result = run_optimize(OptimizeRequest(spec=spec, top_n=5))
+
+    assert result["results"]
+    assert {item["mechanical_id"] for item in result["results"]} == {"M2"}
+
+
+def test_optimize_rejects_gas_selection_when_gas_is_disabled():
+    spec = ProjectSpecIn(
+        typology="single_family",
+        floor_area_m2=150,
+        storeys=2,
+        orientation="S",
+        window_to_wall_ratio=0.2,
+        budget_per_unit=800000,
+        target_label="nzr",
+        location="Toronto",
+        allow_gas=False,
+        mechanical_option_id="M1",
+    )
+
+    try:
+        run_optimize(OptimizeRequest(spec=spec))
+    except HTTPException as error:
+        assert error.status_code == 422
+        assert "gas systems are disabled" in str(error.detail)
+    else:
+        raise AssertionError("Expected incompatible mechanical selection to be rejected")

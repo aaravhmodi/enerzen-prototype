@@ -30,6 +30,7 @@ const DEFAULT_STATE: FormState = {
     budget_per_unit: 500000,
     target_label: "nzr",
     solar_option_id: "PV0",
+    mechanical_option_id: null,
     location: "Toronto",
     num_units: 1,
     has_ac: true,
@@ -65,6 +66,7 @@ export default function ProjectForm({
   const [state, setState] = useState<FormState>(DEFAULT_STATE);
   const [locations, setLocations] = useState<string[]>([]);
   const [solarOptions, setSolarOptions] = useState<{ id: string; name: string }[]>([]);
+  const [mechanicalOptions, setMechanicalOptions] = useState<{ id: string; name: string; type: string }[]>([]);
   const [archetypes, setArchetypes] = useState<ArchetypeInfo[]>([]);
   const [selectedDesign, setSelectedDesign] = useState("");
   const [showAiAssist, setShowAiAssist] = useState(false);
@@ -76,7 +78,10 @@ export default function ProjectForm({
   useEffect(() => {
     fetchLocations().then(setLocations).catch(() => setLocations([]));
     fetchCatalog()
-      .then((c) => setSolarOptions(c.solar))
+      .then((c) => {
+        setSolarOptions(c.solar);
+        setMechanicalOptions(c.mechanical);
+      })
       .catch(() => setSolarOptions([]));
     fetchArchetypes().then(setArchetypes).catch(() => setArchetypes([]));
   }, []);
@@ -201,11 +206,11 @@ export default function ProjectForm({
           <span className="section-badge">1</span>
           <div>
             <legend className="text-sm font-semibold text-stone-800">Building</legend>
-            <p className="text-xs text-stone-500">Required — describes what's being built and where.</p>
+            <p className="text-xs text-stone-500">Required — describes what&apos;s being built and where.</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <Field label="Catalog design" optional hint="Prefills the building fields from EnerZen's current design catalog.">
+          <Field label="Catalog design" optional hint="Prefills the building fields from EnerZen&apos;s current design catalog.">
             <select
               className="input"
               value={selectedDesign}
@@ -348,6 +353,24 @@ export default function ProjectForm({
               {solarOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
+            label="Mechanical strategy"
+            required
+            hint="Choose a fixed system or let the optimizer compare the catalog."
+          >
+            <select
+              className="input"
+              value={state.spec.mechanical_option_id ?? ""}
+              onChange={(e) => updateSpec("mechanical_option_id", e.target.value || null)}
+            >
+              <option value="">Optimize across catalog</option>
+              {mechanicalOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
                 </option>
               ))}
             </select>

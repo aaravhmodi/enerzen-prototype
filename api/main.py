@@ -48,6 +48,7 @@ class ProjectSpecIn(BaseModel):
     budget_per_unit: float
     target_label: str
     solar_option_id: str = "PV0"
+    mechanical_option_id: Optional[str] = None
     location: Optional[str] = None
     num_units: int = 1
     has_ac: bool = True
@@ -142,6 +143,19 @@ def _validate_location(location: Optional[str]) -> None:
         raise HTTPException(422, f"Unknown location {location!r}. Must be one of the /locations values.")
 
 
+def _validate_mechanical_selection(spec: ProjectSpecIn) -> None:
+    if not spec.mechanical_option_id:
+        return
+    option = next(
+        (m for m in load_catalog().get("mechanical", []) if m["id"] == spec.mechanical_option_id),
+        None,
+    )
+    if option is None:
+        raise HTTPException(422, f"Unknown mechanical option {spec.mechanical_option_id!r}.")
+    if not spec.allow_gas and option.get("type") == "gas":
+        raise HTTPException(422, "The selected mechanical option burns natural gas, but gas systems are disabled.")
+
+
 # ── Endpoints ───────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -220,6 +234,7 @@ def catalog():
 def run_optimize(req: OptimizeRequest):
     spec = req.spec.to_engine_spec()
     _validate_location(spec.location)
+    _validate_mechanical_selection(req.spec)
     if req.site is not None:
         layout = place_building(spec, req.site.to_engine_spec())
         if not layout.fits_on_lot or not layout.setbacks_ok:
