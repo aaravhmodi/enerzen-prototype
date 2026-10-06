@@ -124,6 +124,9 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertIn('id="vehicle-access"', svg)
         self.assertIn('id="rain-garden"', svg)
         self.assertIn('id="tree-1"', svg)
+        self.assertIn('id="porch-1"', svg)
+        self.assertIn('id="building-entrance-1"', svg)
+        self.assertIn("Garden Suite", svg)
         self.assertIn("Shared green / amenity", svg)
 
     def test_development_layout_uses_a_shared_spine(self):
@@ -175,6 +178,8 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertTrue(all(stall.within(geometry.lot_boundary) for stall in geometry.parking))
         self.assertIsNotNone(geometry.vehicle_access)
         self.assertEqual(len(geometry.trees), 4)
+        self.assertEqual(len(geometry.entrances), len(geometry.buildings))
+        self.assertEqual(len(geometry.porches), len(geometry.buildings))
 
 
 if __name__ == "__main__":

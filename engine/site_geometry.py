@@ -17,6 +17,8 @@ class SitePlanGeometry:
     lot_boundary: Polygon
     buildable_envelope: Polygon
     buildings: tuple[Polygon, ...]
+    entrances: tuple[Point, ...]
+    porches: tuple[Polygon, ...]
     pedestrian_spine: Polygon
     parking: tuple[Polygon, ...]
     vehicle_access: Polygon | None
@@ -74,6 +76,24 @@ def build_site_geometry(
         box(p.x_m, p.y_m, p.x_m + p.w_m, p.y_m + p.h_m)
         for p in placements
     )
+    entrances: list[Point] = []
+    porches: list[Polygon] = []
+    for building in buildings:
+        min_x, min_y, max_x, max_y = building.bounds
+        center_x, center_y = (min_x + max_x) / 2, (min_y + max_y) / 2
+        if site.street_side in ("N", "S"):
+            if center_x < site.lot_width_m / 2:
+                entrances.append(Point(max_x, center_y))
+                porches.append(box(max_x, center_y - 0.75, max_x + 0.9, center_y + 0.75))
+            else:
+                entrances.append(Point(min_x, center_y))
+                porches.append(box(min_x - 0.9, center_y - 0.75, min_x, center_y + 0.75))
+        elif center_y < site.lot_depth_m / 2:
+            entrances.append(Point(center_x, max_y))
+            porches.append(box(center_x - 0.75, max_y, center_x + 0.75, max_y + 0.9))
+        else:
+            entrances.append(Point(center_x, min_y))
+            porches.append(box(center_x - 0.75, min_y - 0.9, center_x + 0.75, min_y))
     parking = tuple(box(x, y, x + w, y + h) for x, y, w, h in parking_spaces)
     green = _shared_green(site).intersection(lot)
     tree_radius = min(0.55, green.bounds[2] - green.bounds[0], green.bounds[3] - green.bounds[1]) / 7
@@ -91,6 +111,8 @@ def build_site_geometry(
         lot_boundary=lot,
         buildable_envelope=buildable,
         buildings=buildings,
+        entrances=tuple(entrances),
+        porches=tuple(porches),
         pedestrian_spine=_pedestrian_spine(site),
         parking=parking,
         vehicle_access=_vehicle_access(site, parking),

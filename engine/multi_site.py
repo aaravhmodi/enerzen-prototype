@@ -434,7 +434,9 @@ def multi_site_plan_svg(
     # land-dev site plan's numbered building callouts.
     archetype_order = [a for a in mix if mix.get(a, 0) > 0]
     number_by_archetype = {a: i + 1 for i, a in enumerate(archetype_order)}
-    for p, building in zip(placements, geometry.buildings):
+    for index, (p, building, porch, entrance) in enumerate(
+        zip(placements, geometry.buildings, geometry.porches, geometry.entrances), start=1
+    ):
         fill, stroke = _ARCHETYPE_COLORS.get(p.archetype_id, _DEFAULT_COLOR)
         bx0, by0 = px(building.bounds[0], building.bounds[1])
         bw_px = (building.bounds[2] - building.bounds[0]) * _SCALE_PX_PER_M
@@ -443,6 +445,19 @@ def multi_site_plan_svg(
         cy = by0 + bh_px / 2
         parts.append(
             f'<polygon points="{polygon_points(building)}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
+        )
+        parts.append(
+            f'<polygon id="porch-{index}" points="{polygon_points(porch)}" fill="#fef3c7" '
+            'stroke="#b45309" stroke-width="0.9"/>'
+        )
+        entry_x, entry_y = px(entrance.x, entrance.y)
+        parts.append(
+            f'<circle id="building-entrance-{index}" cx="{entry_x:.1f}" cy="{entry_y:.1f}" '
+            'r="2.7" fill="#92400e" stroke="white" stroke-width="0.8"/>'
+        )
+        parts.append(
+            f'<text x="{cx:.1f}" y="{cy + 4:.1f}" text-anchor="middle" font-size="7" '
+            f'fill="{stroke}">{p.label}</text>'
         )
         if bw_px > 16 and bh_px > 16:
             parts.append(svg_kit.numbered_badge(cx, cy, number_by_archetype.get(p.archetype_id, 0), stroke))
