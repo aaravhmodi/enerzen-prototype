@@ -15,6 +15,9 @@ deterministic output instead of crashing the request.
 
 import json
 import os
+import re
+import xml.etree.ElementTree as ET
+from io import BytesIO
 
 from dotenv import load_dotenv
 
@@ -27,6 +30,77 @@ DEFAULT_IMAGE_MODEL = os.environ.get("OPENAI_IMAGE_MODEL", "gpt-image-1")
 
 class AiUnavailableError(RuntimeError):
     """Raised when an OpenAI-backed feature can't run (no key, API error)."""
+
+
+def _svg_reference_png(svg: str) -> bytes:
+    """Rasterize the plan's basic vector primitives without native libraries."""
+    from PIL import Image, ImageDraw
+
+    root = ET.fromstring(svg)
+    view_box = [float(value) for value in root.attrib.get("viewBox", "0 0 1024 1024").split()]
+    view_x, view_y, view_w, view_h = view_box
+    scale = min(1536 / view_w, 1024 / view_h)
+    output_w, output_h = round(view_w * scale), round(view_h * scale)
+    image = Image.new("RGB", (output_w, output_h), "white")
+    draw = ImageDraw.Draw(image)
+
+    def point(x: float, y: float) -> tuple[int, int]:
+        return round((x - view_x) * scale), round((y - view_y) * scale)
+
+    def number(value: str | None, default: float = 0.0) -> float:
+        match = re.search(r"[-+]?\d*\.?\d+", value or "")
+        return float(match.group()) if match else default
+
+    def colour(value: str | None, fallback: str) -> str | None:
+        if not value or value == "none":
+            return None
+        if value.startswith("#"):
+            return value
+        return value if value in {"white", "black", "grey", "gray", "red", "blue", "green"} else fallback
+
+    def points(value: str) -> list[tuple[int, int]]:
+        values = [float(v) for v in re.findall(r"[-+]?\d*\.?\d+", value)]
+        return [point(values[index], values[index + 1]) for index in range(0, len(values) - 1, 2)]
+
+    for element in root.iter():
+        tag = element.tag.rsplit("}", 1)[-1]
+        if tag in {"svg", "defs", "marker", "text", "title", "desc"} or element.attrib.get("id") == "svgKitArrow":
+            continue
+        fill = colour(element.attrib.get("fill"), "white")
+        stroke = colour(element.attrib.get("stroke"), "#64748b")
+        width = max(1, round(number(element.attrib.get("stroke-width"), 1) * scale))
+        if tag == "rect":
+            x, y = point(number(element.attrib.get("x")), number(element.attrib.get("y")))
+            right, bottom = point(
+                number(element.attrib.get("x")) + number(element.attrib.get("width")),
+                number(element.attrib.get("y")) + number(element.attrib.get("height")),
+            )
+            draw.rectangle((x, y, right, bottom), fill=fill, outline=stroke, width=width)
+        elif tag == "polygon":
+            polygon = points(element.attrib.get("points", ""))
+            if polygon:
+                draw.polygon(polygon, fill=fill, outline=stroke)
+                if stroke:
+                    draw.line(polygon + [polygon[0]], fill=stroke, width=width)
+        elif tag == "circle":
+            cx, cy = point(number(element.attrib.get("cx")), number(element.attrib.get("cy")))
+            radius = number(element.attrib.get("r")) * scale
+            draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=fill, outline=stroke, width=width)
+        elif tag == "line":
+            draw.line(
+                [point(number(element.attrib.get("x1")), number(element.attrib.get("y1"))),
+                 point(number(element.attrib.get("x2")), number(element.attrib.get("y2")))],
+                fill=stroke,
+                width=width,
+            )
+        elif tag == "path":
+            path_points = points(element.attrib.get("d", ""))
+            if len(path_points) >= 2:
+                draw.line(path_points, fill=stroke, width=width)
+
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
 
 
 def _get_client():
@@ -172,3 +246,42 @@ def generate_concept_render(layout, spec) -> bytes:
         return base64.b64decode(response.data[0].b64_json)
     except Exception as e:
         raise AiUnavailableError(f"concept render failed: {e}") from e
+
+
+def generate_development_concept_render(svg: str, mix: dict[str, int]) -> bytes:
+    """Polish a verified development SVG without changing its composition.
+
+    The SVG is rasterized and passed as an image reference so the model can add
+    material/landscape character while the deterministic geometry remains the
+    authoritative plan.
+    """
+    client = _get_client()
+    try:
+        reference_png = _svg_reference_png(svg)
+        units = ", ".join(f"{count} {unit.replace('_', ' ')}" for unit, count in mix.items() if count > 0)
+        prompt = (
+            "Create a polished architectural presentation rendering of the supplied site plan. "
+            "Treat the reference image as a strict spatial blueprint. Preserve the exact property "
+            "boundary, north orientation, building count and positions, footprint proportions, "
+            "street edge, parking bays, pedestrian spine, shared green, trees, and rain garden. "
+            "Add believable low-rise housing massing, roof planes, paving, planting, and soft daylight. "
+            "Do not add, remove, rotate, or relocate any building, road, parking space, or landscape room. "
+            "Do not invent readable labels, dimensions, numbers, or text. This is a visual presentation "
+            f"render for a sustainable housing community with {units}; keep it clean and architectural."
+        )
+        response = client.images.edit(
+            model=DEFAULT_IMAGE_MODEL,
+            image=("verified-site-plan.png", reference_png, "image/png"),
+            prompt=prompt,
+            input_fidelity="high",
+            quality="high",
+            size="1536x1024",
+            output_format="png",
+            response_format="b64_json",
+        )
+        import base64
+        return base64.b64decode(response.data[0].b64_json)
+    except AiUnavailableError:
+        raise
+    except Exception as e:
+        raise AiUnavailableError(f"development concept render failed: {e}") from e

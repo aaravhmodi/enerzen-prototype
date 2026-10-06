@@ -32,6 +32,7 @@ export default function Home() {
   const [devError, setDevError] = useState<string | null>(null);
   const [devMixes, setDevMixes] = useState<DevMixResult[] | null>(null);
   const [devSvg, setDevSvg] = useState<string | null>(null);
+  const [devConcept, setDevConcept] = useState<string | null>(null);
   const [selectedMix, setSelectedMix] = useState(0);
   const [lastDevSpec, setLastDevSpec] = useState<DevSpecInput | null>(null);
   const [devIterations, setDevIterations] = useState(0);
@@ -95,13 +96,15 @@ export default function Home() {
       const { mixes } = await runDevOptimize(spec);
       setDevMixes(mixes);
       if (mixes.length > 0) {
-        const { svg } = await runDevSitePlan(spec, mixes[0].units);
+        const { svg, concept_render_b64 } = await runDevSitePlan(spec, mixes[0].units, true);
         setDevSvg(svg);
+        setDevConcept(concept_render_b64);
       }
     } catch (e) {
       setDevError(e instanceof Error ? e.message : "Something went wrong");
       setDevMixes(null);
       setDevSvg(null);
+      setDevConcept(null);
     } finally {
       setDevSubmitting(false);
     }
@@ -111,8 +114,9 @@ export default function Home() {
     if (!lastDevSpec || !devMixes) return;
     setSelectedMix(i);
     try {
-      const { svg } = await runDevSitePlan(lastDevSpec, devMixes[i].units);
+      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, devMixes[i].units, true);
       setDevSvg(svg);
+      setDevConcept(concept_render_b64);
     } catch {
       // keep existing svg
     }
@@ -264,7 +268,11 @@ export default function Home() {
               )}
 
               {devSvg && devMixes && devMixes[selectedMix] && (
-                <MultiSitePlanView svg={devSvg} mix={devMixes[selectedMix]} />
+                <MultiSitePlanView
+                  svg={devSvg}
+                  mix={devMixes[selectedMix]}
+                  conceptRenderB64={devConcept}
+                />
               )}
             </section>
           </>

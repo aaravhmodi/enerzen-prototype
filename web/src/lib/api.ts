@@ -264,7 +264,8 @@ export async function runDevOptimize(
 
 export async function runDevSitePlan(
   spec: DevSpecInput,
-  mix: Record<string, number>
-): Promise<{ svg: string }> {
-  return postJson("/dev-site-plan", { spec, mix });
+  mix: Record<string, number>,
+  render_concept = false,
+): Promise<{ svg: string; concept_render_b64: string | null }> {
+  return postJson("/dev-site-plan", { spec, mix, render_concept });
 }

@@ -14,9 +14,11 @@ const ARCHETYPE_LABELS: Record<string, string> = {
 export default function MultiSitePlanView({
   svg,
   mix,
+  conceptRenderB64,
 }: {
   svg: string;
   mix: DevMixResult;
+  conceptRenderB64: string | null;
 }) {
   return (
     <div className="panel overflow-hidden">
@@ -36,6 +38,19 @@ export default function MultiSitePlanView({
           <p className="mt-3 text-[10px] text-stone-400 text-center">
             Schematic placement — not to architectural scale. Setbacks shown as dashed line.
           </p>
+          {conceptRenderB64 && (
+            <div className="mt-5 border-t border-stone-200 pt-5">
+              <p className="eyebrow">AI presentation render</p>
+              <img
+                src={`data:image/png;base64,${conceptRenderB64}`}
+                alt="AI-rendered presentation view of the verified development site plan"
+                className="mt-2 h-auto w-full rounded-lg border border-stone-200"
+              />
+              <p className="mt-2 text-[10px] text-stone-400">
+                Visual treatment only. The vector plan above remains the authoritative geometry.
+              </p>
+            </div>
+          )}
         </div>
 
         <aside className="border-t border-stone-200 bg-stone-50/80 p-5 lg:border-l lg:border-t-0">

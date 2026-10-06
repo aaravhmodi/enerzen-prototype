@@ -13,7 +13,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from engine.ai import AiUnavailableError, generate_concept_render, generate_design_rationale, parse_freeform_spec
+from engine.ai import (
+    AiUnavailableError,
+    generate_concept_render,
+    generate_development_concept_render,
+    generate_design_rationale,
+    parse_freeform_spec,
+)
 from engine.archetypes import archetype_list
 from engine.dev_optimizer import DevSpec, optimize_dev_mix
 from engine.location import location_names, resolve as resolve_location
@@ -125,6 +131,7 @@ class DevOptimizeRequest(BaseModel):
 class DevSitePlanRequest(BaseModel):
     spec: DevSpecIn
     mix: dict[str, int]
+    render_concept: bool = False
 
 
 def _serialize_result(result: ConfigResult) -> dict:
@@ -352,7 +359,14 @@ def run_dev_site_plan(req: DevSitePlanRequest):
     )
     placements = place_units(req.mix, site)
     svg = multi_site_plan_svg(placements, site, req.mix)
-    return {"svg": svg}
+    response = {"svg": svg, "concept_render_b64": None}
+    if req.render_concept:
+        try:
+            png_bytes = generate_development_concept_render(svg, req.mix)
+            response["concept_render_b64"] = base64.b64encode(png_bytes).decode("ascii")
+        except AiUnavailableError:
+            pass  # SVG remains authoritative when image generation is unavailable.
+    return response
 
 
 def _report_labels(top: ConfigResult, spec: ProjectSpec, catalog: dict) -> dict:
