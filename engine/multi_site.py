@@ -321,6 +321,34 @@ def multi_site_plan_svg(
                                     width_dim_offset, depth_dim_offset),
     ]
 
+    # Public-realm context makes the lot read as part of a neighbourhood plan:
+    # a narrow sidewalk strip sits between the street edge and the property
+    # line, consistent with the permit-style context/site-plan drawing set.
+    if lot.street_side == "N":
+        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left, top - band, lot_w_px, band
+        sidewalk_label_x, sidewalk_label_y = left + lot_w_px / 2, sidewalk_y + 14
+    elif lot.street_side == "S":
+        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left, top + lot_h_px, lot_w_px, band
+        sidewalk_label_x, sidewalk_label_y = left + lot_w_px / 2, sidewalk_y + 14
+    elif lot.street_side == "W":
+        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left - band, top, band, lot_h_px
+        sidewalk_label_x, sidewalk_label_y = sidewalk_x + 8, top + lot_h_px / 2
+    else:
+        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left + lot_w_px, top, band, lot_h_px
+        sidewalk_label_x, sidewalk_label_y = sidewalk_x + 14, top + lot_h_px / 2
+    sidewalk_rotation = (
+        f' transform="rotate(-90 {sidewalk_label_x:.1f} {sidewalk_label_y:.1f})"'
+        if lot.street_side in ("W", "E") else ""
+    )
+    parts.append(
+        f'<rect id="public-sidewalk" x="{sidewalk_x:.1f}" y="{sidewalk_y:.1f}" '
+        f'width="{sidewalk_w:.1f}" height="{sidewalk_h:.1f}" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.8"/>'
+    )
+    parts.append(
+        f'<text x="{sidewalk_label_x:.1f}" y="{sidewalk_label_y:.1f}" text-anchor="middle" '
+        f'font-size="7.5" letter-spacing="0.5" fill="#6b7280"{sidewalk_rotation}>PUBLIC SIDEWALK</text>'
+    )
+
     # Concept layers requested by the development flow: pedestrian access and
     # shared open space. These are planning context, not permit or landscape
     # design determinations.
@@ -371,6 +399,59 @@ def multi_site_plan_svg(
             f'y="{parking_y + ph_m * _SCALE_PX_PER_M / 2 + 3:.1f}" text-anchor="middle" '
             'font-size="8" fill="#374151">P</text>'
         )
+
+    if parking_spaces:
+        first_x, first_y, first_w, first_h = parking_spaces[0]
+        access_x = first_x + first_w / 2
+        access_y = first_y + first_h / 2
+        if lot.street_side == "N":
+            access_path = f'M {px(access_x, 0)[0]:.1f},{px(access_x, 0)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
+            label_x, label_y = px(access_x, max(0.5, access_y / 2))
+        elif lot.street_side == "S":
+            access_path = f'M {px(access_x, lot.lot_depth_m)[0]:.1f},{px(access_x, lot.lot_depth_m)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
+            label_x, label_y = px(access_x, lot.lot_depth_m - max(0.5, (lot.lot_depth_m - access_y) / 2))
+        elif lot.street_side == "W":
+            access_path = f'M {px(0, access_y)[0]:.1f},{px(0, access_y)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
+            label_x, label_y = px(max(0.5, access_x / 2), access_y)
+        else:
+            access_path = f'M {px(lot.lot_width_m, access_y)[0]:.1f},{px(lot.lot_width_m, access_y)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
+            label_x, label_y = px(lot.lot_width_m - max(0.5, (lot.lot_width_m - access_x) / 2), access_y)
+        parts.append(
+            f'<path id="vehicle-access" d="{access_path}" fill="none" stroke="#94a3b8" '
+            'stroke-width="4" stroke-dasharray="5,3" opacity="0.9"/>'
+        )
+        parts.append(
+            f'<text x="{label_x:.1f}" y="{label_y - 4:.1f}" text-anchor="middle" font-size="7.5" '
+            'fill="#64748b">driveway / curb cut</text>'
+        )
+
+    # Green infrastructure is shown as a small shared landscape system rather
+    # than an unlabelled leftover rectangle: trees and a rain-garden marker
+    # make the sustainable-community intent legible in the visual plan.
+    tree_radius = min(0.55, green_w / 7, green_h / 5)
+    tree_points = [
+        (green_x + green_w * 0.18, green_y + green_h * 0.28),
+        (green_x + green_w * 0.82, green_y + green_h * 0.28),
+        (green_x + green_w * 0.18, green_y + green_h * 0.78),
+        (green_x + green_w * 0.82, green_y + green_h * 0.78),
+    ]
+    for index, (tree_x, tree_y) in enumerate(tree_points, start=1):
+        tree_cx, tree_cy = px(tree_x, tree_y)
+        parts.append(
+            f'<circle id="tree-{index}" cx="{tree_cx:.1f}" cy="{tree_cy:.1f}" '
+            f'r="{tree_radius * _SCALE_PX_PER_M:.1f}" fill="#86efac" stroke="#15803d" stroke-width="0.9"/>'
+        )
+    rain_x = green_x + green_w * 0.5
+    rain_y = green_y + green_h * 0.55
+    rain_cx, rain_cy = px(rain_x, rain_y)
+    parts.append(
+        f'<circle id="rain-garden" cx="{rain_cx:.1f}" cy="{rain_cy:.1f}" '
+        f'r="{min(0.65, green_w / 6, green_h / 4) * _SCALE_PX_PER_M:.1f}" '
+        'fill="#bfdbfe" stroke="#2563eb" stroke-width="0.9" stroke-dasharray="2,2"/>'
+    )
+    parts.append(
+        f'<text x="{rain_cx:.1f}" y="{rain_cy + 3:.1f}" text-anchor="middle" font-size="6.5" fill="#1d4ed8">RAIN</text>'
+    )
 
     # Buildings — numbered badges so the legend below can key them, like a
     # land-dev site plan's numbered building callouts.

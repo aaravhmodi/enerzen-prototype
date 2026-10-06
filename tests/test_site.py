@@ -119,6 +119,10 @@ class SitePlanSvgTests(unittest.TestCase):
 
         self.assertIn('id="pedestrian-walkway"', svg)
         self.assertIn('id="shared-green-space"', svg)
+        self.assertIn('id="public-sidewalk"', svg)
+        self.assertIn('id="vehicle-access"', svg)
+        self.assertIn('id="rain-garden"', svg)
+        self.assertIn('id="tree-1"', svg)
         self.assertIn("Shared green / amenity", svg)
 
     def test_development_layout_uses_a_shared_spine(self):
