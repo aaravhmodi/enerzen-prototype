@@ -11,6 +11,7 @@ import math
 from dataclasses import dataclass
 
 from engine.site import SiteSpec, _buildable_envelope
+from engine.site_geometry import SitePlanGeometry, build_site_geometry
 
 _SCALE_PX_PER_M = 8
 _MARGIN_PX = 50
@@ -305,6 +306,7 @@ def multi_site_plan_svg(
 
     total_units = sum(mix.values())
     parking_spaces = _parking_spaces(total_units, lot)
+    geometry = build_site_geometry(placements, lot, parking_spaces)
 
     width_dim_offset = (band if lot.street_side == "S" else 0) + 16
     depth_dim_offset = -(16 + (band if lot.street_side == "E" else 0))
@@ -349,46 +351,41 @@ def multi_site_plan_svg(
         f'font-size="7.5" letter-spacing="0.5" fill="#6b7280"{sidewalk_rotation}>PUBLIC SIDEWALK</text>'
     )
 
+    def polygon_points(polygon):
+        return " ".join(f"{px(x, y)[0]:.1f},{px(x, y)[1]:.1f}" for x, y in polygon.exterior.coords)
+
     # Concept layers requested by the development flow: pedestrian access and
     # shared open space. These are planning context, not permit or landscape
     # design determinations.
-    if lot.street_side == "N":
-        walk_points = (lot.lot_width_m / 2, 0, lot.lot_width_m / 2, envelope.y0)
-    elif lot.street_side == "S":
-        walk_points = (lot.lot_width_m / 2, lot.lot_depth_m, lot.lot_width_m / 2, envelope.y1)
-    elif lot.street_side == "W":
-        walk_points = (0, lot.lot_depth_m / 2, envelope.x0, lot.lot_depth_m / 2)
-    else:
-        walk_points = (lot.lot_width_m, lot.lot_depth_m / 2, envelope.x1, lot.lot_depth_m / 2)
-    wx1, wy1 = px(walk_points[0], walk_points[1])
-    wx2, wy2 = px(walk_points[2], walk_points[3])
     parts.append(
-        f'<path id="pedestrian-walkway" d="M {wx1:.1f},{wy1:.1f} L {wx2:.1f},{wy2:.1f}" '
-        'fill="none" stroke="#64748b" stroke-width="3" stroke-dasharray="6,4" opacity="0.8"/>'
+        f'<polygon id="pedestrian-walkway" points="{polygon_points(geometry.pedestrian_spine)}" '
+        'fill="#f1f5f9" stroke="#64748b" stroke-width="1.1" opacity="0.95"/>'
     )
-
-    green_w = min(4.0, max(2.5, lot.lot_width_m * 0.18), lot.lot_width_m)
-    green_h = min(4.0, max(2.5, lot.lot_depth_m * 0.10), lot.lot_depth_m)
-    if lot.street_side == "N":
-        green_x, green_y = lot.lot_width_m - lot.side_setback_m - green_w, lot.lot_depth_m - green_h
-    elif lot.street_side == "S":
-        green_x, green_y = lot.lot_width_m - lot.side_setback_m - green_w, 0
-    elif lot.street_side == "W":
-        green_x, green_y = lot.lot_width_m - green_w, lot.lot_depth_m - lot.side_setback_m - green_h
+    spine_mid = geometry.pedestrian_spine.centroid
+    spine_x1, spine_y1 = px(spine_mid.x, spine_mid.y)
+    if lot.street_side in ("N", "S"):
+        spine_x2, spine_y2 = px(spine_mid.x, 0)
     else:
-        green_x, green_y = 0, lot.lot_depth_m - lot.side_setback_m - green_h
-    gx, gy = px(max(0, green_x), max(0, green_y))
+        spine_x2, spine_y2 = px(0, spine_mid.y)
     parts.append(
-        f'<rect id="shared-green-space" x="{gx:.1f}" y="{gy:.1f}" width="{green_w * _SCALE_PX_PER_M:.1f}" '
-        f'height="{green_h * _SCALE_PX_PER_M:.1f}" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="3,2"/>'
+        f'<path d="M {spine_x1:.1f},{spine_y1:.1f} L {spine_x2:.1f},{spine_y2:.1f}" '
+        'fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" opacity="0.8"/>'
+    )
+    green_min_x, green_min_y, green_max_x, green_max_y = geometry.shared_green.bounds
+    gx, gy = px(green_min_x, green_min_y)
+    parts.append(
+        f'<polygon id="shared-green-space" points="{polygon_points(geometry.shared_green)}" '
+        'fill="#dcfce7" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="3,2"/>'
     )
     parts.append(
         f'<text x="{gx + 4:.1f}" y="{gy + 12:.1f}" font-size="8" fill="#166534">'
         'Shared green / amenity</text>'
     )
 
-    for i, (px_m, py_m, pw_m, ph_m) in enumerate(parking_spaces, start=1):
-        parking_x, parking_y = px(px_m, py_m)
+    for i, parking_polygon in enumerate(geometry.parking, start=1):
+        parking_min_x, parking_min_y, parking_max_x, parking_max_y = parking_polygon.bounds
+        parking_x, parking_y = px(parking_min_x, parking_min_y)
+        pw_m, ph_m = parking_max_x - parking_min_x, parking_max_y - parking_min_y
         parts.append(
             f'<rect id="parking-space-{i}" x="{parking_x:.1f}" y="{parking_y:.1f}" '
             f'width="{pw_m * _SCALE_PX_PER_M:.1f}" height="{ph_m * _SCALE_PX_PER_M:.1f}" '
@@ -400,25 +397,13 @@ def multi_site_plan_svg(
             'font-size="8" fill="#374151">P</text>'
         )
 
-    if parking_spaces:
-        first_x, first_y, first_w, first_h = parking_spaces[0]
-        access_x = first_x + first_w / 2
-        access_y = first_y + first_h / 2
-        if lot.street_side == "N":
-            access_path = f'M {px(access_x, 0)[0]:.1f},{px(access_x, 0)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
-            label_x, label_y = px(access_x, max(0.5, access_y / 2))
-        elif lot.street_side == "S":
-            access_path = f'M {px(access_x, lot.lot_depth_m)[0]:.1f},{px(access_x, lot.lot_depth_m)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
-            label_x, label_y = px(access_x, lot.lot_depth_m - max(0.5, (lot.lot_depth_m - access_y) / 2))
-        elif lot.street_side == "W":
-            access_path = f'M {px(0, access_y)[0]:.1f},{px(0, access_y)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
-            label_x, label_y = px(max(0.5, access_x / 2), access_y)
-        else:
-            access_path = f'M {px(lot.lot_width_m, access_y)[0]:.1f},{px(lot.lot_width_m, access_y)[1]:.1f} L {px(access_x, access_y)[0]:.1f},{px(access_x, access_y)[1]:.1f}'
-            label_x, label_y = px(lot.lot_width_m - max(0.5, (lot.lot_width_m - access_x) / 2), access_y)
+    if geometry.vehicle_access is not None:
+        access_path = polygon_points(geometry.vehicle_access)
+        access_centroid = geometry.vehicle_access.centroid
+        label_x, label_y = px(access_centroid.x, access_centroid.y)
         parts.append(
-            f'<path id="vehicle-access" d="{access_path}" fill="none" stroke="#94a3b8" '
-            'stroke-width="4" stroke-dasharray="5,3" opacity="0.9"/>'
+            f'<polygon id="vehicle-access" points="{access_path}" fill="#cbd5e1" '
+            'stroke="#64748b" stroke-width="1" opacity="0.9"/>'
         )
         parts.append(
             f'<text x="{label_x:.1f}" y="{label_y - 4:.1f}" text-anchor="middle" font-size="7.5" '
@@ -428,25 +413,17 @@ def multi_site_plan_svg(
     # Green infrastructure is shown as a small shared landscape system rather
     # than an unlabelled leftover rectangle: trees and a rain-garden marker
     # make the sustainable-community intent legible in the visual plan.
-    tree_radius = min(0.55, green_w / 7, green_h / 5)
-    tree_points = [
-        (green_x + green_w * 0.18, green_y + green_h * 0.28),
-        (green_x + green_w * 0.82, green_y + green_h * 0.28),
-        (green_x + green_w * 0.18, green_y + green_h * 0.78),
-        (green_x + green_w * 0.82, green_y + green_h * 0.78),
-    ]
-    for index, (tree_x, tree_y) in enumerate(tree_points, start=1):
-        tree_cx, tree_cy = px(tree_x, tree_y)
+    tree_radius = min(0.55, green_max_x - green_min_x, green_max_y - green_min_y) / 7
+    for index, tree in enumerate(geometry.trees, start=1):
+        tree_cx, tree_cy = px(tree.x, tree.y)
         parts.append(
             f'<circle id="tree-{index}" cx="{tree_cx:.1f}" cy="{tree_cy:.1f}" '
             f'r="{tree_radius * _SCALE_PX_PER_M:.1f}" fill="#86efac" stroke="#15803d" stroke-width="0.9"/>'
         )
-    rain_x = green_x + green_w * 0.5
-    rain_y = green_y + green_h * 0.55
-    rain_cx, rain_cy = px(rain_x, rain_y)
+    rain_cx, rain_cy = px(geometry.rain_garden.centroid.x, geometry.rain_garden.centroid.y)
     parts.append(
         f'<circle id="rain-garden" cx="{rain_cx:.1f}" cy="{rain_cy:.1f}" '
-        f'r="{min(0.65, green_w / 6, green_h / 4) * _SCALE_PX_PER_M:.1f}" '
+        f'r="{geometry.rain_garden.bounds[2] - geometry.rain_garden.centroid.x:.1f}" '
         'fill="#bfdbfe" stroke="#2563eb" stroke-width="0.9" stroke-dasharray="2,2"/>'
     )
     parts.append(
@@ -457,16 +434,15 @@ def multi_site_plan_svg(
     # land-dev site plan's numbered building callouts.
     archetype_order = [a for a in mix if mix.get(a, 0) > 0]
     number_by_archetype = {a: i + 1 for i, a in enumerate(archetype_order)}
-    for p in placements:
+    for p, building in zip(placements, geometry.buildings):
         fill, stroke = _ARCHETYPE_COLORS.get(p.archetype_id, _DEFAULT_COLOR)
-        bx0, by0 = px(p.x_m, p.y_m)
-        bw_px = p.w_m * _SCALE_PX_PER_M
-        bh_px = p.h_m * _SCALE_PX_PER_M
+        bx0, by0 = px(building.bounds[0], building.bounds[1])
+        bw_px = (building.bounds[2] - building.bounds[0]) * _SCALE_PX_PER_M
+        bh_px = (building.bounds[3] - building.bounds[1]) * _SCALE_PX_PER_M
         cx = bx0 + bw_px / 2
         cy = by0 + bh_px / 2
         parts.append(
-            f'<rect x="{bx0:.1f}" y="{by0:.1f}" width="{bw_px:.1f}" height="{bh_px:.1f}" '
-            f'fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
+            f'<polygon points="{polygon_points(building)}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
         )
         if bw_px > 16 and bh_px > 16:
             parts.append(svg_kit.numbered_badge(cx, cy, number_by_archetype.get(p.archetype_id, 0), stroke))

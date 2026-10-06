@@ -9,6 +9,7 @@ from engine.site import (
     site_plan_svg,
 )
 from engine.multi_site import multi_site_plan_svg, place_units
+from engine.site_geometry import build_site_geometry
 
 
 @dataclass
@@ -160,6 +161,20 @@ class SitePlanSvgTests(unittest.TestCase):
 
         self.assertNotIn('id="parking-space-1"', svg)
         self.assertIn("Not allocated on supplied lot", svg)
+
+    def test_development_geometry_is_coherent_and_inside_lot(self):
+        site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
+        mix = {"garden_suite": 2, "three_bhk": 1}
+        placements = place_units(mix, site)
+        parking = [(1.2, 0.25, 2.55, 5.5), (3.9, 0.25, 2.55, 5.5), (20.7, 0.25, 2.55, 5.5)]
+        geometry = build_site_geometry(placements, site, parking)
+
+        self.assertTrue(geometry.lot_boundary.is_valid)
+        self.assertTrue(geometry.buildable_envelope.within(geometry.lot_boundary))
+        self.assertTrue(all(building.within(geometry.lot_boundary) for building in geometry.buildings))
+        self.assertTrue(all(stall.within(geometry.lot_boundary) for stall in geometry.parking))
+        self.assertIsNotNone(geometry.vehicle_access)
+        self.assertEqual(len(geometry.trees), 4)
 
 
 if __name__ == "__main__":
