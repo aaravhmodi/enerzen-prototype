@@ -37,6 +37,9 @@ class DevSpec:
     side_setback_m: float = 1.2
     rear_setback_m: float = 7.5
     weights: dict | None = None
+    min_bedrooms: int = 0               # hard constraint: every dwelling has at least this many
+    max_storeys: int | None = None      # hard constraint: no building taller than this
+    excluded_mechanical_ids: list = field(default_factory=list)  # hard constraint: never use these systems
 
 
 @dataclass
@@ -91,6 +94,7 @@ def _arch_project_spec(arch: Archetype, dev: DevSpec) -> ProjectSpec:
         num_units=1,
         has_ac=True,
         allow_gas=True,
+        excluded_mechanical_ids=list(dev.excluded_mechanical_ids or []),
         footprint_length_m=arch.footprint_length_m,
         footprint_width_m=arch.footprint_width_m,
     )
@@ -123,15 +127,32 @@ def _screening_cost_per_dwelling(arch: Archetype, dev: DevSpec) -> float:
     return baseline_cost(_arch_project_spec(arch, dev))
 
 
+def excluded_types(dev: DevSpec) -> list[dict]:
+    """Allowed catalog types the hard constraints rule out, each with its reason."""
+    out = []
+    for t in dev.allowed_types:
+        arch = ARCHETYPES.get(t)
+        if arch is None:
+            out.append({"id": t, "reason": "Not a catalog housing type"})
+        elif arch.bedrooms < (dev.min_bedrooms or 0):
+            out.append({"id": t, "reason": f"{arch.name} has {arch.bedrooms} bedroom"
+                                           f"{'' if arch.bedrooms == 1 else 's'}; the brief needs at least {dev.min_bedrooms}"})
+        elif dev.max_storeys is not None and arch.storeys > dev.max_storeys:
+            out.append({"id": t, "reason": f"{arch.name} is {arch.storeys} storeys; the brief allows at most {dev.max_storeys}"})
+    return out
+
+
 def screen_dev_mixes(dev: DevSpec, top_n: int = 10) -> list[DevScenario]:
     """Typology engine and 2D site plan generator (flowchart Path B, steps 3-4).
 
     Enumerates mixes of the allowed catalog types, keeps those that fit inside
     the setbacks and whose cheapest-catalog cost is within budget, and orders
-    them by the yield and cost priorities. Building performance is optimized
-    later, only for the scenarios the user approves.
+    them by the yield and cost priorities. Types that fail the brief's hard
+    constraints (see excluded_types) never enter a mix. Building performance
+    is optimized later, only for the scenarios the user approves.
     """
-    valid_types = [t for t in dev.allowed_types if t in ARCHETYPES]
+    dropped = {e["id"] for e in excluded_types(dev)}
+    valid_types = [t for t in dev.allowed_types if t in ARCHETYPES and t not in dropped]
     if not valid_types:
         return []
     site = _make_site_spec(dev)
@@ -194,7 +215,8 @@ def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict]) -> tuple[list[DevMixResu
     count. Returns (ranked feasible results, rejected mixes with a reason).
     """
     site = _make_site_spec(dev)
-    types = sorted({t for mix in mixes for t, c in mix.items() if c > 0 and t in ARCHETYPES})
+    dropped = {e["id"]: e["reason"] for e in excluded_types(dev)}
+    types = sorted({t for mix in mixes for t, c in mix.items() if c > 0 and t in ARCHETYPES and t not in dropped})
     best: dict[str, object] = {}
     for arch_id in types:
         results = optimize(_arch_project_spec(ARCHETYPES[arch_id], dev))
@@ -205,6 +227,10 @@ def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict]) -> tuple[list[DevMixResu
     for mix in mixes:
         mix = {t: c for t, c in mix.items() if c > 0 and t in ARCHETYPES}
         label = _mix_label(mix)
+        failed = [dropped[t] for t in mix if t in dropped]
+        if failed:
+            rejected.append({"units": mix, "mix_label": label, "reason": "; ".join(failed)})
+            continue
         missing = [ARCHETYPES[t].name for t in mix if best.get(t) is None]
         if missing:
             rejected.append({"units": mix, "mix_label": label,
