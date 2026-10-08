@@ -16,12 +16,7 @@ Rates are Canadian 2025 defaults — replace with EnerZen procurement data.
 """
 
 from engine.materials import cost_per_m2 as mat_cost
-
-SURFACE_RATIOS = {
-    1: {"wall": 1.8, "roof": 1.05, "floor": 1.0},
-    2: {"wall": 1.4, "roof": 0.55, "floor": 0.52},
-    3: {"wall": 1.2, "roof": 0.40, "floor": 0.38},
-}
+from engine.geometry import surface_areas
 
 LABOUR_RATE_PER_HR = 75      # CAD, blended panelized installation crew
 
@@ -65,15 +60,9 @@ def estimate_cost(spec, env, window, mech) -> dict:
     whose .cost_m2 is derived from the material layers (engine.materials).
     window, mech: catalog dicts (still list-priced products).
     """
-    ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
-    wall_area   = spec.floor_area_m2 * ratios["wall"]
-    roof_area   = spec.floor_area_m2 * ratios["roof"]
-    floor_area  = (spec.footprint_length_m * spec.footprint_width_m
-                   if getattr(spec, "footprint_length_m", None)
-                   and getattr(spec, "footprint_width_m", None)
-                   else spec.floor_area_m2 * ratios["floor"])
-    window_area = wall_area * spec.window_to_wall_ratio
-    opaque_wall = wall_area - window_area
+    areas = surface_areas(spec)
+    wall_area, roof_area, floor_area = areas["wall"], areas["roof"], areas["floor"]
+    window_area, opaque_wall = areas["window"], areas["opaque_wall"]
 
     wall_material = opaque_wall * env.wall.cost_m2
     roof_material = roof_area * env.roof.cost_m2
@@ -136,15 +125,8 @@ def estimate_schedule(spec, env) -> dict:
     conservative; overlap is possible once the first panels ship).
     Panelized/cassette assemblies install significantly faster (lower hours/m2).
     """
-    ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
-    wall_area  = spec.floor_area_m2 * ratios["wall"]
-    roof_area  = spec.floor_area_m2 * ratios["roof"]
-    floor_area = (spec.footprint_length_m * spec.footprint_width_m
-                  if getattr(spec, "footprint_length_m", None)
-                  and getattr(spec, "footprint_width_m", None)
-                  else spec.floor_area_m2 * ratios["floor"])
-    window_area = wall_area * spec.window_to_wall_ratio
-    opaque_wall = wall_area - window_area
+    areas = surface_areas(spec)
+    roof_area, floor_area, opaque_wall = areas["roof"], areas["floor"], areas["opaque_wall"]
 
     labour_hours = (
         opaque_wall * env.wall_hours_per_m2 +

@@ -31,15 +31,10 @@ def _cheapest(spec):
 SMALL_UNIT = pytest.mark.xfail(strict=True, reason=(
     "Garden Suite (46 m2) is about 50% above a benchmark set for typical-size homes; fixed hot-water "
     "and appliance loads spread over a small floor area raise EUI. Needs a small-dwelling reference."))
-MURB_GEOMETRY = pytest.mark.xfail(strict=True, reason=(
-    "Known gap: each MURB dwelling is simulated on the whole building's footprint and with 2-storey "
-    "wall/roof ratios, so EUI is about 74% high. Pending a decision on the fix."))
-
-
 @pytest.mark.parametrize("arch_id", [
     "three_bhk", "townhouse",
     pytest.param("garden_suite", marks=SMALL_UNIT),
-    pytest.param("murb", marks=MURB_GEOMETRY),
+    "murb",
 ])
 def test_code_built_eui_within_twenty_percent_of_the_benchmark(arch_id):
     eui = _cheapest(_spec(arch_id, "code", mechanical="M1")).eui_kwh_m2_yr

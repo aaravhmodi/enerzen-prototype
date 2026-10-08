@@ -180,8 +180,12 @@ replaced by a HOT2000 wrapper without changing its interface.
 
 ### 3.1 Surface areas
 
-Areas are derived from floor area using fixed ratios per storey count. These are
-generic residential forms, not EnerZen's actual designed units.
+Source: `engine/geometry.py`, the single source the energy, cost, schedule and
+carbon models share.
+
+**Homes of 1–3 storeys** use fixed ratios to floor area for walls and roof.
+These are generic residential forms, not EnerZen's actual designed units. The
+slab is the footprint when one is given.
 
 | Storeys | Wall ratio | Roof ratio | Floor ratio |
 | --- | --- | --- | --- |
@@ -192,10 +196,26 @@ generic residential forms, not EnerZen's actual designed units.
 ```
 wall_area        = floor_area x wall_ratio
 roof_area        = floor_area x roof_ratio
-floor_area_surf  = floor_area x floor_ratio
+floor_area_surf  = footprint, or floor_area x floor_ratio
 window_area      = wall_area x window_to_wall_ratio
 opaque_wall_area = wall_area - window_area
 ```
+
+**Multi-unit buildings, and buildings taller than the ratio table,** are
+measured from their geometry, and one dwelling takes an equal share of the
+whole building's envelope:
+
+```
+wall_area  = 2 x (length + width) x storeys x 2.7 m / dwellings
+roof_area  = slab_area = length x width / dwellings
+```
+
+For the MURB (19 x 18 m, 5 storeys, 20 homes) each 65 m2 apartment carries
+50 m2 of wall and 17 m2 each of roof and slab. Until 2026-10-08 each MURB
+apartment was simulated on the whole 342 m2 slab with 2-storey ratios, which
+put its energy use 74% above the code-built benchmark; it now sits 10% below
+it, as expected for an apartment with shared walls
+(`tests/validation/test_energy.py`).
 
 ### 3.2 Heat loss coefficient (UA)
 

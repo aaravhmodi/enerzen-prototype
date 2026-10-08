@@ -10,6 +10,7 @@ stays the same.
 import random
 from dataclasses import dataclass
 from typing import Optional
+from engine.geometry import STOREY_HEIGHT_M, surface_areas
 
 
 @dataclass
@@ -23,6 +24,7 @@ class BuildingSpec:
     footprint_length_m: float | None = None
     footprint_width_m: float | None = None
     terrain_exposure: str = "suburban"  # see SHIELDING_MULTIPLIER
+    num_units: int = 1  # dwellings sharing the footprint (MURB); this spec is one of them
 
 
 @dataclass
@@ -145,13 +147,6 @@ def solar_gain_kwh(window_area_m2: float, shgc: float, orientation: str) -> floa
                   * VERTICAL_IRRADIANCE.get(facing, 260) * SHADING_FACTOR)
     return total
 
-# Envelope surface area ratios relative to floor area (typical residential forms)
-SURFACE_RATIOS = {
-    1: {"wall": 1.8, "roof": 1.05, "floor": 1.0},   # single storey
-    2: {"wall": 1.4, "roof": 0.55, "floor": 0.52},  # two storey
-    3: {"wall": 1.2, "roof": 0.40, "floor": 0.38},  # three storey
-}
-
 
 def simulate(spec: BuildingSpec, config: AssemblyConfig,
              weather_factor: float = 1.0, infiltration_factor: float = 1.0,
@@ -169,14 +164,9 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     cdd = climate["cdd"] * weather_factor
     tedi_threshold = climate["nzr_tedi"]
 
-    ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
-    wall_area = spec.floor_area_m2 * ratios["wall"]
-    roof_area = spec.floor_area_m2 * ratios["roof"]
-    floor_area = (spec.footprint_length_m * spec.footprint_width_m
-                  if spec.footprint_length_m and spec.footprint_width_m
-                  else spec.floor_area_m2 * ratios["floor"])
-    window_area = wall_area * spec.window_to_wall_ratio
-    opaque_wall_area = wall_area - window_area
+    areas = surface_areas(spec)
+    roof_area, floor_area = areas["roof"], areas["floor"]
+    window_area, opaque_wall_area = areas["window"], areas["opaque_wall"]
 
     # Transmission losses (W/K)
     ua_wall    = opaque_wall_area * config.wall_u
@@ -188,7 +178,7 @@ def simulate(spec: BuildingSpec, config: AssemblyConfig,
     # thumb), corrected for site wind/terrain exposure (see SHIELDING_MULTIPLIER).
     shielding = SHIELDING_MULTIPLIER.get(spec.terrain_exposure, 1.0)
     ach_natural = spec.infiltration_ach50 * infiltration_factor * shielding / 20
-    volume_m3 = spec.floor_area_m2 * 2.7
+    volume_m3 = spec.floor_area_m2 * STOREY_HEIGHT_M
     ua_infiltration = (ach_natural * volume_m3 * 0.33)  # W/K, 0.33 = air heat capacity factor
 
     # HRV recovery reduces ventilation load

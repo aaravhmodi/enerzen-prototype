@@ -91,7 +91,7 @@ def _arch_project_spec(arch: Archetype, dev: DevSpec) -> ProjectSpec:
         target_label=dev.target_label,
         solar_option_id="PV0",
         location=dev.location,
-        num_units=1,
+        num_units=arch.units_per_building,  # one dwelling's share of the building envelope
         has_ac=True,
         allow_gas=True,
         excluded_mechanical_ids=list(dev.excluded_mechanical_ids or []),

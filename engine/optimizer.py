@@ -275,6 +275,7 @@ def optimize_with_gate(spec: ProjectSpec, weights: Optional[dict] = None) -> tup
         footprint_length_m=spec.footprint_length_m,
         footprint_width_m=spec.footprint_width_m,
         terrain_exposure=loc.terrain_exposure if loc else "suburban",
+        num_units=spec.num_units,
     )
 
     # Roof joist depth is set by the structural snow tier (from location).

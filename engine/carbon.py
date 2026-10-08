@@ -5,30 +5,18 @@ Embodied carbon uses EPD-based values stored in the assembly catalog.
 Operational carbon uses Ontario grid emission factor (kgCO2e/kWh).
 """
 
+from engine.geometry import surface_areas
+
 # Ontario grid intensity: 73.8 gCO2e/kWh in 2024 (up 25% YoY as gas generation
 # grew) — The Atmospheric Fund, Ontario Emissions Factors 2024.
 ONTARIO_GRID_FACTOR = 0.074  # kgCO2e/kWh
 GAS_FACTOR          = 0.19   # kgCO2e/kWh equivalent for natural gas combustion
 
 
-# Surface area ratios relative to floor area (mirrors simulator.py)
-SURFACE_RATIOS = {
-    1: {"wall": 1.8, "roof": 1.05, "floor": 1.0},
-    2: {"wall": 1.4, "roof": 0.55, "floor": 0.52},
-    3: {"wall": 1.2, "roof": 0.40, "floor": 0.38},
-}
-
-
 def calculate_carbon(spec, env, window, mech, energy_result) -> dict:
-    ratios = SURFACE_RATIOS.get(spec.storeys, SURFACE_RATIOS[2])
-    wall_area   = spec.floor_area_m2 * ratios["wall"]
-    roof_area   = spec.floor_area_m2 * ratios["roof"]
-    floor_area  = (spec.footprint_length_m * spec.footprint_width_m
-                   if getattr(spec, "footprint_length_m", None)
-                   and getattr(spec, "footprint_width_m", None)
-                   else spec.floor_area_m2 * ratios["floor"])
-    window_area = wall_area * spec.window_to_wall_ratio
-    opaque_wall = wall_area - window_area
+    areas = surface_areas(spec)
+    roof_area, floor_area = areas["roof"], areas["floor"]
+    window_area, opaque_wall = areas["window"], areas["opaque_wall"]
 
     wall_c  = opaque_wall * env.wall.co2_m2
     roof_c  = roof_area   * env.roof.co2_m2

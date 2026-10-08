@@ -13,10 +13,10 @@ reruns it (`python -m pytest tests/validation -q`).
 | Energy: typical homes vs code-built benchmark | +2% (3-Bedroom Unit, Townhouse) | Pass |
 | Energy: falls as the target rises | All four designs | Pass |
 | Energy: Garden Suite vs benchmark | +50% | Outside limit; small-dwelling effect, needs a size-matched reference |
-| Energy: MURB vs benchmark | +74% | **Fail: modelling bug found, decision needed** |
+| Energy: MURB vs benchmark | −10% after the fix (was +74%) | Pass (fixed 2026-10-08) |
 | Embodied carbon: Garden Suite | 140–150 kgCO2e/m2 | Pass |
 | Embodied carbon: 2-storey homes | 73–87 kgCO2e/m2 vs about 191 | **Fail: scope gap, decision needed** |
-| Embodied carbon: MURB | 239 (code), 452 (NZR) | **Fail: same MURB modelling bug** |
+| Embodied carbon: MURB | 41–44 after the geometry fix (was 239 / 452) | **Low: carbon scope gap (fix in progress)** |
 | Cost, construction time | — | Blocked on EnerZen data |
 
 ## 1. Effective R-values (assembly catalog)
@@ -104,7 +104,9 @@ the code, Net Zero Ready and Passive House targets.
    energy per m2 than a detached home, not 74% more. Path B MURB energy,
    operating cost and carbon are overstated until this is fixed.
 
-**Decision needed (user).** Fix the MURB geometry, for example by simulating
+**Resolved 2026-10-08.** The user approved the fix: a dwelling now takes an
+equal share of the whole building's geometric envelope (`engine/geometry.py`),
+and the MURB lands at 116.7 kWh/m2/yr (−10%). Original note: fix the MURB geometry, for example by simulating
 the whole building from its footprint, storeys and height and reporting per
 dwelling. This changes MURB results and, if wall and roof areas come from
 geometry for every design, every design's results slightly.
