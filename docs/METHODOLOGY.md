@@ -74,6 +74,11 @@ outcomes was found during development (see the project's site-plan research
 notes), so this section's rules are derived from published passive-solar
 design guidance rather than fitted to Ontario-specific data.
 
+**Pickering data is city-wide context, not a site review.** The pilot snapshot
+(section 5.3) adds municipal inventories and a small multifamily energy
+benchmark. No pilot parcel is selected, so zoning, setbacks and permitted uses
+are not checked.
+
 ---
 
 ## 2. What the engine does
@@ -507,6 +512,34 @@ The placeholder mapping is 10 / 12 / 14 inch joist depth for Option 1 / Option 2
 / out-of-range. Deeper joists hold more insulation, so the selection changes
 roof R-value and cost. This is not structural design: span, spacing, dead load,
 slope, species/grade, product capacity and deflection still require an engineer.
+
+### 5.3 Municipal context (Pickering pilot)
+
+Sources: `engine/municipal.py`, `data/pickering.json`,
+`scripts/import_pickering.py`
+
+The pilot is in Pickering, Ontario, and no parcel has been selected yet. Picking
+Pickering (or Pickering (Dunbarton)) attaches a versioned, city-wide snapshot
+to the location detail. It does **not** feed any calculation. It is shown as
+context only.
+
+- **City inventories** — counts of building footprints, parks,
+  neighbourhoods and residential development records, from the City of
+  Pickering open-data GIS service. The service's parcel-boundary layer returns
+  a single feature, so it is not treated as lot geometry; lot dimensions and
+  setbacks remain user assumptions.
+- **Multifamily energy benchmark** — Pickering rows of the Ontario 2024
+  Energy and Water Reporting and Benchmarking (EWRB) dataset, property type
+  "Multifamily Housing", using weather-normalized site EUI (`WN_Site_EUI1`,
+  GJ/m2) converted as `kWh/m2 = GJ/m2 / 0.0036`. Nine buildings qualify; the
+  median is about 188 kWh/m2/yr (P25 150, P75 272). These are self-reported
+  large buildings, so the figure is a local reference point, not a calibration
+  or a target for new low-rise homes.
+- **Zoning** — not looked up. Zoning status is reported as `not_checked` until a
+  parcel is chosen and checked against Pickering's zoning by-laws.
+
+The snapshot is refreshed by running `scripts/import_pickering.py`, which
+prints the new JSON for review before `data/pickering.json` is replaced.
 
 ---
 
