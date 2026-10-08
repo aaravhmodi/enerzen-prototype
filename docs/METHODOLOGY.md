@@ -847,13 +847,35 @@ The performance target sets the blower-door target used by the energy model.
 ### 11.2 Filtering
 
 A configuration is discarded if its total cost (envelope plus PV) exceeds the
-budget. If the target is Net Zero Ready, configurations whose deterministic EUI
-misses the threshold are also discarded.
+budget. Otherwise, if the target is Net Zero Ready or Passive House, a
+configuration whose TEDI misses the target's threshold is discarded
+(`optimizer.target_performance_passes`; the code target has no TEDI gate).
+Only configurations that pass both proceed to ranking.
+
+The gate reports what it did (`optimizer.optimize_with_gate`, returned by
+`/optimize` as `gate`): configurations evaluated, passed, rejected over
+budget and rejected for missing the target. A configuration over budget is
+counted there even if it would also miss the target, so
+
+```
+evaluated = passed + over_budget + missed_target
+```
+
+When nothing passes, the error names the same breakdown, so the user can see
+whether the budget or the target is the binding constraint.
 
 Hard constraints from the brief act before any configuration is built:
 mechanical systems the user excluded are never considered, nor gas systems
 when the project is all-electric (`optimizer.allowed_mechanical`). The cost
 floor used to screen development scenarios applies the same exclusions.
+
+On the development path (`dev_optimizer.excluded_types`), the brief can also
+set a minimum bedroom count and a maximum storey count. A catalog type that
+fails either never enters a housing mix, and `/dev-scenarios` lists it under
+`excluded_types` with the reason. Bedroom counts are per dwelling: Garden
+Suite 1, 3-Bedroom Unit 3, Townhouse 3, and MURB 1 (its units are 1- and
+2-bedroom per `MURB.pdf`, so 1 is the guaranteed minimum). A custom Path A
+brief has no bedroom model, so its bedroom count is not verified.
 
 ### 11.3 Pareto ranking
 

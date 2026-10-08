@@ -232,6 +232,15 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     weights: dict with keys cost, speed, carbon, energy (must sum to 1.0)
              defaults to equal weighting
     """
+    return optimize_with_gate(spec, weights)[0]
+
+
+def optimize_with_gate(spec: ProjectSpec, weights: Optional[dict] = None) -> tuple[list[ConfigResult], dict]:
+    """optimize(), plus the hard-constraint gate breakdown: how many
+    configurations were evaluated, passed, rejected over budget and rejected
+    for missing the performance target. A configuration over budget is counted
+    there even if it also misses the target, so the counts add up:
+    evaluated = passed + over_budget + missed_target."""
     if weights is None:
         weights = {"cost": 0.25, "speed": 0.25, "carbon": 0.25, "energy": 0.25}
 
@@ -275,6 +284,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     mech_options = allowed_mechanical(spec, catalog)
 
     all_configs = []
+    gate = {"evaluated": 0, "passed": 0, "over_budget": 0, "missed_target": 0}
     for wall_opt, roof_opt, floor_opt, window, mech, w_rigid, r_rigid, f_rigid, env in _configurations(
             spec, loc, joist_depth, catalog["windows"], mech_options):
             wall_asm, roof_asm, floor_asm = env.wall, env.roof, env.floor
@@ -324,10 +334,14 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
             net_eui = net_operational / spec.floor_area_m2
             total_cost = cost_data["total_per_unit"] + solar["cost"]
 
+            gate["evaluated"] += 1
             if total_cost > spec.budget_per_unit:
+                gate["over_budget"] += 1
                 continue
             if not target_performance_passes(spec, energy):
+                gate["missed_target"] += 1
                 continue
+            gate["passed"] += 1
 
             utility = monthly_utility(energy, mech["type"], solar["annual_generation_kwh"], rates)
             lcc = lifecycle_cost(total_cost, utility["annual_total"], rebate=solar_rebate, years=30)
@@ -387,7 +401,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
             all_configs.append(result)
 
     if not all_configs:
-        return []
+        return [], gate
 
     # Normalize objectives for weighted scoring
     costs   = [r.construction_cost for r in all_configs]
@@ -415,4 +429,4 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
         if r._assembly is not None:
             r.nzr_probability = nzr_probability(building, r._assembly)
 
-    return ranked
+    return ranked, gate

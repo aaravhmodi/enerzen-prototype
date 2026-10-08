@@ -21,11 +21,12 @@ from engine.ai import (
     parse_freeform_spec,
 )
 from engine.archetypes import archetype_list
-from engine.dev_optimizer import DevSpec, evaluate_dev_mixes, optimize_dev_mix, screen_dev_mixes
+from engine.dev_optimizer import (DevSpec, evaluate_dev_mixes, excluded_types, optimize_dev_mix,
+                                  screen_dev_mixes)
 from engine.location import location_names, resolve as resolve_location
 from engine.municipal import is_pickering, pickering_context
 from engine.multi_site import multi_site_plan_svg, place_units
-from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize
+from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize, optimize_with_gate
 from engine.report import generate_results_pdf
 from engine.soft import SOFT_COST_FRACTION, soft_cost, soft_timeline
 from engine.regulatory import toronto_zoning_lookup
@@ -61,6 +62,7 @@ class ProjectSpecIn(BaseModel):
     num_units: int = 1
     has_ac: bool = True
     allow_gas: bool = True
+    excluded_mechanical_ids: list[str] = []
     footprint_length_m: Optional[float] = None
     footprint_width_m: Optional[float] = None
 
@@ -120,6 +122,9 @@ class DevSpecIn(BaseModel):
     allowed_types: list[str]
     orientation: str = "S"
     weights: Optional[dict] = None
+    min_bedrooms: int = 0
+    max_storeys: Optional[int] = None
+    excluded_mechanical_ids: list[str] = []
 
     def to_engine_spec(self) -> DevSpec:
         return DevSpec(**self.model_dump())
@@ -172,6 +177,13 @@ def _validate_mechanical_selection(spec: ProjectSpecIn) -> None:
         raise HTTPException(422, f"Unknown mechanical option {spec.mechanical_option_id!r}.")
     if not spec.allow_gas and option.get("type") == "gas":
         raise HTTPException(422, "The selected mechanical option burns natural gas, but gas systems are disabled.")
+    if option["id"] in spec.excluded_mechanical_ids:
+        raise HTTPException(422, "The selected mechanical option is one the brief excludes.")
+
+
+def _gate_message(gate: dict) -> str:
+    return (f"No configurations fit the given budget and target: {gate['evaluated']} evaluated, "
+            f"{gate['over_budget']} over budget, {gate['missed_target']} missed the target.")
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
@@ -269,11 +281,12 @@ def run_optimize(req: OptimizeRequest):
         if not layout.fits_on_lot or not layout.setbacks_ok:
             notes = "; ".join(layout.notes) or "The building does not fit within the supplied site constraints."
             raise HTTPException(422, f"Site feasibility gate failed: {notes}")
-    results = optimize(spec, req.weights)
+    results, gate = optimize_with_gate(spec, req.weights)
     if not results:
-        raise HTTPException(422, "No configurations fit the given budget and target.")
+        raise HTTPException(422, _gate_message(gate))
     return {
         "results": [_serialize_result(r) for r in results[: req.top_n]],
+        "gate": gate,
         "soft": {"soft_cost_fraction": SOFT_COST_FRACTION, "timeline": _spec_soft_timeline(spec)},
     }
 
@@ -348,11 +361,15 @@ def run_dev_scenarios(req: DevOptimizeRequest):
     building performance is optimized."""
     dev = req.spec.to_engine_spec()
     _validate_location(dev.location)
+    excluded = excluded_types(dev)
+    if dev.allowed_types and len(excluded) == len(dev.allowed_types):
+        raise HTTPException(422, "Every selected housing type is ruled out by the brief: "
+                                 + "; ".join(e["reason"] for e in excluded) + ".")
     scenarios = screen_dev_mixes(dev, req.top_n)
     if not scenarios:
         raise HTTPException(422, "No housing mix fits inside the setbacks within the budget. "
                                  "Try a larger lot, smaller setbacks, another housing type or a higher budget.")
-    return {"scenarios": [dataclasses.asdict(s) for s in scenarios]}
+    return {"scenarios": [dataclasses.asdict(s) for s in scenarios], "excluded_types": excluded}
 
 
 @app.post("/dev-optimize")
