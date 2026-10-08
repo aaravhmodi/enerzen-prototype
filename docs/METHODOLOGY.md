@@ -625,6 +625,30 @@ PV is added on top of the construction cost in the optimizer:
 total_cost = construction_cost + pv_capacity_kw x pv_cost_per_kw
 ```
 
+### 6.9 Soft costs and soft timeline (Class D)
+
+Source: `engine/soft.py`. Defaults until EnerZen supplies its own allowances.
+
+**Soft costs** = 25% of hard construction cost, covering consultants, permits
+and development charges, legal, insurance and financing. This is a common GTA
+development pro forma rule of thumb; CMHC treats soft costs as a separate line
+from hard costs. Development charges alone vary widely by municipality (CMHC
+reports up to 9% of a single-detached home's cost in Toronto), so this
+allowance is the first number to replace with real data. Total project cost =
+hard cost + soft costs. The budget gate (section 11.2) still compares against
+hard cost.
+
+**Soft timeline** (weeks from brief to building permit, assuming complete
+applications and no rezoning):
+
+| Phase | Rule | Source |
+|-------|------|--------|
+| Design and engineering | 8 weeks; 16 for Part 3 buildings or more than 10 units | EnerZen default assumption |
+| Site plan approval | 0 for 10 or fewer residential units; otherwise 60 days | Planning Act: Bill 23 exemption; Bill 109 60-day timeline |
+| Building permit review | 10 business days for houses, 15 for row houses and other Part 9 buildings, 20 for Part 3 (over 3 storeys or over 600 m2) | Ontario Building Code review periods |
+
+The hard construction timeline is the build schedule in section 7.
+
 ---
 
 ## 7. Build schedule

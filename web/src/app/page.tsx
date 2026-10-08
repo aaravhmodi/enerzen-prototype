@@ -11,6 +11,7 @@ import Architecture from "@/components/Architecture";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
 import {
   ConfigResult,
+  SoftSummary,
   SiteLayout,
   runOptimize,
   runReport,
@@ -43,6 +44,7 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ConfigResult[] | null>(null);
+  const [soft, setSoft] = useState<SoftSummary | null>(null);
   const [siteData, setSiteData] = useState<{
     layout: SiteLayout;
     svg: string;
@@ -78,6 +80,7 @@ export default function Home() {
         pause(MIN_EXPLORE_MS),
       ]);
       setResults(optimizeRes.results);
+      setSoft(optimizeRes.soft);
       setViewResults(true);
       setSiteData({
         layout: siteRes.layout,
@@ -503,7 +506,7 @@ export default function Home() {
                       : "Download feasibility report ↓"}
                   </button>
                 </div>
-                <ResultsPanel results={results} />
+                <ResultsPanel results={results} soft={soft} />
                 {siteData && (
                   <div className="reveal-item reveal-plan" style={at(2.3)}>
                     <SitePlanView

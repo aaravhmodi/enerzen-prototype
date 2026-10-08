@@ -137,7 +137,7 @@ def test_report_uses_selected_weights_and_site(monkeypatch):
 
     monkeypatch.setattr(api_main, "optimize", fake_optimize)
     monkeypatch.setattr(api_main, "_report_labels", lambda *args: {})
-    monkeypatch.setattr(api_main, "generate_results_pdf", lambda *args: b"pdf")
+    monkeypatch.setattr(api_main, "generate_results_pdf", lambda *args, **kwargs: b"pdf")
 
     result = run_report(ReportRequest(spec=spec, site=site, weights=weights))
 

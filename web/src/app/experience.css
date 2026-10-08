@@ -1124,3 +1124,5 @@ h2:focus {
   .exploring-art { order: -1; max-width: 420px; width: 100%; margin: auto; }
   .exploring h1 { letter-spacing: -2px; }
 }
+.results-reveal .reveal-tiles > :nth-child(9) { animation-delay: 1.96s; }
+.results-reveal .reveal-tiles > :nth-child(10) { animation-delay: 2.03s; }

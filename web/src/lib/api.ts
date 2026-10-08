@@ -64,8 +64,21 @@ export type ConfigResult = {
   avg_monthly_utility: number;
   lifecycle_cost_30yr: number;
   lifecycle_cost_20yr: number;
+  soft_cost: number;
+  total_project_cost: number;
   [key: string]: unknown;
 };
+
+export type SoftTimeline = {
+  design_engineering_weeks: number;
+  site_plan_weeks: number;
+  building_permit_weeks: number;
+  total_weeks: number;
+  permit_class: string;
+  site_plan_exempt: boolean;
+};
+
+export type SoftSummary = { soft_cost_fraction: number; timeline: SoftTimeline };
 
 export type SiteLayout = {
   building_x_m: number;
@@ -189,7 +202,7 @@ export async function runOptimize(
   weights?: OptimizationWeights,
   top_n = 20,
   site?: SiteSpecInput
-): Promise<{ results: ConfigResult[] }> {
+): Promise<{ results: ConfigResult[]; soft: SoftSummary }> {
   return postJson("/optimize", { spec, weights, top_n, site });
 }
 

@@ -27,6 +27,7 @@ from engine.municipal import is_pickering, pickering_context
 from engine.multi_site import multi_site_plan_svg, place_units
 from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize
 from engine.report import generate_results_pdf
+from engine.soft import SOFT_COST_FRACTION, soft_cost, soft_timeline
 from engine.regulatory import toronto_zoning_lookup
 from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
 
@@ -140,7 +141,14 @@ def _serialize_result(result: ConfigResult) -> dict:
         k: v for k, v in items if k != "_assembly"
     })
     data.pop("_assembly", None)
+    data["soft_cost"] = soft_cost(result.construction_cost)
+    data["total_project_cost"] = round(result.construction_cost + data["soft_cost"])
     return data
+
+
+def _spec_soft_timeline(spec) -> dict:
+    footprint = (spec.footprint_length_m or 0) * (spec.footprint_width_m or 0) or spec.floor_area_m2 / max(spec.storeys, 1)
+    return soft_timeline(spec.typology, spec.storeys, footprint, spec.num_units).as_dict()
 
 
 def _serialize_layout(layout: SiteLayout) -> dict:
@@ -263,7 +271,10 @@ def run_optimize(req: OptimizeRequest):
     results = optimize(spec, req.weights)
     if not results:
         raise HTTPException(422, "No configurations fit the given budget and target.")
-    return {"results": [_serialize_result(r) for r in results[: req.top_n]]}
+    return {
+        "results": [_serialize_result(r) for r in results[: req.top_n]],
+        "soft": {"soft_cost_fraction": SOFT_COST_FRACTION, "timeline": _spec_soft_timeline(spec)},
+    }
 
 
 @app.post("/parse-spec")
@@ -321,7 +332,7 @@ def run_report(req: ReportRequest):
     catalog = load_catalog()
     labels = _report_labels(top, spec, catalog)
 
-    pdf_bytes = generate_results_pdf(spec, top, resolved, labels)
+    pdf_bytes = generate_results_pdf(spec, top, resolved, labels, soft_timeline=_spec_soft_timeline(spec))
     return {"pdf_b64": base64.b64encode(pdf_bytes).decode("ascii")}
 
 

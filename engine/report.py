@@ -12,6 +12,8 @@ from reportlab.platypus import (
     BaseDocTemplate, Frame, PageTemplate, Paragraph, Spacer, Table, TableStyle,
 )
 
+from engine.soft import SOFT_COST_FRACTION, soft_cost
+
 INK = colors.HexColor("#18211D")
 MUTED = colors.HexColor("#66706A")
 FOREST = colors.HexColor("#214E3B")
@@ -67,7 +69,7 @@ def _table(rows, widths=None, header=True):
     return table
 
 
-def generate_results_pdf(spec, result, location, labels: dict) -> bytes:
+def generate_results_pdf(spec, result, location, labels: dict, soft_timeline: dict | None = None) -> bytes:
     """Return a complete results report as PDF bytes."""
     out = BytesIO()
     styles = _styles()
@@ -152,9 +154,27 @@ def generate_results_pdf(spec, result, location, labels: dict) -> bytes:
         ["Mechanical", _money(cb["mechanical_cost"])],
         ["Fit-out and services", _money(cb["fitout_cost"])],
         ["Contingency", _money(cb["contingency_cost"])],
-        ["Construction total", _money(cb["total_per_unit"])],
+        ["Construction total (hard cost)", _money(cb["total_per_unit"])],
+        [f"Soft costs, Class D allowance ({SOFT_COST_FRACTION:.0%} of hard cost)", _money(soft_cost(cb["total_per_unit"]))],
+        ["Total project cost, Class D", _money(cb["total_per_unit"] + soft_cost(cb["total_per_unit"]))],
     ]
-    story += [Paragraph("Cost plan", styles["h2"]), _table(cost_rows, [5.8 * inch, 1.4 * inch])]
+    story += [Paragraph("Cost plan", styles["h2"]), _table(cost_rows, [5.8 * inch, 1.4 * inch]), Paragraph(
+        "Class D feasibility estimate, not a construction quotation. Soft costs cover consultants, permits and "
+        "development charges, legal, insurance and financing, as a default allowance until EnerZen data is available.",
+        styles["small"])]
+
+    if soft_timeline:
+        story += [Paragraph("Project timeline", styles["h2"]), _table([
+            ["Phase", "Weeks", "Basis"],
+            ["Design and engineering", f"{soft_timeline['design_engineering_weeks']:g}", "EnerZen default assumption"],
+            ["Site plan approval", f"{soft_timeline['site_plan_weeks']:g}",
+             "Exempt: 10 or fewer units (Planning Act)" if soft_timeline["site_plan_exempt"]
+             else "60-day Planning Act timeline"],
+            ["Building permit review", f"{soft_timeline['building_permit_weeks']:g}",
+             f"Ontario Building Code review period ({soft_timeline['permit_class'].replace('part', 'Part ')})"],
+            ["Soft timeline total", f"{soft_timeline['total_weeks']:g}", "Assumes complete applications, no rezoning"],
+            ["Fabrication and site work to envelope close", f"{result.construction_weeks:g}", "Engine build schedule"],
+        ], [3.0 * inch, 0.9 * inch, 3.3 * inch])]
 
     floor = result.assembly_breakdown["floor"]
     if "eps_area_m2" in floor:

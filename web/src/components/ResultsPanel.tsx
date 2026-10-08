@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { ConfigResult } from "@/lib/api";
+import type { ConfigResult, SoftSummary } from "@/lib/api";
 import { fmtEui, fmtCarbon, fmtCad } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
@@ -41,7 +41,7 @@ function Metric({
   );
 }
 
-export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
+export default function ResultsPanel({ results, soft }: { results: ConfigResult[]; soft?: SoftSummary | null }) {
   const top = results[0];
   const carbonPercent = Math.min(100, Math.max(0, 100 - top.embodied_carbon_kg_co2e_m2 / 5));
   const euiPercent = Math.min(100, Math.max(0, 100 - top.eui_kwh_m2_yr));
@@ -152,6 +152,25 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
               : `Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. Target threshold here is ${top.tedi_threshold_kwh_m2_yr} kWh/m²/yr.`
           }
         />
+        {soft && (
+          <>
+            <Metric
+              label="Soft costs (Class D)"
+              value={fmtCad(top.soft_cost)}
+              tip={`Default allowance of ${Math.round(soft.soft_cost_fraction * 100)}% of hard cost for consultants, permits and development charges, legal, insurance and financing. Replace with EnerZen data when available.`}
+            />
+            <Metric
+              label="Total project cost"
+              value={fmtCad(top.total_project_cost)}
+              tip="Class D feasibility estimate: construction (hard) cost plus the soft-cost allowance. Not a construction quotation."
+            />
+            <Metric
+              label="Pre-construction"
+              value={`${soft.timeline.total_weeks} wk`}
+              tip={`Design and engineering ${soft.timeline.design_engineering_weeks} wk (EnerZen default), site plan ${soft.timeline.site_plan_exempt ? "exempt for 10 or fewer units" : `${soft.timeline.site_plan_weeks} wk (60-day Planning Act timeline)`}, building permit ${soft.timeline.building_permit_weeks} wk (Ontario Building Code review period). Assumes complete applications and no rezoning.`}
+            />
+          </>
+        )}
         <Metric
           label="MEUI"
           value={fmtEui(top.meui_kwh_m2_yr)}
