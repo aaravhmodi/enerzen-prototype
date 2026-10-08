@@ -850,6 +850,11 @@ A configuration is discarded if its total cost (envelope plus PV) exceeds the
 budget. If the target is Net Zero Ready, configurations whose deterministic EUI
 misses the threshold are also discarded.
 
+Hard constraints from the brief act before any configuration is built:
+mechanical systems the user excluded are never considered, nor gas systems
+when the project is all-electric (`optimizer.allowed_mechanical`). The cost
+floor used to screen development scenarios applies the same exclusions.
+
 ### 11.3 Pareto ranking
 
 Configuration B **dominates** A when B is at least as good as A on all four

@@ -45,6 +45,7 @@ class ProjectSpec:
     num_units: int = 1
     has_ac: bool = True     # add central AC when the heating plant is a furnace
     allow_gas: bool = True  # False = all-electric: gas systems excluded
+    excluded_mechanical_ids: list = field(default_factory=list)  # hard constraint: never use these systems
     footprint_length_m: float | None = None
     footprint_width_m: float | None = None
 
@@ -196,6 +197,19 @@ def _configurations(spec: ProjectSpec, loc, joist_depth: float, windows: list, m
             yield wall_opt, roof_opt, floor_opt, window, mech, w_rigid, r_rigid, f_rigid, env
 
 
+def allowed_mechanical(spec: ProjectSpec, catalog: dict, honour_selection: bool = True) -> list[dict]:
+    """Mechanical systems the brief permits: no gas when the project is
+    all-electric, none the user excluded, and only the fixed selection when one
+    is made (the cost floor ignores the selection so it stays a true floor)."""
+    excluded = set(spec.excluded_mechanical_ids or [])
+    return [
+        m for m in catalog["mechanical"]
+        if (spec.allow_gas or m["type"] != "gas")
+        and m["id"] not in excluded
+        and (not honour_selection or spec.mechanical_option_id is None or m["id"] == spec.mechanical_option_id)
+    ]
+
+
 def baseline_cost(spec: ProjectSpec) -> float:
     """Hard cost of the cheapest catalog configuration, ignoring the energy
     target. Nothing the optimizer returns can cost less, so it is a safe
@@ -203,7 +217,7 @@ def baseline_cost(spec: ProjectSpec) -> float:
     catalog = load_catalog()
     loc = resolve_location(spec.location) if spec.location else None
     joist_depth = loc.joist_depth_in if loc else catalog["snow"]["tiers"][0]["joist_depth_in"]
-    mech_options = [m for m in catalog["mechanical"] if spec.allow_gas or m["type"] != "gas"]
+    mech_options = allowed_mechanical(spec, catalog, honour_selection=False)
     return min(
         estimate_cost(spec, env, window, mech)["total_per_unit"]
         for _wall, _roof, _floor, window, mech, _w, _r, _f, env
@@ -258,9 +272,7 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
     # Without a location, default to the lightest tier.
     joist_depth = loc.joist_depth_in if loc else catalog["snow"]["tiers"][0]["joist_depth_in"]
 
-    mech_options = [m for m in catalog["mechanical"]
-                    if (spec.allow_gas or m["type"] != "gas")
-                    and (spec.mechanical_option_id is None or m["id"] == spec.mechanical_option_id)]
+    mech_options = allowed_mechanical(spec, catalog)
 
     all_configs = []
     for wall_opt, roof_opt, floor_opt, window, mech, w_rigid, r_rigid, f_rigid, env in _configurations(
