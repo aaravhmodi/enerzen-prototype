@@ -19,6 +19,7 @@ export default function WizardChrome({
   isLastStep = false,
   submitting = false,
   iteration,
+  submitLabel = "Generate recommendation",
 }: {
   steps: WizardStep[];
   currentStep: number;
@@ -33,6 +34,7 @@ export default function WizardChrome({
   isLastStep?: boolean;
   submitting?: boolean;
   iteration?: string;
+  submitLabel?: string;
 }) {
   return (
     <div className="wizard-shell panel overflow-hidden">
@@ -84,7 +86,7 @@ export default function WizardChrome({
             disabled={nextDisabled || submitting}
             className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-900/20 transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {submitting ? "Building scenarios…" : "Generate community plan"}
+            {submitting ? "Working…" : submitLabel}
           </button>
         ) : (
           <button

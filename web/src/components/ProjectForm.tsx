@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  fetchCatalog,
   fetchArchetypes,
+  fetchCatalog,
   fetchLocations,
   runParseSpec,
   ArchetypeInfo,
@@ -12,6 +12,7 @@ import {
   SiteSpecInput,
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
+import WizardChrome, { WizardStep } from "@/components/WizardChrome";
 
 export type FormState = {
   spec: ProjectSpecInput;
@@ -48,13 +49,16 @@ const DEFAULT_STATE: FormState = {
     latitude: null,
     longitude: null,
   },
-  weights: {
-    cost: 25,
-    speed: 25,
-    carbon: 25,
-    energy: 25,
-  },
+  weights: { cost: 25, speed: 25, carbon: 25, energy: 25 },
 };
+
+const STEPS: WizardStep[] = [
+  { label: "Brief", caption: "Project inputs" },
+  { label: "Site", caption: "Planning context" },
+  { label: "Design", caption: "Catalog selection" },
+  { label: "Systems", caption: "Performance setup" },
+  { label: "Priorities", caption: "Review + rank" },
+];
 
 export default function ProjectForm({
   onSubmit,
@@ -64,6 +68,7 @@ export default function ProjectForm({
   submitting: boolean;
 }) {
   const [state, setState] = useState<FormState>(DEFAULT_STATE);
+  const [step, setStep] = useState(0);
   const [locations, setLocations] = useState<string[]>([]);
   const [solarOptions, setSolarOptions] = useState<{ id: string; name: string }[]>([]);
   const [mechanicalOptions, setMechanicalOptions] = useState<{ id: string; name: string; type: string }[]>([]);
@@ -77,32 +82,28 @@ export default function ProjectForm({
 
   useEffect(() => {
     fetchLocations().then(setLocations).catch(() => setLocations([]));
-    fetchCatalog()
-      .then((c) => {
-        setSolarOptions(c.solar);
-        setMechanicalOptions(c.mechanical);
-      })
-      .catch(() => setSolarOptions([]));
+    fetchCatalog().then((catalog) => {
+      setSolarOptions(catalog.solar);
+      setMechanicalOptions(catalog.mechanical);
+    }).catch(() => setSolarOptions([]));
     fetchArchetypes().then(setArchetypes).catch(() => setArchetypes([]));
   }, []);
 
   const updateSpec = <K extends keyof ProjectSpecInput>(key: K, value: ProjectSpecInput[K]) =>
-    setState((s) => ({ ...s, spec: { ...s.spec, [key]: value } }));
-
+    setState((current) => ({ ...current, spec: { ...current.spec, [key]: value } }));
   const updateSite = <K extends keyof SiteSpecInput>(key: K, value: SiteSpecInput[K]) =>
-    setState((s) => ({ ...s, site: { ...s.site, [key]: value } }));
-
+    setState((current) => ({ ...current, site: { ...current.site, [key]: value } }));
   const updateWeight = (key: keyof OptimizationWeights, value: number) =>
-    setState((s) => ({ ...s, weights: { ...s.weights, [key]: value } }));
+    setState((current) => ({ ...current, weights: { ...current.weights, [key]: value } }));
 
   function applyDesign(id: string) {
     setSelectedDesign(id);
     const design = archetypes.find((candidate) => candidate.id === id);
     if (!design) return;
-    setState((s) => ({
-      ...s,
+    setState((current) => ({
+      ...current,
       spec: {
-        ...s.spec,
+        ...current.spec,
         typology: design.typology,
         floor_area_m2: design.floor_area_m2,
         storeys: design.storeys,
@@ -118,10 +119,10 @@ export default function ProjectForm({
     setParseError(null);
     try {
       const parsed = await runParseSpec(freeform);
-      setState((s) => ({
-        spec: { ...s.spec, ...stripUndefined(parsed) },
-        site: { ...s.site, ...stripUndefined(parsed) },
-        weights: s.weights,
+      setState((current) => ({
+        spec: { ...current.spec, ...stripUndefined(parsed) },
+        site: { ...current.site, ...stripUndefined(parsed) },
+        weights: current.weights,
       }));
       setAssumptions(parsed.assumptions ?? []);
     } catch (e) {
@@ -131,460 +132,110 @@ export default function ProjectForm({
     }
   }
 
+  const canContinue = step === 0
+    ? Boolean(state.spec.location) && state.spec.floor_area_m2 > 0 && state.spec.storeys > 0
+    : step === 1
+      ? state.site.lot_width_m > 0 && state.site.lot_depth_m > 0
+      : step === 3
+        ? state.spec.budget_per_unit > 0
+        : true;
+
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit(state);
-      }}
-    >
-      <div className="section-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Project brief</p>
-            <h2 className="mt-1 text-lg font-semibold text-stone-950">Build inputs</h2>
-          </div>
-        </div>
-        <p className="mt-2 text-xs leading-5 text-stone-500">
-          Fill in the fields below directly, or use the optional AI assist to pre-fill from a plain-English
-          description.
-        </p>
-
-        {/* Optional AI assist — collapsed by default so it doesn't compete with the real inputs */}
-        <div className="mt-4 rounded-xl border border-dashed border-emerald-300/70 bg-emerald-50/40">
-          <button
-            type="button"
-            onClick={() => setShowAiAssist((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-          >
-            <span className="flex items-center gap-2 text-xs font-semibold text-emerald-800">
-              <span aria-hidden>✨</span> AI-assisted fill
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                Optional
-              </span>
-            </span>
-            <span className="text-xs text-emerald-700">{showAiAssist ? "Hide ▾" : "Show ▸"}</span>
-          </button>
-
-          {showAiAssist && (
-            <div className="border-t border-emerald-200/70 px-4 pb-4 pt-3">
-              <label className="text-xs font-medium text-stone-500">
-                Describe the project in a sentence or two and AI will pre-fill the fields below. You can review
-                and edit every value afterwards.
-              </label>
-              <textarea
-                className="input mt-2 min-h-24 resize-none"
-                rows={3}
-                placeholder="3-bed bungalow on a 50x120 ft lot in Ottawa, budget 450k, net-zero ready..."
-                value={freeform}
-                onChange={(e) => setFreeform(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={handleParse}
-                disabled={parsing || !freeform.trim()}
-                className="mt-3 rounded-lg bg-stone-950 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-stone-950/10 transition hover:-translate-y-0.5 hover:bg-stone-800 disabled:translate-y-0 disabled:opacity-40"
-              >
-                {parsing ? "Parsing..." : "Fill form with AI"}
-              </button>
-              {parseError && <p className="mt-2 text-xs text-red-600">{parseError}</p>}
-              {assumptions.length > 0 && (
-                <ul className="mt-3 list-disc rounded-lg border border-emerald-100 bg-emerald-50/70 py-2 pl-6 pr-3 text-xs text-emerald-900">
-                  {assumptions.map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <fieldset className="section-card">
-        <div className="section-heading">
-          <span className="section-badge">1</span>
-          <div>
-            <legend className="text-sm font-semibold text-stone-800">Building</legend>
-            <p className="text-xs text-stone-500">Required — describes what&apos;s being built and where.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <Field label="Catalog design" optional hint="Prefills the building fields from EnerZen&apos;s current design catalog.">
-            <select
-              className="input"
-              value={selectedDesign}
-              onChange={(e) => applyDesign(e.target.value)}
-            >
-              <option value="">Custom / enter manually</option>
-              {archetypes.map((design) => (
-                <option key={design.id} value={design.id}>
-                  {design.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Typology" required>
-            <select
-              className="input"
-              value={state.spec.typology}
-              onChange={(e) => updateSpec("typology", e.target.value)}
-            >
-              <option value="single_family">Single family</option>
-              <option value="townhouse">Townhouse</option>
-              <option value="murb">MURB</option>
-            </select>
-          </Field>
-          <Field label="Storeys" required>
-            <input
-              type="number"
-              className="input"
-              min={1}
-              placeholder="e.g. 2"
-              value={state.spec.storeys}
-              onChange={(e) => updateSpec("storeys", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Floor area (m²)" required hint="Total conditioned floor area, all storeys combined.">
-            <input
-              type="number"
-              className="input"
-              placeholder="e.g. 150"
-              value={state.spec.floor_area_m2}
-              onChange={(e) => updateSpec("floor_area_m2", Number(e.target.value))}
-            />
-          </Field>
-          <Field
-            label="Footprint L × W (m)"
-            optional
-            hint="Leave as-is to let the engine infer a reasonable footprint from floor area."
-          >
-            <div className="flex gap-2">
-              <input
-                type="number"
-                className="input"
-                placeholder="Length"
-                value={state.spec.footprint_length_m ?? ""}
-                onChange={(e) => updateSpec("footprint_length_m", Number(e.target.value))}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Width"
-                value={state.spec.footprint_width_m ?? ""}
-                onChange={(e) => updateSpec("footprint_width_m", Number(e.target.value))}
-              />
-            </div>
-          </Field>
-          <Field label="Location" required hint="Sets the climate data used for energy simulation.">
-            <select
-              className="input"
-              value={state.spec.location ?? ""}
-              onChange={(e) => updateSpec("location", e.target.value)}
-            >
-              {locations.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Orientation" required hint="Direction the main glazing / front of the building faces.">
-            <select
-              className="input"
-              value={state.spec.orientation}
-              onChange={(e) => updateSpec("orientation", e.target.value as ProjectSpecInput["orientation"])}
-            >
-              <option value="N">North</option>
-              <option value="S">South</option>
-              <option value="E">East</option>
-              <option value="W">West</option>
-            </select>
-          </Field>
-        </div>
-
-        <div className="mt-4">
-          <LocationInfoPanel
-            location={state.spec.location}
-            latitude={state.site.latitude}
-            longitude={state.site.longitude}
-          />
-        </div>
-      </fieldset>
-
-      <fieldset className="section-card">
-        <div className="section-heading">
-          <span className="section-badge">2</span>
-          <div>
-            <legend className="text-sm font-semibold text-stone-800">Performance & systems</legend>
-            <p className="text-xs text-stone-500">Required — drives cost, energy, and carbon targets.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <Field label="Window-to-wall ratio" required hint="Glazed area as a fraction of total wall area (0–1).">
-            <input
-              type="number"
-              step={0.05}
-              min={0}
-              max={1}
-              className="input"
-              placeholder="e.g. 0.2"
-              value={state.spec.window_to_wall_ratio}
-              onChange={(e) => updateSpec("window_to_wall_ratio", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Energy target" required>
-            <select
-              className="input"
-              value={state.spec.target_label}
-              onChange={(e) => updateSpec("target_label", e.target.value)}
-            >
-              <option value="code">Code minimum</option>
-              <option value="nzr">Net Zero Ready</option>
-              <option value="passive_house">Passive House</option>
-            </select>
-          </Field>
-          <Field label="Solar option" required>
-            <select
-              className="input"
-              value={state.spec.solar_option_id}
-              onChange={(e) => updateSpec("solar_option_id", e.target.value)}
-            >
-              {solarOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field
-            label="Mechanical strategy"
-            required
-            hint="Choose a fixed system or let the optimizer compare the catalog."
-          >
-            <select
-              className="input"
-              value={state.spec.mechanical_option_id ?? ""}
-              onChange={(e) => updateSpec("mechanical_option_id", e.target.value || null)}
-            >
-              <option value="">Optimize across catalog</option>
-              {mechanicalOptions.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Budget per unit (CAD)" required>
-            <input
-              type="number"
-              className="input"
-              placeholder="e.g. 500000"
-              value={state.spec.budget_per_unit}
-              onChange={(e) => updateSpec("budget_per_unit", Number(e.target.value))}
-            />
-          </Field>
-        </div>
-        <div className="mt-4 grid gap-2 text-xs text-stone-600 sm:grid-cols-2">
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2">
-            <span>Include air conditioning</span>
-            <input
-              className="h-4 w-4 accent-emerald-700"
-              type="checkbox"
-              checked={state.spec.has_ac}
-              onChange={(e) => updateSpec("has_ac", e.target.checked)}
-            />
-          </label>
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50/70 px-3 py-2">
-            <span>Allow natural gas systems</span>
-            <input
-              className="h-4 w-4 accent-emerald-700"
-              type="checkbox"
-              checked={state.spec.allow_gas}
-              onChange={(e) => updateSpec("allow_gas", e.target.checked)}
-            />
-          </label>
-        </div>
-      </fieldset>
-
-      <fieldset className="section-card">
-        <div className="section-heading">
-          <span className="section-badge">3</span>
-          <div>
-            <legend className="text-sm font-semibold text-stone-800">Decision priorities</legend>
-            <p className="text-xs text-stone-500">Soft priorities used to rank feasible configurations.</p>
-          </div>
-        </div>
-        <div className="mt-4 space-y-3">
-          {([
-            ["cost", "Capital cost"],
-            ["energy", "Operating energy"],
-            ["speed", "Construction speed"],
-            ["carbon", "Embodied carbon"],
-          ] as const).map(([key, label]) => (
-            <label key={key} className="block text-xs">
-              <span className="mb-1 flex items-center justify-between font-medium text-stone-600">
-                <span>{label}</span>
-                <span className="font-semibold text-emerald-700">{state.weights[key]}%</span>
-              </span>
-              <input
-                className="w-full accent-emerald-700"
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={state.weights[key]}
-                onChange={(e) => updateWeight(key, Number(e.target.value))}
-              />
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="section-card">
-        <div className="section-heading">
-          <span className="section-badge">4</span>
-          <div>
-            <legend className="text-sm font-semibold text-stone-800">Lot / site</legend>
-            <p className="text-xs text-stone-500">Required — used to check placement and solar exposure.</p>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <Field label="Lot width (E–W, m)" required>
-            <input
-              type="number"
-              className="input"
-              placeholder="e.g. 20"
-              value={state.site.lot_width_m}
-              onChange={(e) => updateSite("lot_width_m", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Lot depth (N–S, m)" required>
-            <input
-              type="number"
-              className="input"
-              placeholder="e.g. 30"
-              value={state.site.lot_depth_m}
-              onChange={(e) => updateSite("lot_depth_m", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Street-facing side" required>
-            <select
-              className="input"
-              value={state.site.street_side}
-              onChange={(e) => updateSite("street_side", e.target.value as SiteSpecInput["street_side"])}
-            >
-              <option value="N">North</option>
-              <option value="S">South</option>
-              <option value="E">East</option>
-              <option value="W">West</option>
-            </select>
-          </Field>
-          <Field
-            label="Setbacks front / side / rear (m)"
-            required
-            hint="Minimum required clearance from lot lines."
-            className="col-span-2"
-          >
-            <div className="grid grid-cols-3 gap-2">
-              <input
-                type="number"
-                className="input"
-                placeholder="Front"
-                value={state.site.front_setback_m}
-                onChange={(e) => updateSite("front_setback_m", Number(e.target.value))}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Side"
-                value={state.site.side_setback_m}
-                onChange={(e) => updateSite("side_setback_m", Number(e.target.value))}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Rear"
-                value={state.site.rear_setback_m}
-                onChange={(e) => updateSite("rear_setback_m", Number(e.target.value))}
-              />
-            </div>
-          </Field>
-          <Field
-            label="Parcel coordinates"
-            optional
-            hint="Optional: decimal latitude / longitude enables Toronto zoning lookup."
-            className="col-span-2"
-          >
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                type="number"
-                step="any"
-                className="input"
-                placeholder="Latitude"
-                value={state.site.latitude ?? ""}
-                onChange={(e) => updateSite("latitude", e.target.value ? Number(e.target.value) : null)}
-              />
-              <input
-                type="number"
-                step="any"
-                className="input"
-                placeholder="Longitude"
-                value={state.site.longitude ?? ""}
-                onChange={(e) => updateSite("longitude", e.target.value ? Number(e.target.value) : null)}
-              />
-            </div>
-          </Field>
-        </div>
-      </fieldset>
-
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-emerald-900/15 transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:translate-y-0 disabled:opacity-50"
+    <form onSubmit={(event) => { event.preventDefault(); onSubmit(state); }}>
+      <WizardChrome
+        steps={STEPS}
+        currentStep={step}
+        eyebrow="Path A · Individual unit"
+        title={STEPS[step].label}
+        description={
+          step === 0
+            ? "Describe the home and its context before EnerZen evaluates any design direction."
+            : step === 1
+              ? "Give the engine a real parcel context so site fit and planning assumptions are visible early."
+              : step === 2
+                ? "Start from a catalog archetype or keep the brief custom and shape the geometry yourself."
+                : step === 3
+                  ? "Configure the envelope, mechanical strategy, renewables, and performance target."
+                  : "Set the trade-offs EnerZen should use when it ranks feasible configurations."
+        }
+        onBack={() => setStep((current) => Math.max(0, current - 1))}
+        onNext={() => setStep((current) => Math.min(STEPS.length - 1, current + 1))}
+        nextDisabled={!canContinue}
+        nextLabel={step === STEPS.length - 2 ? "Set priorities" : "Continue"}
+        isLastStep={step === STEPS.length - 1}
+        submitting={submitting}
+        submitLabel="Evaluate individual unit"
       >
-        {submitting ? "Evaluating..." : "Evaluate project"}
-      </button>
+        {step === 0 && (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-lime-50/80 p-4">
+              <button type="button" onClick={() => setShowAiAssist((value) => !value)} className="flex w-full items-center justify-between text-left">
+                <span><span className="text-xs font-semibold text-emerald-900">✨ AI-assisted brief</span><span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-700">Optional</span></span>
+                <span className="text-[10px] font-semibold text-emerald-700">{showAiAssist ? "Hide" : "Describe project"}</span>
+              </button>
+              {showAiAssist && <div className="mt-3"><textarea className="input min-h-24 resize-none" rows={3} placeholder="3-bed home on a 50×120 ft lot in Toronto, budget 450k, net-zero ready…" value={freeform} onChange={(event) => setFreeform(event.target.value)} /><button type="button" onClick={handleParse} disabled={parsing || !freeform.trim()} className="mt-3 rounded-lg bg-stone-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-stone-800 disabled:opacity-40">{parsing ? "Parsing…" : "Fill brief with AI"}</button>{parseError && <p className="mt-2 text-xs text-red-600">{parseError}</p>}{assumptions.length > 0 && <ul className="mt-3 list-disc rounded-lg bg-white/80 py-2 pl-6 pr-3 text-xs text-emerald-900">{assumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}</ul>}</div>}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Location"><select className="input" value={state.spec.location ?? ""} onChange={(event) => updateSpec("location", event.target.value)}>{locations.map((location) => <option key={location} value={location}>{location}</option>)}{!locations.includes(state.spec.location ?? "") && <option value={state.spec.location ?? ""}>{state.spec.location}</option>}</select></Field>
+              <Field label="Typology"><select className="input" value={state.spec.typology} onChange={(event) => updateSpec("typology", event.target.value)}><option value="single_family">Single family</option><option value="townhouse">Townhouse</option><option value="murb">MURB</option></select></Field>
+              <Field label="Storeys"><input type="number" className="input" min={1} value={state.spec.storeys} onChange={(event) => updateSpec("storeys", Number(event.target.value))} /></Field>
+              <Field label="Floor area (m²)"><input type="number" className="input" min={1} value={state.spec.floor_area_m2} onChange={(event) => updateSpec("floor_area_m2", Number(event.target.value))} /></Field>
+            </div>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="space-y-5">
+            <LocationInfoPanel location={state.spec.location} latitude={state.site.latitude} longitude={state.site.longitude} />
+            <div className="grid gap-4 sm:grid-cols-2"><Field label="Lot width (E–W, m)"><input type="number" className="input" min={5} value={state.site.lot_width_m} onChange={(event) => updateSite("lot_width_m", Number(event.target.value))} /></Field><Field label="Lot depth (N–S, m)"><input type="number" className="input" min={5} value={state.site.lot_depth_m} onChange={(event) => updateSite("lot_depth_m", Number(event.target.value))} /></Field></div>
+            <div><p className="text-xs font-medium text-stone-600">Street-facing side</p><div className="mt-2 grid grid-cols-4 gap-2">{(["N", "S", "E", "W"] as const).map((direction) => <button key={direction} type="button" onClick={() => updateSite("street_side", direction)} className={`rounded-xl border py-3 text-xs font-semibold transition ${state.site.street_side === direction ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:border-emerald-300"}`}>{direction}</button>)}</div></div>
+            <div className="grid gap-3 sm:grid-cols-3">{(["front_setback_m", "side_setback_m", "rear_setback_m"] as const).map((key) => <Field key={key} label={`${key.replace("_setback_m", "")} setback (m)`}><input type="number" className="input" min={0} step={0.1} value={state.site[key]} onChange={(event) => updateSite(key, Number(event.target.value))} /></Field>)}</div>
+            <div className="grid gap-3 sm:grid-cols-2"><Field label="Latitude (optional)"><input type="number" className="input" step="any" value={state.site.latitude ?? ""} onChange={(event) => updateSite("latitude", event.target.value ? Number(event.target.value) : null)} /></Field><Field label="Longitude (optional)"><input type="number" className="input" step="any" value={state.site.longitude ?? ""} onChange={(event) => updateSite("longitude", event.target.value ? Number(event.target.value) : null)} /></Field></div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setSelectedDesign("")} className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${!selectedDesign ? "border-emerald-400 bg-gradient-to-br from-emerald-50 to-lime-50 shadow-sm" : "border-stone-200 bg-white"}`}><p className="text-sm font-semibold text-stone-900">Custom brief</p><p className="mt-1 text-[10px] leading-4 text-stone-500">Keep your project inputs and shape the form manually.</p></button>
+              {archetypes.map((design) => <button type="button" key={design.id} onClick={() => applyDesign(design.id)} className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${selectedDesign === design.id ? "border-emerald-400 bg-gradient-to-br from-emerald-50 to-lime-50 shadow-sm" : "border-stone-200 bg-white"}`}><div className="flex items-start justify-between gap-3"><p className="text-sm font-semibold text-stone-900">{design.name}</p>{selectedDesign === design.id && <span className="text-xs text-emerald-700">Selected</span>}</div><p className="mt-1 text-[10px] leading-4 text-stone-500">{design.floor_area_m2} m² · {design.storeys} storey{design.storeys === 1 ? "" : "s"}</p><div className="mt-4 h-1 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 opacity-70" /></button>)}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2"><Field label="Orientation"><select className="input" value={state.spec.orientation} onChange={(event) => updateSpec("orientation", event.target.value as ProjectSpecInput["orientation"])}><option value="N">North</option><option value="S">South</option><option value="E">East</option><option value="W">West</option></select></Field><Field label="Footprint length × width (m)"><div className="flex gap-2"><input type="number" className="input" value={state.spec.footprint_length_m ?? ""} onChange={(event) => updateSpec("footprint_length_m", Number(event.target.value))} /><input type="number" className="input" value={state.spec.footprint_width_m ?? ""} onChange={(event) => updateSpec("footprint_width_m", Number(event.target.value))} /></div></Field></div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2"><Field label="Energy target"><select className="input" value={state.spec.target_label} onChange={(event) => updateSpec("target_label", event.target.value)}><option value="code">Code minimum</option><option value="nzr">Net Zero Ready</option><option value="passive_house">Passive House</option></select></Field><Field label="Budget per unit (CAD)"><input type="number" className="input" min={1} value={state.spec.budget_per_unit} onChange={(event) => updateSpec("budget_per_unit", Number(event.target.value))} /></Field><Field label="Window-to-wall ratio"><input type="number" className="input" step={0.05} min={0} max={1} value={state.spec.window_to_wall_ratio} onChange={(event) => updateSpec("window_to_wall_ratio", Number(event.target.value))} /></Field><Field label="Solar option"><select className="input" value={state.spec.solar_option_id} onChange={(event) => updateSpec("solar_option_id", event.target.value)}>{solarOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></Field><Field label="Mechanical strategy"><select className="input" value={state.spec.mechanical_option_id ?? ""} onChange={(event) => updateSpec("mechanical_option_id", event.target.value || null)}><option value="">Optimize across catalog</option>{mechanicalOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}</select></Field></div>
+            <div className="grid gap-3 sm:grid-cols-2"><Toggle label="Include air conditioning" checked={state.spec.has_ac} onChange={(value) => updateSpec("has_ac", value)} /><Toggle label="Allow natural gas systems" checked={state.spec.allow_gas} onChange={(value) => updateSpec("allow_gas", value)} /></div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-lime-50 p-5"><p className="eyebrow">Ready for evaluation</p><h3 className="mt-2 text-xl font-semibold tracking-tight text-stone-950">A brief the engine can explain.</h3><p className="mt-2 text-sm leading-6 text-stone-600">EnerZen will test feasible configurations, apply the performance gate, rank the trade-offs, and return the recommended unit.</p></div>
+            <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold text-stone-800">Decision priorities</p><p className="mt-1 text-[10px] leading-4 text-stone-400">Adjust the trade-offs used to rank configurations that pass the performance gate.</p><div className="mt-4 grid gap-4 sm:grid-cols-2">{([["cost", "Capital cost"], ["energy", "Operating energy"], ["speed", "Construction speed"], ["carbon", "Embodied carbon"]] as const).map(([key, label]) => <label key={key} className="block text-xs"><span className="mb-1 flex items-center justify-between font-medium text-stone-600"><span>{label}</span><span className="font-semibold text-emerald-700">{state.weights[key]}%</span></span><input className="w-full accent-emerald-700" type="range" min={0} max={100} step={5} value={state.weights[key]} onChange={(event) => updateWeight(key, Number(event.target.value))} /></label>)}</div></div>
+            <div className="grid gap-3 sm:grid-cols-2"><Summary label="Project" value={`${state.spec.typology.replace("_", " ")} · ${state.spec.floor_area_m2} m²`} /><Summary label="Site" value={`${state.site.lot_width_m} × ${state.site.lot_depth_m} m · ${state.spec.location}`} /><Summary label="Target" value={state.spec.target_label === "nzr" ? "Net Zero Ready" : state.spec.target_label === "passive_house" ? "Passive House" : "Code minimum"} /><Summary label="Priorities" value={`${state.weights.cost}% cost · ${state.weights.energy}% energy`} /></div>
+            <div className="rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-xs leading-5 text-stone-500">The engine will return ranked options and a site-fit view. Nothing is submitted until you press Evaluate individual unit.</div>
+          </div>
+        )}
+      </WizardChrome>
     </form>
   );
 }
 
-function Field({
-  label,
-  children,
-  required,
-  optional,
-  hint,
-  className,
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-  optional?: boolean;
-  hint?: string;
-  className?: string;
-}) {
-  return (
-    <label className={`block text-xs ${className ?? ""}`}>
-      <span className="mb-1.5 flex items-center gap-1.5 font-medium text-stone-500">
-        {label}
-        {required && (
-          <span className="text-[10px] font-semibold text-emerald-600" title="Required" aria-label="required">
-            *
-          </span>
-        )}
-        {optional && (
-          <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-stone-400">
-            Optional
-          </span>
-        )}
-      </span>
-      {children}
-      {hint && <span className="mt-1 block text-[10px] leading-4 text-stone-400">{hint}</span>}
-    </label>
-  );
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block text-xs"><span className="mb-1.5 block font-medium text-stone-500">{label}</span>{children}</label>;
 }
 
-function stripUndefined<T extends object>(obj: T): Partial<T> {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null)) as Partial<T>;
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
+  return <label className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-xs text-stone-600"><span>{label}</span><input className="h-4 w-4 accent-emerald-700" type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label>;
+}
+
+function Summary({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-stone-200 bg-white px-4 py-3"><p className="tile-label">{label}</p><p className="mt-1 text-sm font-semibold text-stone-900">{value}</p></div>;
+}
+
+function stripUndefined<T extends object>(object: T): Partial<T> {
+  return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined && value !== null)) as Partial<T>;
 }
