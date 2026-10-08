@@ -10,7 +10,10 @@ reruns it (`python -m pytest tests/validation -q`).
 |---|---|---|
 | R-values: engine material values vs NBC worksheets | +0.2% and +0.6% | Pass |
 | R-values: engine method vs NBC method | +4.6% and +5.7% (limit 5%) | **Fail on one case: known gap, decision needed** |
-| Energy vs Ontario benchmarks | — | To run |
+| Energy: typical homes vs code-built benchmark | +2% (3-Bedroom Unit, Townhouse) | Pass |
+| Energy: falls as the target rises | All four designs | Pass |
+| Energy: Garden Suite vs benchmark | +50% | Outside limit; small-dwelling effect, needs a size-matched reference |
+| Energy: MURB vs benchmark | +74% | **Fail: modelling bug found, decision needed** |
 | Embodied carbon vs published Part 9 studies | — | To run |
 | Cost, construction time | — | Blocked on EnerZen data |
 
@@ -61,3 +64,46 @@ without the user's agreement. When switched, the strict `xfail` on MW-02 in
 removal.
 
 **Test:** `tests/validation/test_rvalues.py`.
+
+## 2. Energy (energy engine)
+
+**Reference.** The code-built new-home benchmark in `data/assemblies.json`:
+130 kWh/m2/yr site EUI (NRCan residential end-use intensity; CHBA Net Zero
+program).
+
+**Method.** Each of EnerZen's four designs is run in Pickering at the code
+target with a gas furnace and central AC (the benchmark's typical system),
+and the cheapest configuration that passes is taken as the code-built
+equivalent. Separately, the cheapest passing configuration is compared across
+the code, Net Zero Ready and Passive House targets.
+
+| Design | Area per home | Code-built EUI (gas) | vs 130 | Cheapest EUI: code / NZR / Passive House (any system) |
+|---|---|---|---|---|
+| 3-Bedroom Unit | 163 m2 | 132.1 | +2% | 89.3 / 76.0 / 70.1 |
+| Townhouse | 150 m2 | 133.0 | +2% | 90.8 / 78.1 / 72.0 |
+| Garden Suite | 46 m2 | 195.0 | +50% | 145.1 / 127.8 / 121.8 |
+| MURB (per home) | 65 m2 | 226.1 | +74% | 143.2 / 106.4 / 100.9 |
+
+**Findings.**
+
+1. **Typical-size homes: pass.** The 3-Bedroom Unit and Townhouse land within
+   2% of the benchmark.
+2. **Targets: pass.** Energy use falls from code to Net Zero Ready to Passive
+   House for every design.
+3. **Garden Suite: outside the limit, likely expected.** Fixed loads (hot
+   water, appliances) spread over 46 m2 raise EUI per m2; the benchmark is
+   for typical-size homes. A small-dwelling reference is needed before this
+   can be judged.
+4. **MURB: modelling bug.** Each dwelling (65 m2) is simulated as if it sat
+   on the whole building's 19 x 18 m footprint (342 m2 of slab heat loss),
+   and with the wall and roof ratios of a 2-storey house because the ratio
+   table stops at 3 storeys. Apartments with shared walls should use less
+   energy per m2 than a detached home, not 74% more. Path B MURB energy,
+   operating cost and carbon are overstated until this is fixed.
+
+**Decision needed (user).** Fix the MURB geometry, for example by simulating
+the whole building from its footprint, storeys and height and reporting per
+dwelling. This changes MURB results and, if wall and roof areas come from
+geometry for every design, every design's results slightly.
+
+**Test:** `tests/validation/test_energy.py`.
