@@ -1,4 +1,5 @@
 import base64
+import re
 from io import BytesIO
 
 import pytest
@@ -64,7 +65,7 @@ def test_unit_report_has_every_section_and_names_the_status():
     assert base64.b64decode(pdf).startswith(b"%PDF")
     text = _pdf_text(pdf)
     for n, section in enumerate(fz.SECTIONS, 1):
-        assert f"{n}. {section}" in text
+        assert re.search(rf"{n:02d}\s+{re.escape(section)}", text)  # headings read "01  Executive feasibility"
     assert fz.FURTHER_STUDY in text
 
 
@@ -97,7 +98,7 @@ def test_development_report_has_every_section():
     mixes = [s["units"] for s in run_dev_scenarios(DevOptimizeRequest(spec=spec, top_n=3))["scenarios"]]
     text = _pdf_text(run_dev_report(DevReportRequest(spec=spec, mixes=mixes))["pdf_b64"])
     for n, section in enumerate(fz.SECTIONS, 1):
-        assert f"{n}. {section}" in text
+        assert re.search(rf"{n:02d}\s+{re.escape(section)}", text)  # headings read "01  Executive feasibility"
     assert "Green-space strategy" in text and fz.FURTHER_STUDY in text
 
 

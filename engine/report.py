@@ -11,26 +11,51 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, KeepTogether, ListFlowable, ListItem, PageTemplate, Paragraph, Spacer, Table,
-    TableStyle,
+    BaseDocTemplate, Frame, HRFlowable, KeepTogether, ListFlowable, ListItem, PageTemplate, Paragraph, Spacer,
+    Table, TableStyle,
 )
 
 from engine.feasibility import FEASIBLE, FEASIBLE_WITH_MODIFICATIONS, FAIL, PASS, SECTIONS
 from engine.soft import SOFT_COST_FRACTION, soft_cost
+from engine import svg_kit
 
-INK = colors.HexColor("#18211D")
-MUTED = colors.HexColor("#66706A")
-FOREST = colors.HexColor("#214E3B")
-SAGE = colors.HexColor("#D8E6DC")
-PAPER = colors.HexColor("#FFFEFA")
-LINE = colors.HexColor("#D9DDD8")
-AMBER = colors.HexColor("#F4E7C8")
-ROSE = colors.HexColor("#F2D9D9")
-GREEN_FILL = colors.HexColor("#DDE8D4")
-BUILDING = colors.HexColor("#E3E9F1")
+# The website's visual language: warm paper, charcoal ink, a trace of lavender.
+INK = colors.HexColor("#27252c")
+SOFT = colors.HexColor("#6f6878")
+MUTED = colors.HexColor("#8e819a")
+ACCENT = colors.HexColor("#6e5a86")
+PAPER = colors.HexColor("#faf9f7")
+CARD = colors.HexColor("#ffffff")
+LINE = colors.HexColor("#e4dfe9")
+TINT = colors.HexColor("#f4f0f8")
 
-STATUS_FILL = {FEASIBLE: SAGE, FEASIBLE_WITH_MODIFICATIONS: AMBER}
+# Status band: (fill, accent bar).
+STATUS_COLORS = {
+    FEASIBLE: (colors.HexColor("#e9efe4"), colors.HexColor("#5f7154")),
+    FEASIBLE_WITH_MODIFICATIONS: (colors.HexColor("#f2ece2"), colors.HexColor("#8a6d45")),
+}
+STATUS_DEFAULT = (colors.HexColor("#f3e9ed"), colors.HexColor("#9a4d5c"))
+
+
+def _register_fonts() -> tuple[str, str, str]:
+    """Geist (the website's typeface, SIL OFL, engine/fonts); Helvetica if missing."""
+    from pathlib import Path
+    folder = Path(__file__).parent / "fonts"
+    names = ("Geist", "Geist-Medium", "Geist-SemiBold")
+    files = ("Geist-Regular.ttf", "Geist-Medium.ttf", "Geist-SemiBold.ttf")
+    try:
+        for name, file in zip(names, files):
+            if name not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(TTFont(name, str(folder / file)))
+        return names
+    except Exception:
+        return ("Helvetica", "Helvetica", "Helvetica-Bold")
+
+
+FONT, FONT_MEDIUM, FONT_SEMIBOLD = _register_fonts()
 CHECK_LABEL = {PASS: "Pass", FAIL: "Fail"}
 
 W = 7.2 * inch
@@ -45,94 +70,124 @@ def _t(kg):
 
 
 def _styles():
-    base = getSampleStyleSheet()
+    base = getSampleStyleSheet()["BodyText"]
+
+    def style(name, font=None, size=8.8, leading=13, color=INK, **kw):
+        return ParagraphStyle(name, parent=base, fontName=font or FONT, fontSize=size, leading=leading,
+                              textColor=color, **kw)
+
     return {
-        "title": ParagraphStyle("Title", parent=base["Title"], fontName="Helvetica-Bold",
-                                fontSize=24, leading=28, textColor=INK, alignment=0, spaceAfter=8),
-        "eyebrow": ParagraphStyle("Eyebrow", parent=base["BodyText"], fontName="Helvetica-Bold",
-                                  fontSize=7.5, leading=10, textColor=FOREST, spaceAfter=7),
-        "h2": ParagraphStyle("H2", parent=base["Heading2"], fontName="Helvetica-Bold",
-                             fontSize=12, leading=15, textColor=INK, spaceBefore=14, spaceAfter=7),
-        "h3": ParagraphStyle("H3", parent=base["Heading3"], fontName="Helvetica-Bold",
-                             fontSize=9.5, leading=12, textColor=INK, spaceBefore=8, spaceAfter=5),
-        "body": ParagraphStyle("Body", parent=base["BodyText"], fontName="Helvetica",
-                               fontSize=8.7, leading=12.5, textColor=INK, spaceAfter=5),
-        "status": ParagraphStyle("Status", parent=base["BodyText"], fontName="Helvetica-Bold",
-                                 fontSize=15, leading=19, textColor=INK),
-        "cell": ParagraphStyle("Cell", parent=base["BodyText"], fontName="Helvetica",
-                               fontSize=8, leading=10.5, textColor=INK),
-        "small": ParagraphStyle("Small", parent=base["BodyText"], fontName="Helvetica",
-                                fontSize=7.2, leading=10, textColor=MUTED),
-        "right": ParagraphStyle("Right", parent=base["BodyText"], fontName="Helvetica",
-                                fontSize=7.2, leading=10, textColor=MUTED, alignment=TA_RIGHT),
+        "title": style("Title", FONT_MEDIUM, 25, 29, spaceAfter=8),
+        "eyebrow": style("Eyebrow", FONT_SEMIBOLD, 7, 10, MUTED, spaceAfter=10),
+        "h2": style("H2", FONT_MEDIUM, 13.5, 17, spaceBefore=4, spaceAfter=9),
+        "h3": style("H3", FONT_SEMIBOLD, 7.2, 10, MUTED, spaceBefore=10, spaceAfter=6, keepWithNext=1),
+        "body": style("Body", color=SOFT, spaceAfter=5),
+        "status": style("Status", FONT_MEDIUM, 15, 19),
+        "cell": style("Cell", size=8, leading=11),
+        "small": style("Small", size=7.2, leading=10.5, color=MUTED),
+        "right": style("Right", size=7.2, leading=10, color=MUTED, alignment=TA_RIGHT),
+        "tile_label": style("TileLabel", FONT_SEMIBOLD, 6.6, 9, MUTED),
+        "tile_value": style("TileValue", FONT_MEDIUM, 14, 18),
     }
 
 
 def _table(rows, widths=None, header=True):
     styles = _styles()
-    # Wrap long cells so tables never overflow the frame.
-    rows = [[Paragraph(c, styles["cell"]) if isinstance(c, str) and len(c) > 48 and not (header and i == 0) else c
+    # Wrap long cells so tables never overflow the frame; header labels are quiet small caps.
+    rows = [[(Paragraph(str(c).upper(), styles["tile_label"]) if header and i == 0 and c else
+              Paragraph(c, styles["cell"]) if isinstance(c, str) and len(c) > 48 else c)
              for c in row] for i, row in enumerate(rows)]
     table = Table(rows, colWidths=widths, hAlign="LEFT", repeatRows=1 if header else 0)
     commands = [
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
+        ("FONTNAME", (0, 0), (-1, -1), FONT),
         ("FONTSIZE", (0, 0), (-1, -1), 8),
         ("TEXTCOLOR", (0, 0), (-1, -1), INK),
-        ("GRID", (0, 0), (-1, -1), 0.35, LINE),
-        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
         ("TOPPADDING", (0, 0), (-1, -1), 5),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("ROWBACKGROUNDS", (0, 1 if header else 0), (-1, -1), [PAPER, colors.white]),
     ]
     if header:
-        commands += [("BACKGROUND", (0, 0), (-1, 0), FOREST),
-                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold")]
+        commands += [("LINEBELOW", (0, 0), (-1, 0), 0.8, MUTED), ("BOTTOMPADDING", (0, 0), (-1, 0), 5)]
     table.setStyle(TableStyle(commands))
     return table
 
 
+def _tiles(rows):
+    """Headline metrics as website-style tiles: small-caps label over a large value."""
+    styles = _styles()
+    labels, values = rows
+    cells = [[[Paragraph(label.upper(), styles["tile_label"]), Spacer(1, 4), Paragraph(value, styles["tile_value"])]
+              for label, value in zip(labels, values)]]
+    n = len(labels)
+    table = Table(cells, colWidths=[W / n] * n, hAlign="LEFT")
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CARD),
+        ("BOX", (0, 0), (-1, -1), 0.5, LINE),
+        ("LINEAFTER", (0, 0), (-2, -1), 0.5, LINE),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 9), ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    return table
+
+
 def _bullets(items, style):
-    return ListFlowable([ListItem(Paragraph(i, style), leftIndent=10) for i in items],
-                        bulletType="bullet", start="•", leftIndent=10, bulletFontSize=7)
+    return ListFlowable([ListItem(Paragraph(i, style), leftIndent=12) for i in items],
+                        bulletType="bullet", start="•", leftIndent=12, bulletFontSize=7,
+                        bulletColor=ACCENT, bulletFontName=FONT)
 
 
 def _doc(out, title, footer):
     def page(canvas, doc):
+        width, height = letter
         canvas.saveState()
+        canvas.setFillColor(PAPER)
+        canvas.rect(0, 0, width, height, stroke=0, fill=1)
         canvas.setStrokeColor(LINE)
-        canvas.line(0.65 * inch, 0.52 * inch, 7.85 * inch, 0.52 * inch)
-        canvas.setFont("Helvetica-Bold", 7)
-        canvas.setFillColor(FOREST)
-        canvas.drawString(0.65 * inch, 0.34 * inch, "ENERZEN")
-        canvas.setFont("Helvetica", 7)
+        canvas.setLineWidth(0.6)
+        canvas.line(0.65 * inch, 0.55 * inch, 7.85 * inch, 0.55 * inch)
+        canvas.setFont(FONT_MEDIUM, 9)
+        canvas.setFillColor(INK)
+        canvas.drawString(0.65 * inch, 0.34 * inch, "enerzen")
+        canvas.setFont(FONT, 7)
         canvas.setFillColor(MUTED)
-        canvas.drawRightString(7.85 * inch, 0.34 * inch, f"{footer}  |  {doc.page}")
+        canvas.drawString(0.65 * inch + canvas.stringWidth("enerzen", FONT_MEDIUM, 9) + 8, 0.345 * inch,
+                          f"/  {footer}")
+        canvas.drawRightString(7.85 * inch, 0.345 * inch, f"{doc.page:02d}")
         canvas.restoreState()
 
-    frame = Frame(0.65 * inch, 0.68 * inch, W, 9.45 * inch,
+    frame = Frame(0.65 * inch, 0.72 * inch, W, 9.6 * inch,
                   leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
     return BaseDocTemplate(out, pagesize=letter, pageTemplates=[PageTemplate("Report", [frame], onPage=page)],
                            title=title, author="EnerZen")
 
 
 def _heading(n, styles):
-    return Paragraph(f"{n}. {SECTIONS[n - 1]}", styles["h2"])
+    heading = KeepTogether([
+        Spacer(1, 8), HRFlowable(width="100%", thickness=0.6, color=LINE, spaceAfter=9),
+        Paragraph(f'<font color="#a39caa">{n:02d}</font>&nbsp;&nbsp;&nbsp;{SECTIONS[n - 1]}', styles["h2"]),
+    ])
+    heading.keepWithNext = 1  # never strand a section title at the foot of a page
+    return heading
 
 
 def _executive(assessment, headline_rows, styles):
-    status = Table([[Paragraph(assessment.status, styles["status"])]], colWidths=[W])
-    status.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), STATUS_FILL.get(assessment.status, ROSE)),
-                                ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 8),
-                                ("BOTTOMPADDING", (0, 0), (-1, -1), 9)]))
+    fill, accent = STATUS_COLORS.get(assessment.status, STATUS_DEFAULT)
+    status = Table([[[Paragraph("FEASIBILITY STATUS", styles["tile_label"]), Spacer(1, 3),
+                      Paragraph(assessment.status, styles["status"])]]], colWidths=[W])
+    status.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), fill),
+                                ("LINEBEFORE", (0, 0), (0, -1), 3, accent),
+                                ("LEFTPADDING", (0, 0), (-1, -1), 14), ("TOPPADDING", (0, 0), (-1, -1), 10),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 12)]))
     checks = [["Check", "Result", "Detail"]] + [
         [c.name, CHECK_LABEL.get(c.status, "Not checked"), c.detail] for c in assessment.checks]
     return [
         _heading(1, styles), status, Spacer(1, 6), _bullets(assessment.reasons, styles["body"]), Spacer(1, 4),
         _table(checks, [1.7 * inch, 0.85 * inch, 4.65 * inch]), Spacer(1, 8),
-        _table(headline_rows, [W / len(headline_rows[0])] * len(headline_rows[0])),
+        _tiles(headline_rows),
     ]
 
 
@@ -182,10 +237,10 @@ def _priority(ranks, weights, styles, unit):
     for r in ranks:
         rows.append([r["objective"], f"{weights.get(r['key'], 0):.0%}", f"{r['rank']} of {r['of']}",
                      r["display"]])
-    return [KeepTogether([_heading(8, styles), Paragraph(
+    return [_heading(8, styles), Paragraph(
         f"Where the recommended {unit} ranks among every feasible option on each weighted objective "
         "(1 is best). The recommendation balances the weights, so it need not rank first on each.",
-        styles["body"]), _table(rows, [2.0 * inch, 0.9 * inch, 1.6 * inch, 2.7 * inch])])]
+        styles["body"]), _table(rows, [2.0 * inch, 0.9 * inch, 1.6 * inch, 2.7 * inch])]
 
 
 def _next(steps, enhancements, styles):
@@ -216,7 +271,7 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
             f"{'s' if spec.storeys > 1 else ''} &nbsp; | &nbsp; {area:g} m2 conditioned",
             styles["body"]),
         Paragraph(f"Prepared {date.today().strftime('%B %d, %Y')}", styles["small"]),
-        Spacer(1, 8),
+        Spacer(1, 14),
     ]
     hard = result.construction_cost
     story += _executive(assessment, [
@@ -357,27 +412,37 @@ def _plan_drawing(site, placements, geometry, names):
                 d.add(RLPolygon([c for x, y in part.exterior.coords for c in pt(x, y)],
                                 fillColor=fill, strokeColor=stroke, strokeWidth=0.5))
 
-    d.add(Rect(ox, oy, w, h, fillColor=PAPER, strokeColor=INK, strokeWidth=0.8))
-    shape(geometry.shared_green, GREEN_FILL, colors.HexColor("#8EA582"))
+    hexc = colors.HexColor
+    d.add(Rect(ox, oy, w, h, fillColor=hexc(svg_kit.LOT_FILL), strokeColor=INK, strokeWidth=0.8))
+    shape(geometry.shared_green, hexc(svg_kit.GREEN), hexc(svg_kit.GREEN_EDGE))
     if geometry.rain_garden is not None:
         c = geometry.rain_garden.centroid
         r = (geometry.rain_garden.bounds[2] - c.x) * s
         cx, cy = pt(c.x, c.y)
-        d.add(Circle(cx, cy, r, fillColor=colors.HexColor("#DCE9F2"), strokeColor=colors.HexColor("#7FA3BC"),
+        d.add(Circle(cx, cy, r, fillColor=hexc(svg_kit.WATER), strokeColor=hexc(svg_kit.WATER_EDGE),
                      strokeWidth=0.5))
-    shape(geometry.pedestrian_spine, colors.HexColor("#EEE9E2"), colors.HexColor("#CFC6BA"))
+    shape(geometry.pedestrian_spine, hexc(svg_kit.PAVING), hexc(svg_kit.PAVING_EDGE))
+    for path in getattr(geometry, "entry_paths", ()):
+        shape(path, hexc(svg_kit.PAVING), hexc(svg_kit.PAVING_EDGE))
     for stall in geometry.parking:
-        shape(stall, colors.HexColor("#ECEAE6"), colors.HexColor("#B9B3AA"))
-    for i, p in enumerate(placements):
+        shape(stall, hexc(svg_kit.PAVING), hexc(svg_kit.LINE))
+    from engine.multi_site import _ARCHETYPE_COLORS, _DEFAULT_COLOR
+    for p in placements:
+        fill, stroke = _ARCHETYPE_COLORS.get(p.archetype_id, _DEFAULT_COLOR)
         x0, y1 = pt(p.x_m, p.y_m + p.h_m)
-        d.add(Rect(x0, y1, p.w_m * s, p.h_m * s, fillColor=BUILDING, strokeColor=FOREST, strokeWidth=0.6))
-        d.add(String(x0 + p.w_m * s / 2, y1 + p.h_m * s / 2 - 3, str(names.index(p.archetype_id) + 1),
-                     fontName="Helvetica-Bold", fontSize=7, fillColor=FOREST, textAnchor="middle"))
+        d.add(Rect(x0 + 1.2, y1 - 1.2, p.w_m * s, p.h_m * s, fillColor=hexc(svg_kit.SHADOW), strokeColor=None))
+        d.add(Rect(x0, y1, p.w_m * s, p.h_m * s, fillColor=hexc(fill), strokeColor=hexc(stroke), strokeWidth=0.7))
+        d.add(Circle(x0 + p.w_m * s / 2, y1 + p.h_m * s / 2, 4.2, fillColor=hexc(stroke), strokeColor=None))
+        d.add(String(x0 + p.w_m * s / 2, y1 + p.h_m * s / 2 - 2.1, str(names.index(p.archetype_id) + 1),
+                     fontName=FONT_SEMIBOLD, fontSize=5.5, fillColor=colors.white, textAnchor="middle"))
     side = {"N": (ox + w / 2, oy + h + 4), "S": (ox + w / 2, oy - 10),
             "E": (ox + w + 4, oy + h / 2), "W": (ox - 2, oy + h / 2)}[site.street_side]
-    d.add(String(side[0], side[1], "STREET", fontName="Helvetica", fontSize=6, fillColor=MUTED,
+    d.add(String(side[0], side[1], "STREET", fontName=FONT_SEMIBOLD, fontSize=5.5, fillColor=MUTED,
                  textAnchor="start" if site.street_side == "E" else "middle"))
-    d.add(String(ox + w + 6, oy + 4, "N ↑", fontName="Helvetica", fontSize=6, fillColor=MUTED))
+    # North arrow: a small filled needle and the letter, as on the web plans.
+    nx, ny = ox + w + 14, oy + 6
+    d.add(RLPolygon([nx, ny + 9, nx + 3, ny, nx, ny + 2, nx - 3, ny], fillColor=INK, strokeColor=None))
+    d.add(String(nx, ny + 12, "N", fontName=FONT_SEMIBOLD, fontSize=6, fillColor=INK, textAnchor="middle"))
     return d
 
 
@@ -404,7 +469,7 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
         Paragraph(f"{location.name} &nbsp; | &nbsp; {dev.lot_width_m:g} x {dev.lot_depth_m:g} m lot "
                   f"({lot_area:,.0f} m2) &nbsp; | &nbsp; {mix.mix_label}", styles["body"]),
         Paragraph(f"Prepared {date.today().strftime('%B %d, %Y')}", styles["small"]),
-        Spacer(1, 8),
+        Spacer(1, 14),
     ]
     story += _executive(assessment, [
         ["Homes", "Total project cost", "Brief to close", "Average EUI"],
