@@ -45,7 +45,7 @@ cd web && npm install && npm run dev           # web, http://localhost:3000
 Before every push:
 
 ```
-python -m pytest tests -q                      # 49 tests after Phase 1
+python -m pytest tests -q                      # 59 tests after Phase 2
 cd web && npx tsc --noEmit && npm run lint && npm run build
 ```
 
@@ -146,7 +146,19 @@ Tests: each constraint rejects what it should; gate counts add up
 (`evaluated = passed + over_budget + missed_target`); an empty feasible set
 returns the breakdown. Update METHODOLOGY section 11.2.
 
-### Phase 2 — Nine-section feasibility report, both paths (not started)
+### Phase 2 — Nine-section feasibility report, both paths (done)
+
+Done as specified below; see METHODOLOGY section 15. Choices made:
+- The Path B site plan is drawn natively with reportlab shapes from the
+  placement geometry, so `svglib` was not added.
+- `/dev-report` takes the approved mixes and the one to report (default: the
+  top-ranked) and re-evaluates them to rank it.
+- A Path A site-fit failure now produces a report (status FURTHER STUDY
+  REQUIRED) instead of a 422.
+- FEASIBLE WITH MODIFICATIONS is implemented in `feasibility.assess` but
+  nothing produces a relaxed constraint yet. **Open: ask the user** which
+  relaxations the engine may try (for example, raising the budget to the
+  cheapest passing configuration) before building that step.
 
 The user has agreed to this phase. Restructure `engine/report.py` to the
 flowchart's sections, and add a Path B report.
@@ -214,6 +226,9 @@ METHODOLOGY.
 - Phone layout fixed across all screens (`9bacda1`).
 
 ## 7. Known limitations
+
+- `pypdf` (used by the report tests to read PDF text) is not in
+  `requirements.txt`; those tests skip without it.
 
 - Path B ranking runs the optimizer once per housing type: about 7 s on the
   deployed API.

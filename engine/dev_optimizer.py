@@ -207,20 +207,30 @@ def screen_dev_mixes(dev: DevSpec, top_n: int = 10) -> list[DevScenario]:
     return scenarios[:top_n]
 
 
-def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict]) -> tuple[list[DevMixResult], list[dict]]:
-    """Building performance optimization, development calculations and
-    ranking (flowchart Path B, steps 5-7) for the approved scenarios.
-
-    Each housing type is optimized once; a mix's totals scale by its dwelling
-    count. Returns (ranked feasible results, rejected mixes with a reason).
-    """
-    site = _make_site_spec(dev)
-    dropped = {e["id"]: e["reason"] for e in excluded_types(dev)}
+def best_configurations(dev: DevSpec, mixes: list[dict]) -> dict:
+    """The top-ranked configuration for each eligible housing type in the
+    mixes (None when nothing passes the gate), one optimizer run per type."""
+    dropped = {e["id"] for e in excluded_types(dev)}
     types = sorted({t for mix in mixes for t, c in mix.items() if c > 0 and t in ARCHETYPES and t not in dropped})
     best: dict[str, object] = {}
     for arch_id in types:
         results = optimize(_arch_project_spec(ARCHETYPES[arch_id], dev))
         best[arch_id] = results[0] if results else None
+    return best
+
+
+def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict], best: dict | None = None) -> tuple[list[DevMixResult], list[dict]]:
+    """Building performance optimization, development calculations and
+    ranking (flowchart Path B, steps 5-7) for the approved scenarios.
+
+    Each housing type is optimized once (pass `best` from
+    best_configurations to reuse a run); a mix's totals scale by its dwelling
+    count. Returns (ranked feasible results, rejected mixes with a reason).
+    """
+    site = _make_site_spec(dev)
+    dropped = {e["id"]: e["reason"] for e in excluded_types(dev)}
+    if best is None:
+        best = best_configurations(dev, mixes)
 
     feasible: list[DevMixResult] = []
     rejected: list[dict] = []

@@ -1,3 +1,4 @@
+import pytest
 import io
 import json
 import api.main as api_main
@@ -133,13 +134,10 @@ def test_report_uses_selected_weights_and_site(monkeypatch):
 
     def fake_optimize(project_spec, selected_weights):
         captured["weights"] = selected_weights
-        return [object()]
+        return [], {"evaluated": 0, "passed": 0, "over_budget": 0, "missed_target": 0}
 
-    monkeypatch.setattr(api_main, "optimize", fake_optimize)
-    monkeypatch.setattr(api_main, "_report_labels", lambda *args: {})
-    monkeypatch.setattr(api_main, "generate_results_pdf", lambda *args, **kwargs: b"pdf")
+    monkeypatch.setattr(api_main, "optimize_with_gate", fake_optimize)
 
-    result = run_report(ReportRequest(spec=spec, site=site, weights=weights))
-
-    assert result["pdf_b64"]
+    with pytest.raises(HTTPException):
+        run_report(ReportRequest(spec=spec, site=site, weights=weights))
     assert captured["weights"] == weights
