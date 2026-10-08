@@ -26,6 +26,7 @@ import {
   DevScenario,
   RejectedMix,
   runDevOptimize,
+  runDevReport,
   runDevScenarios,
   runDevSitePlan,
 } from "@/lib/api";
@@ -79,6 +80,8 @@ export default function Home() {
   const [selectedScenario, setSelectedScenario] = useState(0);
   const [rejectedMixes, setRejectedMixes] = useState<RejectedMix[]>([]);
   const [excludedTypes, setExcludedTypes] = useState<ExcludedType[]>([]);
+  const [approvedMixes, setApprovedMixes] = useState<Record<string, number>[]>([]);
+  const [downloadingDevReport, setDownloadingDevReport] = useState(false);
   const [softFraction, setSoftFraction] = useState(0.25);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -124,18 +127,25 @@ export default function Home() {
         normalizeWeights(lastState.weights),
         lastState.site,
       );
-      const bytes = Uint8Array.from(atob(pdf_b64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "enerzen-project-report.pdf";
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadPdf(pdf_b64, "enerzen-feasibility-report.pdf");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Report generation failed");
     } finally {
       setDownloadingReport(false);
+    }
+  }
+
+  async function handleDownloadDevReport() {
+    if (!lastDevSpec || !devMixes) return;
+    setDownloadingDevReport(true);
+    setDevError(null);
+    try {
+      const { pdf_b64 } = await runDevReport(lastDevSpec, approvedMixes, devMixes[selectedMix].units);
+      downloadPdf(pdf_b64, "enerzen-development-feasibility-report.pdf");
+    } catch (e) {
+      setDevError(e instanceof Error ? e.message : "Report generation failed");
+    } finally {
+      setDownloadingDevReport(false);
     }
   }
 
@@ -212,6 +222,7 @@ export default function Home() {
       const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, evaluated.mixes[0].units, true);
       await minimum;
       setDevMixes(evaluated.mixes);
+      setApprovedMixes(mixes);
       setRejectedMixes(evaluated.rejected);
       setSoftFraction(evaluated.soft_cost_fraction);
       setSelectedMix(0);
@@ -645,6 +656,18 @@ export default function Home() {
             )}
             {screen === "development" && devStage === "final" && devMixes && devMixes.length > 0 && (
               <>
+                <div className="result-toolbar reveal-item" style={at(0.85)}>
+                  <span className="micro-label">
+                    Report for {selectedMix === 0 ? "the recommended mix" : devMixes[selectedMix].mix_label}
+                  </span>
+                  <button
+                    className="secondary-button"
+                    onClick={handleDownloadDevReport}
+                    disabled={downloadingDevReport || devSubmitting}
+                  >
+                    {downloadingDevReport ? "Preparing report…" : "Download feasibility report ↓"}
+                  </button>
+                </div>
                 <div className="reveal-item" style={at(0.85)}>
                   <DevRecommendation mix={devMixes[0]} softFraction={softFraction} />
                 </div>
@@ -776,4 +799,14 @@ function placeName(location: string | null | undefined): string {
 
 function targetName(label: string | undefined): string {
   return label === "passive_house" ? "Passive House" : label === "nzr" ? "Net Zero Ready" : "code minimum";
+}
+
+function downloadPdf(b64: string, filename: string) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

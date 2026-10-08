@@ -322,6 +322,14 @@ export async function runDevOptimize(
   return postJson("/dev-optimize", { spec, mixes, top_n: mixes.length });
 }
 
+export async function runDevReport(
+  spec: DevSpecInput,
+  mixes: Record<string, number>[],
+  mix: Record<string, number>,
+): Promise<{ pdf_b64: string }> {
+  return postJson("/dev-report", { spec, mixes, mix });
+}
+
 export async function runDevSitePlan(
   spec: DevSpecInput,
   mix: Record<string, number>,
