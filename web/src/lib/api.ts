@@ -15,6 +15,7 @@ export type ProjectSpecInput = {
   num_units: number;
   has_ac: boolean;
   allow_gas: boolean;
+  excluded_mechanical_ids: string[];
   footprint_length_m: number | null;
   footprint_width_m: number | null;
 };
@@ -79,6 +80,9 @@ export type SoftTimeline = {
 };
 
 export type SoftSummary = { soft_cost_fraction: number; timeline: SoftTimeline };
+
+// Hard-constraint gate: evaluated = passed + over_budget + missed_target.
+export type GateBreakdown = { evaluated: number; passed: number; over_budget: number; missed_target: number };
 
 export type SiteLayout = {
   building_x_m: number;
@@ -202,7 +206,7 @@ export async function runOptimize(
   weights?: OptimizationWeights,
   top_n = 20,
   site?: SiteSpecInput
-): Promise<{ results: ConfigResult[]; soft: SoftSummary }> {
+): Promise<{ results: ConfigResult[]; soft: SoftSummary; gate: GateBreakdown }> {
   return postJson("/optimize", { spec, weights, top_n, site });
 }
 
@@ -236,6 +240,7 @@ export type ArchetypeInfo = {
   footprint_width_m: number;
   typology: string;
   units_per_building: number;
+  bedrooms: number;
 };
 
 export type DevSpecInput = {
@@ -251,6 +256,9 @@ export type DevSpecInput = {
   allowed_types: string[];
   orientation: "N" | "S" | "E" | "W";
   weights: DevelopmentWeights;
+  min_bedrooms: number;
+  max_storeys: number | null;
+  excluded_mechanical_ids: string[];
 };
 
 export type DevelopmentWeights = {
@@ -292,6 +300,8 @@ export type DevScenario = {
 
 export type RejectedMix = { units: Record<string, number>; mix_label: string; reason: string };
 
+export type ExcludedType = { id: string; reason: string };
+
 export async function fetchArchetypes(): Promise<ArchetypeInfo[]> {
   const res = await fetch(`${API_BASE}/archetypes`);
   const data = await res.json();
@@ -301,7 +311,7 @@ export async function fetchArchetypes(): Promise<ArchetypeInfo[]> {
 export async function runDevScenarios(
   spec: DevSpecInput,
   top_n = 10
-): Promise<{ scenarios: DevScenario[] }> {
+): Promise<{ scenarios: DevScenario[]; excluded_types: ExcludedType[] }> {
   return postJson("/dev-scenarios", { spec, top_n });
 }
 

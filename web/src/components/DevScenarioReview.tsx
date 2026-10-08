@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import type { DevScenario } from "@/lib/api";
+import type { DevScenario, ExcludedType } from "@/lib/api";
 import { fmtArea, fmtCad } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
@@ -10,10 +10,12 @@ export default function DevScenarioReview({
   scenarios,
   selectedIndex,
   approved,
+  excluded = [],
   onSelect,
   onToggle,
 }: {
   scenarios: DevScenario[];
+  excluded?: ExcludedType[];
   selectedIndex: number;
   approved: boolean[];
   onSelect: (index: number) => void;
@@ -62,6 +64,16 @@ export default function DevScenarioReview({
           </li>
         ))}
       </ol>
+      {excluded.length > 0 && (
+        <div className="scenario-excluded">
+          <p className="micro-label">Ruled out by the brief</p>
+          <ul>
+            {excluded.map((type) => (
+              <li key={type.id}>{type.reason}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
