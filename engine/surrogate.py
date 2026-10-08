@@ -23,6 +23,7 @@ HANDOFF.md option B).
 """
 
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -110,6 +111,12 @@ def applies_to(spec, wall_id: str, roof_id: str, floor_id: str, mechanical_type:
     return True
 
 
+@lru_cache(maxsize=1)
+def _openmp_controller():
+    from threadpoolctl import ThreadpoolController
+    return ThreadpoolController()
+
+
 def predict(*, wall_id: str, wall_ext_rigid_in: float, roof_id: str, roof_deck_rigid_in: float,
             window_u_value: float, window_shgc: float,
             furnace_efficiency_pct: float) -> Optional[SurrogatePrediction]:
@@ -137,11 +144,15 @@ def predict(*, wall_id: str, wall_ext_rigid_in: float, roof_id: str, roof_deck_r
         "roof_type_RA2": 1 if roof_id == "RA2" else 0,
     }])
 
+    # One OpenMP thread: a single-row predict gains nothing from parallelism,
+    # and each API worker thread would otherwise start its own spinning
+    # OpenMP team, which stalls later requests on a shared server.
     out = {}
-    for target, bundle in models.items():
-        model, feature_cols = bundle["model"], bundle["feature_cols"]
-        X = row.reindex(columns=feature_cols, fill_value=0)
-        out[target] = float(model.predict(X)[0])
+    with _openmp_controller().limit(limits=1, user_api="openmp"):
+        for target, bundle in models.items():
+            model, feature_cols = bundle["model"], bundle["feature_cols"]
+            X = row.reindex(columns=feature_cols, fill_value=0)
+            out[target] = float(model.predict(X)[0])
 
     return SurrogatePrediction(
         eui_kwh_m2_yr=out["eui_kwh_m2_yr"],
