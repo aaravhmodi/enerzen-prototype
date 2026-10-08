@@ -140,4 +140,5 @@ def test_report_uses_selected_weights_and_site(monkeypatch):
 
     with pytest.raises(HTTPException):
         run_report(ReportRequest(spec=spec, site=site, weights=weights))
-    assert captured["weights"] == weights
+    # The report rescales weights to sum to 1, which can leave float noise.
+    assert captured["weights"] == pytest.approx(weights)
