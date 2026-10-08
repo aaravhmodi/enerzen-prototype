@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { ConfigResult } from "@/lib/api";
 import { fmtEui, fmtCarbon, fmtCad } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
@@ -46,8 +47,8 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
   const euiPercent = Math.min(100, Math.max(0, 100 - top.eui_kwh_m2_yr));
 
   return (
-    <div className="space-y-4">
-      <div className="panel overflow-hidden">
+    <div className="reveal-stack space-y-4">
+      <div className="reveal-hero panel overflow-hidden">
         <div className="grid gap-0 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="p-5">
             <div className="flex flex-wrap items-center gap-2">
@@ -116,7 +117,7 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="reveal-tiles grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric
           label="Embodied carbon"
           value={fmtCarbon(top.embodied_carbon_kg_co2e_m2)}
@@ -203,7 +204,7 @@ export default function ResultsPanel({ results }: { results: ConfigResult[] }) {
             </thead>
             <tbody className="divide-y divide-stone-100 bg-white/80">
               {results.slice(0, 20).map((r, i) => (
-                <tr key={i} className={i === 0 ? "bg-emerald-50/80" : "transition hover:bg-stone-50"}>
+                <tr key={i} style={{ "--n": i } as CSSProperties} className={`reveal-row ${i === 0 ? "bg-emerald-50/80" : "transition hover:bg-stone-50"}`}>
                   <td className="px-4 py-3 font-medium text-stone-900">{r.wall_id}</td>
                   <td className="px-4 py-3 text-stone-600">{r.roof_id}</td>
                   <td className="px-4 py-3 text-stone-600">{fmtCad(r.construction_cost)}</td>
@@ -242,7 +243,7 @@ function Signal({
         <span className="font-semibold text-stone-950">{value}</span>
       </div>
       <div className="mt-2 h-2 rounded-full bg-emerald-100">
-        <div className="h-2 rounded-full bg-emerald-600" style={{ width: `${Math.round(percent)}%` }} />
+        <div className="signal-fill h-2 rounded-full bg-emerald-600" style={{ width: `${Math.round(percent)}%` }} />
       </div>
     </div>
   );

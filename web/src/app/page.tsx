@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
 import ProjectForm, { FormState } from "@/components/ProjectForm";
 import ResultsPanel from "@/components/ResultsPanel";
 import SitePlanView from "@/components/SitePlanView";
 import DevForm from "@/components/DevForm";
 import DevResults from "@/components/DevResults";
 import MultiSitePlanView from "@/components/MultiSitePlanView";
+import Architecture from "@/components/Architecture";
+import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
 import {
   ConfigResult,
   SiteLayout,
@@ -20,6 +22,12 @@ import {
 } from "@/lib/api";
 
 type Screen = "welcome" | "path" | "single" | "development";
+
+// Long enough to read the first few narrated stages when the engine is fast.
+const MIN_EXPLORE_MS = 2600;
+const pause = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+// Delay for one step of the staged results reveal.
+const at = (seconds: number) => ({ "--d": `${seconds}s` }) as CSSProperties;
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
@@ -67,6 +75,7 @@ export default function Home() {
           state.site,
         ),
         runSitePlan(state.spec, state.site),
+        pause(MIN_EXPLORE_MS),
       ]);
       setResults(optimizeRes.results);
       setViewResults(true);
@@ -122,6 +131,7 @@ export default function Home() {
     setLastDevSpec(spec);
     setSelectedMix(0);
     try {
+      const minimum = pause(MIN_EXPLORE_MS);
       const { mixes } = await runDevOptimize(spec);
       setDevMixes(mixes);
       if (mixes.length > 0) {
@@ -133,6 +143,7 @@ export default function Home() {
         setDevSvg(svg);
         setDevConcept(concept_render_b64);
       }
+      await minimum;
       setDevIterations((count) => count + 1);
       setViewResults(true);
     } catch (e) {
@@ -167,6 +178,27 @@ export default function Home() {
   }
 
   const busy = submitting || devSubmitting;
+  const exploring = busy && !viewResults && (screen === "single" || screen === "development");
+  const exploringContext: ExploringContext =
+    screen === "single"
+      ? {
+          place: placeName(lastState?.spec.location),
+          target: targetName(lastState?.spec.target_label),
+          brief: lastState
+            ? `${lastState.spec.typology.replace("_", " ")}, ${lastState.spec.floor_area_m2} m² over ${lastState.spec.storeys} storeys`
+            : "Your home",
+          site: lastState ? `a ${lastState.site.lot_width_m} × ${lastState.site.lot_depth_m} m lot` : "your lot",
+        }
+      : {
+          place: placeName(lastDevSpec?.location),
+          target: targetName(lastDevSpec?.target_label),
+          brief: lastDevSpec
+            ? `${lastDevSpec.allowed_types.length} housing types, $${(lastDevSpec.total_budget_cad / 1_000_000).toFixed(2)}M budget`
+            : "Your community",
+          site: lastDevSpec
+            ? `A ${lastDevSpec.lot_width_m} × ${lastDevSpec.lot_depth_m} m lot with ${lastDevSpec.front_setback_m} m front and ${lastDevSpec.rear_setback_m} m rear setbacks`
+            : "Your land",
+        };
   const choose = (path: Screen) => {
     setScreen(path);
     setViewResults(false);
@@ -387,50 +419,68 @@ export default function Home() {
           </span>
           <span className="micro-label">Ontario, Canada</span>
         </div>
-        <div hidden={screen !== "single" || viewResults}>
+        <div hidden={screen !== "single" || viewResults || exploring}>
           <ProjectForm onSubmit={handleSingleSubmit} submitting={submitting} />
         </div>
-        <div hidden={screen !== "development" || viewResults}>
+        <div hidden={screen !== "development" || viewResults || exploring}>
           <DevForm
             onSubmit={handleDevSubmit}
             submitting={devSubmitting}
             iteration={devIterations}
           />
         </div>
+        {exploring && (
+          <ExploringStage
+            path={screen === "single" ? "single" : "development"}
+            context={exploringContext}
+          />
+        )}
         {(screen === "single" ? error : devError) && (
           <div role="alert" className="error-message">
             {screen === "single" ? error : devError}
           </div>
         )}
-        {busy && (
+        {busy && viewResults && (
           <div className="processing-message" role="status">
             <span className="loading-orbit" />
             <div>
-              <strong>Exploring your possibilities</strong>
-              <p>
-                Comparing configurations and preparing your site view. This can
-                take a moment.
-              </p>
+              <strong>Redrawing the site plan</strong>
+              <p>Placing the selected mix and its walkway, parking and shared green.</p>
             </div>
           </div>
         )}
         {viewResults && (
-          <section className="results-workspace animate-screen-in">
+          <section className="results-workspace results-reveal">
             <div className="results-heading">
               <div>
-                <p className="micro-label">Your project, in perspective</p>
-                <h1 ref={heading} tabIndex={-1}>
-                  {screen === "single"
-                    ? "A direction worth exploring."
-                    : "The shape of your community."}
+                <p className="micro-label reveal-item" style={at(0)}>
+                  Your project, in perspective
+                </p>
+                <h1
+                  ref={heading}
+                  tabIndex={-1}
+                  aria-label={screen === "single" ? "A direction worth exploring." : "The shape of your community."}
+                >
+                  {(screen === "single" ? "A direction worth exploring." : "The shape of your community.")
+                    .split(" ")
+                    .map((word, index) => (
+                      <span
+                        aria-hidden="true"
+                        className="word-reveal"
+                        key={index}
+                        style={{ animationDelay: `${120 + index * 90}ms` }}
+                      >
+                        {word}{" "}
+                      </span>
+                    ))}
                 </h1>
-                <p>
-                  Explore the options, then revisit your brief to refine the
-                  direction.
+                <p className="reveal-item" style={at(0.55)}>
+                  Explore the options, then revisit your brief to refine the direction.
                 </p>
               </div>
               <button
-                className="secondary-button"
+                className="secondary-button reveal-item"
+                style={at(0.7)}
                 disabled={busy}
                 onClick={() => setViewResults(false)}
               >
@@ -439,9 +489,9 @@ export default function Home() {
             </div>
             {screen === "single" && results && (
               <>
-                <div className="result-toolbar">
+                <div className="result-toolbar reveal-item" style={at(0.85)}>
                   <span className="micro-label">
-                    {results.length} configurations
+                    Top {results.length} configurations that passed the gate
                   </span>
                   <button
                     className="secondary-button"
@@ -455,18 +505,20 @@ export default function Home() {
                 </div>
                 <ResultsPanel results={results} />
                 {siteData && (
-                  <SitePlanView
-                    svg={siteData.svg}
-                    layout={siteData.layout}
-                    conceptRenderB64={siteData.concept}
-                  />
+                  <div className="reveal-item reveal-plan" style={at(2.3)}>
+                    <SitePlanView
+                      svg={siteData.svg}
+                      layout={siteData.layout}
+                      conceptRenderB64={siteData.concept}
+                    />
+                  </div>
                 )}
               </>
             )}
             {screen === "development" && devMixes && (
               <>
                 {devMixes.length === 0 ? (
-                  <div className="empty-state">
+                  <div className="empty-state reveal-item" style={at(0.85)}>
                     <h2>No feasible mix yet.</h2>
                     <p>
                       Try adjusting the budget, lot dimensions or housing types
@@ -475,7 +527,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
-                    <div className="results-table">
+                    <div className="results-table reveal-item" style={at(0.9)}>
                       <DevResults
                         mixes={devMixes}
                         selectedIndex={selectedMix}
@@ -483,11 +535,13 @@ export default function Home() {
                       />
                     </div>
                     {devSvg && devMixes[selectedMix] && (
-                      <MultiSitePlanView
-                        svg={devSvg}
-                        mix={devMixes[selectedMix]}
-                        conceptRenderB64={devConcept}
-                      />
+                      <div className="reveal-item reveal-plan" style={at(1.9)}>
+                        <MultiSitePlanView
+                          svg={devSvg}
+                          mix={devMixes[selectedMix]}
+                          conceptRenderB64={devConcept}
+                        />
+                      </div>
                     )}
                   </>
                 )}
@@ -568,130 +622,6 @@ function WorkflowCard({
   );
 }
 
-function Architecture() {
-  return (
-    <svg
-      className="architecture"
-      viewBox="0 0 600 480"
-      fill="none"
-      role="img"
-      aria-label="Isometric courtyard and homes, conceptual illustration"
-    >
-      <defs>
-        <linearGradient
-          id="ground"
-          x1="100"
-          y1="120"
-          x2="500"
-          y2="440"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop stopColor="#efedf6" />
-          <stop offset="1" stopColor="#faf9f6" />
-        </linearGradient>
-        <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1">
-          <stop stopColor="#fff" />
-          <stop offset="1" stopColor="#e9e6f0" />
-        </linearGradient>
-      </defs>
-      <g className="architecture-float">
-        <path
-          d="m55 279 250-145 244 140-250 145Z"
-          fill="url(#ground)"
-          stroke="#d9d6df"
-        />
-        <path
-          d="m55 279 244 140v12L55 291Zm244 140 250-145v12L299 431Z"
-          fill="#e6e3eb"
-          stroke="#d9d6df"
-        />
-        <g stroke="#dcd9e3" strokeWidth=".7">
-          {[0, 1, 2, 3, 4, 5].map((n) => (
-            <path
-              key={n}
-              d={`M${85 + n * 38} ${296 + n * 22} l250-145 M${95 + n * 40} ${256 - n * 23} l244 140`}
-            />
-          ))}
-        </g>
-        <path
-          d="m166 285 136-79 139 80-140 82Z"
-          fill="#e3e8e1"
-          stroke="#cdd5cb"
-        />
-        <path
-          d="m204 286 98-56 99 56-100 59Z"
-          fill="#f8f7f3"
-          stroke="#d5d3d8"
-        />
-        <path d="m231 288 71-41 68 40-69 40Z" fill="#e0e5dd" />
-        {[
-          [126, 250],
-          [208, 201],
-          [363, 246],
-          [281, 294],
-        ].map(([x, y], i) => (
-          <g
-            key={i}
-            className="building"
-            style={{ animationDelay: `${i * 130}ms` }}
-          >
-            <path
-              d={`m${x} ${y} 55 32 52-30-55-32Z`}
-              fill="#f2f0f6"
-              stroke="#b9b4c4"
-            />
-            <path
-              d={`m${x} ${y} v-59l55 32v59Z`}
-              fill="#e5e1ed"
-              stroke="#b9b4c4"
-            />
-            <path
-              d={`m${x + 55} ${y + 32} v-59l52-30v59Z`}
-              fill="#faf9fc"
-              stroke="#b9b4c4"
-            />
-            <path
-              d={`m${x} ${y - 59} 52-30 55 32-52 30Z`}
-              fill="url(#roof)"
-              stroke="#b9b4c4"
-            />
-            <path
-              d={`m${x + 12} ${y - 26} 29 17v12l-29-17Zm52 20 29-17v12l-29 17Z`}
-              fill="#b4b0c3"
-            />
-            <path d={`m${x + 64} ${y + 19} v-14l12-7v14`} stroke="#9a93ad" />
-          </g>
-        ))}
-        {[
-          [108, 289],
-          [458, 277],
-          [297, 366],
-          [304, 211],
-          [219, 317],
-          [386, 324],
-        ].map(([x, y], i) => (
-          <g key={i}>
-            <path d={`M${x} ${y}v-28`} stroke="#a5b09f" strokeWidth="2" />
-            <ellipse
-              cx={x}
-              cy={y - 30}
-              rx="13"
-              ry="20"
-              fill="#d2dbcd"
-              stroke="#bfcbb9"
-            />
-            <path d={`M${x} ${y - 11}v-25`} stroke="#b0bea9" />
-          </g>
-        ))}
-      </g>
-      <path d="M56 370v34h35M515 149v-34h-35" stroke="#aaa3b7" />
-      <text x="52" y="432" fill="#9c95a7" fontSize="9" letterSpacing="2">
-        FORM · SPACE · POSSIBILITY
-      </text>
-    </svg>
-  );
-}
-
 function normalizeWeights(weights: FormState["weights"]): FormState["weights"] {
   const total = Object.values(weights).reduce((sum, value) => sum + value, 0);
   if (total === 0)
@@ -699,4 +629,12 @@ function normalizeWeights(weights: FormState["weights"]): FormState["weights"] {
   return Object.fromEntries(
     Object.entries(weights).map(([key, value]) => [key, value / total]),
   ) as FormState["weights"];
+}
+
+function placeName(location: string | null | undefined): string {
+  return (location ?? "Ontario").replace(" (Dunbarton)", "");
+}
+
+function targetName(label: string | undefined): string {
+  return label === "passive_house" ? "Passive House" : label === "nzr" ? "Net Zero Ready" : "code minimum";
 }

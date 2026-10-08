@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { DevMixResult } from "@/lib/api";
 import { fmtCad, fmtArea, M2 } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
@@ -73,7 +74,8 @@ export default function DevResults({
           <button
             key={i}
             onClick={() => onSelect(i)}
-            className={`w-full px-5 py-4 text-left transition ${
+            style={{ "--n": i } as CSSProperties}
+            className={`reveal-row w-full px-5 py-4 text-left transition ${
               i === selectedIndex
                 ? "bg-emerald-50"
                 : "bg-white hover:bg-stone-50"

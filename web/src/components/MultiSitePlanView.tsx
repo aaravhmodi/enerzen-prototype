@@ -6,9 +6,9 @@ import InfoTooltip from "@/components/InfoTooltip";
 
 const ARCHETYPE_LABELS: Record<string, string> = {
   garden_suite: "Garden Suite",
-  three_bhk:    "3-Bedroom Unit",
-  murb:         "MURB",
-  townhouse:    "Townhouse",
+  three_bhk: "3-Bedroom Unit",
+  murb: "MURB",
+  townhouse: "Townhouse",
 };
 
 export default function MultiSitePlanView({
@@ -20,94 +20,76 @@ export default function MultiSitePlanView({
   mix: DevMixResult;
   conceptRenderB64: string | null;
 }) {
+  const allNzr = mix.nzr_unit_count === mix.total_units;
   return (
-    <div className="panel overflow-hidden">
-      <div className="border-b border-stone-200 px-5 py-4">
-        <p className="eyebrow">Development site plan</p>
-        <h3 className="mt-1 text-xl font-semibold text-stone-950">
-          {mix.mix_label}
-        </h3>
-      </div>
+    <section className="site-plan-card">
+      <header className="site-plan-header">
+        <div>
+          <p className="micro-label">2D site plan · concept</p>
+          <h2>{mix.mix_label}</h2>
+        </div>
+      </header>
 
-      <div className="grid gap-0 lg:grid-cols-[1fr_240px]">
-        <div className="bg-white p-5">
-          <div
-            className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:overflow-visible"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
-          <p className="mt-3 text-[10px] text-stone-400 text-center">
-            Schematic placement — not to architectural scale. Setbacks shown as dashed line.
+      <div className="site-plan-body">
+        <div>
+          {/* Keyed by svg so a new plan replays the layer animation. */}
+          <div key={svg} className="site-canvas" dangerouslySetInnerHTML={{ __html: svg }} />
+          <p className="site-plan-caption">
+            Drawn to scale from the placement engine. Walkway, parking and shared green are concept layers.
           </p>
           {conceptRenderB64 && (
-            <div className="mt-5 border-t border-stone-200 pt-5">
-              <p className="eyebrow">AI presentation render</p>
+            <figure className="site-render">
+              <p className="micro-label">AI presentation render</p>
               <img
                 src={`data:image/png;base64,${conceptRenderB64}`}
                 alt="AI-rendered presentation view of the verified development site plan"
-                className="mt-2 h-auto w-full rounded-lg border border-stone-200"
               />
-              <p className="mt-2 text-[10px] text-stone-400">
-                Visual treatment only. The vector plan above remains the authoritative geometry.
-              </p>
-            </div>
+              <figcaption>Visual treatment only. The vector plan above remains the authoritative geometry.</figcaption>
+            </figure>
           )}
         </div>
 
-        <aside className="border-t border-stone-200 bg-stone-50/80 p-5 lg:border-l lg:border-t-0">
-          <p className="text-xs font-semibold text-stone-500 mb-3">Unit breakdown</p>
-          <dl className="space-y-2 text-xs text-stone-600">
+        <aside className="site-plan-stats">
+          <dl>
             {Object.entries(mix.units).map(([id, count]) =>
               count > 0 ? (
-                <div key={id} className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-                  <dt className="text-stone-400">{ARCHETYPE_LABELS[id] ?? id}</dt>
-                  <dd className="mt-1 text-base font-semibold text-stone-950">{count}</dd>
+                <div key={id}>
+                  <dt>{ARCHETYPE_LABELS[id] ?? id}</dt>
+                  <dd>{count}</dd>
                 </div>
-              ) : null
+              ) : null,
             )}
-
-            <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="text-stone-400">Total units</dt>
-              <dd className="mt-1 text-base font-semibold text-stone-950">{mix.total_units}</dd>
+            <div>
+              <dt>Total units</dt>
+              <dd>{mix.total_units}</dd>
             </div>
-
-            <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="text-stone-400">Built area</dt>
-              <dd className="mt-1 text-base font-semibold text-stone-950">
-                {fmtArea(mix.total_floor_area_m2)}
-              </dd>
+            <div>
+              <dt>Built area</dt>
+              <dd>{fmtArea(mix.total_floor_area_m2)}</dd>
             </div>
-
-            <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="flex items-center gap-1.5 text-stone-400">
+            <div>
+              <dt>
                 Avg EUI
                 <InfoTooltip text="Average Energy Use Intensity across all units in this mix. Lower means less energy consumed per m² each year." />
               </dt>
-              <dd className="mt-1 text-base font-semibold text-stone-950">
-                {fmtEui(mix.avg_eui_kwh_m2_yr)}
-              </dd>
+              <dd>{fmtEui(mix.avg_eui_kwh_m2_yr)}</dd>
             </div>
-
-            <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="flex items-center gap-1.5 text-stone-400">
+            <div>
+              <dt>
                 NZR compliant
                 <InfoTooltip text="How many units in this mix meet the Net Zero Ready envelope threshold, out of the total." />
               </dt>
-              <dd className={`mt-1 text-base font-semibold ${
-                mix.nzr_unit_count === mix.total_units ? "text-emerald-700" : "text-amber-600"
-              }`}>
+              <dd className={allNzr ? "is-good" : "is-warn"}>
                 {mix.nzr_unit_count}/{mix.total_units} units
               </dd>
             </div>
-
-            <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
-              <dt className="text-stone-400">Avg monthly utility</dt>
-              <dd className="mt-1 text-base font-semibold text-stone-950">
-                {fmtCad(mix.avg_monthly_utility)}/unit
-              </dd>
+            <div>
+              <dt>Avg monthly utility</dt>
+              <dd>{fmtCad(mix.avg_monthly_utility)}/unit</dd>
             </div>
           </dl>
         </aside>
       </div>
-    </div>
+    </section>
   );
 }

@@ -986,3 +986,25 @@ to-scale reference. An optional AI-generated concept illustration
 presentation, but is explicitly illustrative only: text-to-image models
 cannot hold exact setback distances or right angles, so the SVG — not the
 illustration — is the source of truth for any dimension.
+
+### Development site plan
+
+Sources: `engine/multi_site.py`, `engine/site_geometry.py`
+
+For a housing mix, buildings are placed in two bands either side of a shared
+walkway when they fit, otherwise in rows across the buildable envelope. The
+concept layers are then drawn from one metre-based geometry model:
+
+- **Walkway** — 1.8 m wide, from the street to the rear garden. It runs down
+  the lot centre when that is clear; otherwise through the clear corridor
+  between buildings (at least 1.8 m plus 0.4 m clearance each side) nearest
+  the centre. If no corridor exists, only an entry walk to the setback line is
+  drawn and the plan says so. Entrances face the walkway.
+- **Parking** — 2.7 x 5.5 m placeholder stalls in the front setback, either
+  side of the walkway, only when the frontage holds one per unit.
+- **Shared green** — the rear setback becomes one shared garden strip (inset
+  0.75 m) when it is at least 2.5 m deep, otherwise a small amenity corner.
+  Trees are spaced roughly every 5 m along it, with a rain-garden marker at
+  one end.
+
+These are planning concepts, not a landscape design or site plan approval.

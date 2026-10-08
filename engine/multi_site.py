@@ -7,26 +7,23 @@ gaps between buildings. Generates an SVG site plan showing all buildings
 labelled by archetype type, with a colour legend.
 """
 
-import math
 from dataclasses import dataclass
 
 from engine.site import SiteSpec, _buildable_envelope
-from engine.site_geometry import SitePlanGeometry, build_site_geometry
+from engine.site_geometry import SitePlanGeometry, build_site_geometry, spine_centre
 
-_SCALE_PX_PER_M = 8
-_MARGIN_PX = 50
 _GAP_M = 3.0       # gap between buildings (E-W and N-S)
 _PEDESTRIAN_SPINE_M = 1.8
 _SPINE_CLEARANCE_M = 1.5
 
 # Colour palette per archetype (fill, stroke)
 _ARCHETYPE_COLORS: dict[str, tuple[str, str]] = {
-    "garden_suite": ("#d1fae5", "#059669"),  # green
-    "three_bhk":    ("#dbeafe", "#2563eb"),  # blue
-    "murb":         ("#fce7f3", "#db2777"),  # pink
-    "townhouse":    ("#fef3c7", "#d97706"),  # amber
+    "garden_suite": ("#ece7f4", "#6e5a86"),  # lavender
+    "three_bhk":    ("#e3e9f1", "#4f6580"),  # slate
+    "murb":         ("#f1e6ea", "#86566a"),  # rose
+    "townhouse":    ("#f2ece2", "#8a6d45"),  # sand
 }
-_DEFAULT_COLOR = ("#f3f4f6", "#6b7280")
+_DEFAULT_COLOR = ("#efedf1", "#6f6878")
 
 
 @dataclass
@@ -201,7 +198,8 @@ def _courtyard_placements(
     return placements
 
 
-def _parking_spaces(total_units: int, lot: SiteSpec) -> list[tuple[float, float, float, float]]:
+def _parking_spaces(total_units: int, lot: SiteSpec,
+                    walk_centre: float | None = None) -> list[tuple[float, float, float, float]]:
     """Return a simple street-side parking concept when the frontage allows it.
 
     The 2.7 x 5.5 m stall is a planning placeholder, not a municipal parking
@@ -214,7 +212,7 @@ def _parking_spaces(total_units: int, lot: SiteSpec) -> list[tuple[float, float,
 
     spaces: list[tuple[float, float, float, float]] = []
     if lot.street_side in ("N", "S"):
-        center = lot.lot_width_m / 2
+        center = lot.lot_width_m / 2 if walk_centre is None else walk_centre
         left_start = lot.side_setback_m
         left_end = center - _SPINE_CLEARANCE_M
         right_start = center + _SPINE_CLEARANCE_M
@@ -231,7 +229,7 @@ def _parking_spaces(total_units: int, lot: SiteSpec) -> list[tuple[float, float,
         for i in range(remaining):
             spaces.append((right_start + i * stall_w, y0, stall_w - 0.15, stall_d))
     else:
-        center = lot.lot_depth_m / 2
+        center = lot.lot_depth_m / 2 if walk_centre is None else walk_centre
         top_start = lot.side_setback_m
         top_end = center - _SPINE_CLEARANCE_M
         bottom_start = center + _SPINE_CLEARANCE_M
@@ -280,228 +278,118 @@ def multi_site_plan_svg(
     lot: SiteSpec,
     mix: dict[str, int],
 ) -> str:
-    """SVG site plan as a clean technical drawing — white background, black
-    linework, numbered building badges keyed to a legend, full dimension
-    strings, and a bordered title block — matching an actual site-plan
-    submission rather than a marketing illustration."""
+    """SVG concept plan for a development: street and sidewalk, a shared
+    walkway through a clear corridor, parking, the rear shared garden, and
+    numbered buildings keyed to a legend."""
+    from shapely.geometry import box
+
     from engine import svg_kit
+    from engine.archetypes import ARCHETYPES
 
-    band = svg_kit.STREET_BAND_PX
-    top = _MARGIN_PX + (band if lot.street_side == "N" else 0)
-    bottom = (band if lot.street_side == "S" else 0) + 190
-    left = _MARGIN_PX + (band if lot.street_side == "W" else 0)
-    right = _MARGIN_PX + (band if lot.street_side == "E" else 0) + 30
-
-    lot_w_px = lot.lot_width_m * _SCALE_PX_PER_M
-    lot_h_px = lot.lot_depth_m * _SCALE_PX_PER_M
-    w_px = lot_w_px + left + right
-    h_px = lot_h_px + top + bottom
-
-    def px(x_m: float, y_m: float) -> tuple[float, float]:
-        return (left + x_m * _SCALE_PX_PER_M, top + y_m * _SCALE_PX_PER_M)
-
+    sheet = svg_kit.PlanSheet(lot.lot_width_m, lot.lot_depth_m, lot.street_side)
     envelope = _buildable_envelope(lot)
-    e_x0, e_y0 = px(envelope.x0, envelope.y0)
-    e_x1, e_y1 = px(envelope.x1, envelope.y1)
-
     total_units = sum(mix.values())
-    parking_spaces = _parking_spaces(total_units, lot)
+    walk = spine_centre([box(p.x_m, p.y_m, p.x_m + p.w_m, p.y_m + p.h_m) for p in placements], lot)
+    parking_spaces = _parking_spaces(total_units, lot, walk)
     geometry = build_site_geometry(placements, lot, parking_spaces)
+    s = sheet.scale
 
-    width_dim_offset = (band if lot.street_side == "S" else 0) + 16
-    depth_dim_offset = -(16 + (band if lot.street_side == "E" else 0))
+    def poly(polygon) -> str:
+        return sheet.points(polygon.exterior.coords)
 
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w_px:.0f}" height="{h_px:.0f}" '
-        f'viewBox="0 0 {w_px:.0f} {h_px:.0f}" font-family="sans-serif">',
-        svg_kit.defs_block(),
-        svg_kit.street_edge(lot.street_side, left, top, lot_w_px, lot_h_px),
-        svg_kit.lot_boundary(left, top, lot_w_px, lot_h_px),
-        f'<rect x="{e_x0:.1f}" y="{e_y0:.1f}" width="{e_x1 - e_x0:.1f}" height="{e_y1 - e_y0:.1f}" '
-        f'fill="none" stroke="{svg_kit.DASH_ENVELOPE}" stroke-width="1.25" stroke-dasharray="5,3"/>',
-        svg_kit.overall_dimensions(left, top, lot_w_px, lot_h_px, lot.lot_width_m, lot.lot_depth_m,
-                                    width_dim_offset, depth_dim_offset),
-    ]
+    body = sheet.body
+    body.append(sheet.ground(envelope))
 
-    # Public-realm context makes the lot read as part of a neighbourhood plan:
-    # a narrow sidewalk strip sits between the street edge and the property
-    # line, consistent with the permit-style context/site-plan drawing set.
-    if lot.street_side == "N":
-        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left, top - band, lot_w_px, band
-        sidewalk_label_x, sidewalk_label_y = left + lot_w_px / 2, sidewalk_y + 14
-    elif lot.street_side == "S":
-        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left, top + lot_h_px, lot_w_px, band
-        sidewalk_label_x, sidewalk_label_y = left + lot_w_px / 2, sidewalk_y + 14
-    elif lot.street_side == "W":
-        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left - band, top, band, lot_h_px
-        sidewalk_label_x, sidewalk_label_y = sidewalk_x + 8, top + lot_h_px / 2
-    else:
-        sidewalk_x, sidewalk_y, sidewalk_w, sidewalk_h = left + lot_w_px, top, band, lot_h_px
-        sidewalk_label_x, sidewalk_label_y = sidewalk_x + 14, top + lot_h_px / 2
-    sidewalk_rotation = (
-        f' transform="rotate(-90 {sidewalk_label_x:.1f} {sidewalk_label_y:.1f})"'
-        if lot.street_side in ("W", "E") else ""
-    )
-    parts.append(
-        f'<rect id="public-sidewalk" x="{sidewalk_x:.1f}" y="{sidewalk_y:.1f}" '
-        f'width="{sidewalk_w:.1f}" height="{sidewalk_h:.1f}" fill="#f3f4f6" stroke="#9ca3af" stroke-width="0.8"/>'
-    )
-    parts.append(
-        f'<text x="{sidewalk_label_x:.1f}" y="{sidewalk_label_y:.1f}" text-anchor="middle" '
-        f'font-size="7.5" letter-spacing="0.5" fill="#6b7280"{sidewalk_rotation}>PUBLIC SIDEWALK</text>'
-    )
-
-    def polygon_points(polygon):
-        return " ".join(f"{px(x, y)[0]:.1f},{px(x, y)[1]:.1f}" for x, y in polygon.exterior.coords)
-
-    # Concept layers requested by the development flow: pedestrian access and
-    # shared open space. These are planning context, not permit or landscape
-    # design determinations.
-    parts.append(
-        f'<polygon id="pedestrian-walkway" points="{polygon_points(geometry.pedestrian_spine)}" '
-        'fill="#f1f5f9" stroke="#64748b" stroke-width="1.1" opacity="0.95"/>'
-    )
-    spine_mid = geometry.pedestrian_spine.centroid
-    spine_x1, spine_y1 = px(spine_mid.x, spine_mid.y)
-    if lot.street_side in ("N", "S"):
-        spine_x2, spine_y2 = px(spine_mid.x, 0)
-    else:
-        spine_x2, spine_y2 = px(0, spine_mid.y)
-    parts.append(
-        f'<path d="M {spine_x1:.1f},{spine_y1:.1f} L {spine_x2:.1f},{spine_y2:.1f}" '
-        'fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" opacity="0.8"/>'
-    )
-    green_min_x, green_min_y, green_max_x, green_max_y = geometry.shared_green.bounds
-    gx, gy = px(green_min_x, green_min_y)
-    parts.append(
-        f'<polygon id="shared-green-space" points="{polygon_points(geometry.shared_green)}" '
-        'fill="#dcfce7" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="3,2"/>'
-    )
-    parts.append(
-        f'<text x="{gx + 4:.1f}" y="{gy + 12:.1f}" font-size="8" fill="#166534">'
-        'Shared green / amenity</text>'
-    )
-
-    for i, parking_polygon in enumerate(geometry.parking, start=1):
-        parking_min_x, parking_min_y, parking_max_x, parking_max_y = parking_polygon.bounds
-        parking_x, parking_y = px(parking_min_x, parking_min_y)
-        pw_m, ph_m = parking_max_x - parking_min_x, parking_max_y - parking_min_y
-        parts.append(
-            f'<rect id="parking-space-{i}" x="{parking_x:.1f}" y="{parking_y:.1f}" '
-            f'width="{pw_m * _SCALE_PX_PER_M:.1f}" height="{ph_m * _SCALE_PX_PER_M:.1f}" '
-            'fill="#e5e7eb" stroke="#6b7280" stroke-width="1"/>'
-        )
-        parts.append(
-            f'<text x="{parking_x + pw_m * _SCALE_PX_PER_M / 2:.1f}" '
-            f'y="{parking_y + ph_m * _SCALE_PX_PER_M / 2 + 3:.1f}" text-anchor="middle" '
-            'font-size="8" fill="#374151">P</text>'
-        )
-
-    if geometry.vehicle_access is not None:
-        access_path = polygon_points(geometry.vehicle_access)
-        access_centroid = geometry.vehicle_access.centroid
-        label_x, label_y = px(access_centroid.x, access_centroid.y)
-        parts.append(
-            f'<polygon id="vehicle-access" points="{access_path}" fill="#cbd5e1" '
-            'stroke="#64748b" stroke-width="1" opacity="0.9"/>'
-        )
-        parts.append(
-            f'<text x="{label_x:.1f}" y="{label_y - 4:.1f}" text-anchor="middle" font-size="7.5" '
-            'fill="#64748b">driveway / curb cut</text>'
-        )
-
-    # Green infrastructure is shown as a small shared landscape system rather
-    # than an unlabelled leftover rectangle: trees and a rain-garden marker
-    # make the sustainable-community intent legible in the visual plan.
-    tree_radius = min(0.55, green_max_x - green_min_x, green_max_y - green_min_y) / 7
+    # Landscape: the shared garden, its trees and the rain garden.
+    green = geometry.shared_green
+    g0 = sheet.px(green.bounds[0], green.bounds[1])
+    g1 = sheet.px(green.bounds[2], green.bounds[3])
+    body.append('<g class="sp-landscape">')
+    body.append(f'<polygon id="shared-green-space" points="{poly(green)}" fill="{svg_kit.GREEN}" '
+                f'stroke="{svg_kit.GREEN_EDGE}" stroke-width="0.9"/>')
+    if geometry.rain_garden is not None:
+        rc = geometry.rain_garden.centroid
+        rx, ry = sheet.px(rc.x, rc.y)
+        r = (geometry.rain_garden.bounds[2] - rc.x) * s
+        body.append(f'<circle id="rain-garden" cx="{rx:.1f}" cy="{ry:.1f}" r="{r:.1f}" fill="{svg_kit.WATER}" '
+                    f'stroke="{svg_kit.WATER_EDGE}" stroke-width="0.8"/>')
+    short_side_m = min(green.bounds[2] - green.bounds[0], green.bounds[3] - green.bounds[1])
+    tree_r = min(1.6, short_side_m * 0.3) * s
     for index, tree in enumerate(geometry.trees, start=1):
-        tree_cx, tree_cy = px(tree.x, tree.y)
-        parts.append(
-            f'<circle id="tree-{index}" cx="{tree_cx:.1f}" cy="{tree_cy:.1f}" '
-            f'r="{tree_radius * _SCALE_PX_PER_M:.1f}" fill="#86efac" stroke="#15803d" stroke-width="0.9"/>'
-        )
-    rain_cx, rain_cy = px(geometry.rain_garden.centroid.x, geometry.rain_garden.centroid.y)
-    parts.append(
-        f'<circle id="rain-garden" cx="{rain_cx:.1f}" cy="{rain_cy:.1f}" '
-        f'r="{geometry.rain_garden.bounds[2] - geometry.rain_garden.centroid.x:.1f}" '
-        'fill="#bfdbfe" stroke="#2563eb" stroke-width="0.9" stroke-dasharray="2,2"/>'
-    )
-    parts.append(
-        f'<text x="{rain_cx:.1f}" y="{rain_cy + 3:.1f}" text-anchor="middle" font-size="6.5" fill="#1d4ed8">RAIN</text>'
-    )
+        tx, ty = sheet.px(tree.x, tree.y)
+        body.append(f'<circle id="tree-{index}" cx="{tx:.1f}" cy="{ty:.1f}" r="{tree_r:.1f}" '
+                    f'fill="{svg_kit.TREE}" stroke="{svg_kit.TREE_EDGE}" stroke-width="0.8"/>')
+        body.append(f'<circle cx="{tx:.1f}" cy="{ty:.1f}" r="1.2" fill="{svg_kit.TREE_EDGE}" stroke="none"/>')
+    if g1[0] - g0[0] >= g1[1] - g0[1]:
+        body.append(svg_kit.text(g0[0] + 6, g0[1] + 11, "Shared green / amenity", 7.5, "#5f7154", "start", 500))
+    else:
+        body.append(svg_kit.text(g0[0] + 11, g1[1] - 6, "Shared green / amenity", 7.5, "#5f7154", "start", 500,
+                                 rotate=True))
+    body.append('</g>')
 
-    # Buildings — numbered badges so the legend below can key them, like a
-    # land-dev site plan's numbered building callouts.
+    # Access: walkway, vehicle access and parking.
+    body.append('<g class="sp-access">')
+    body.append(f'<polygon id="pedestrian-walkway" points="{poly(geometry.pedestrian_spine)}" '
+                f'fill="{svg_kit.PAVING}" stroke="{svg_kit.PAVING_EDGE}" stroke-width="0.8"/>')
+    if geometry.vehicle_access is not None:
+        body.append(f'<polygon id="vehicle-access" points="{poly(geometry.vehicle_access)}" '
+                    f'fill="{svg_kit.PAVING}" stroke="{svg_kit.PAVING_EDGE}" stroke-width="0.8"/>')
+    for i, stall in enumerate(geometry.parking, start=1):
+        p0 = sheet.px(stall.bounds[0], stall.bounds[1])
+        p1 = sheet.px(stall.bounds[2], stall.bounds[3])
+        body.append(f'<rect id="parking-space-{i}" x="{p0[0]:.1f}" y="{p0[1]:.1f}" width="{p1[0] - p0[0]:.1f}" '
+                    f'height="{p1[1] - p0[1]:.1f}" fill="{svg_kit.PAVING}" stroke="{svg_kit.LINE}" stroke-width="0.6"/>')
+        body.append(svg_kit.text((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2 + 3, "P", 7.5, svg_kit.MUTED, "middle", 600))
+    body.append('</g>')
+
+    # Buildings, numbered by archetype and keyed to the legend.
     archetype_order = [a for a in mix if mix.get(a, 0) > 0]
     number_by_archetype = {a: i + 1 for i, a in enumerate(archetype_order)}
     for index, (p, building, porch, entrance) in enumerate(
         zip(placements, geometry.buildings, geometry.porches, geometry.entrances), start=1
     ):
         fill, stroke = _ARCHETYPE_COLORS.get(p.archetype_id, _DEFAULT_COLOR)
-        bx0, by0 = px(building.bounds[0], building.bounds[1])
-        bw_px = (building.bounds[2] - building.bounds[0]) * _SCALE_PX_PER_M
-        bh_px = (building.bounds[3] - building.bounds[1]) * _SCALE_PX_PER_M
-        cx = bx0 + bw_px / 2
-        cy = by0 + bh_px / 2
-        parts.append(
-            f'<polygon points="{polygon_points(building)}" fill="{fill}" stroke="{stroke}" stroke-width="1.5"/>'
-        )
-        parts.append(
-            f'<polygon id="porch-{index}" points="{polygon_points(porch)}" fill="#fef3c7" '
-            'stroke="#b45309" stroke-width="0.9"/>'
-        )
-        entry_x, entry_y = px(entrance.x, entrance.y)
-        parts.append(
-            f'<circle id="building-entrance-{index}" cx="{entry_x:.1f}" cy="{entry_y:.1f}" '
-            'r="2.7" fill="#92400e" stroke="white" stroke-width="0.8"/>'
-        )
-        parts.append(
-            f'<text x="{cx:.1f}" y="{cy + 4:.1f}" text-anchor="middle" font-size="7" '
-            f'fill="{stroke}">{p.label}</text>'
-        )
-        if bw_px > 16 and bh_px > 16:
-            parts.append(svg_kit.numbered_badge(cx, cy, number_by_archetype.get(p.archetype_id, 0), stroke))
+        x0, y0, x1, y1 = building.bounds
+        body.append(sheet.building(x0, y0, x1, y1, fill, stroke, index, lot.solar_orientation))
+        body.append(f'<polygon id="porch-{index}" points="{poly(porch)}" fill="{svg_kit.PORCH}" '
+                    f'stroke="{svg_kit.PORCH_EDGE}" stroke-width="0.7"/>')
+        ex, ey = sheet.px(entrance.x, entrance.y)
+        body.append(f'<circle id="building-entrance-{index}" cx="{ex:.1f}" cy="{ey:.1f}" r="2.2" '
+                    f'fill="{svg_kit.INK}" stroke="white" stroke-width="0.7"/>')
+        cx, cy = sheet.px((x0 + x1) / 2, (y0 + y1) / 2)
+        if min(x1 - x0, y1 - y0) * s >= 16:
+            body.append(svg_kit.numbered_badge(cx, cy, number_by_archetype.get(p.archetype_id, 0), stroke))
+        body.append('</g>')
 
-    parts.append(svg_kit.compass(w_px - (right - 30) / 2 if right > 30 else w_px - 20,
-                                  top / 2 + 4 if top > 20 else 16))
-    scale_y = top + lot_h_px + (band if lot.street_side == "S" else 0) + 34
-    parts.append(svg_kit.scale_bar(left, scale_y, _SCALE_PX_PER_M))
+    body.append('<g class="sp-annotation">' + sheet.overall_dimensions() + '</g>')
 
-    # Title block, then a numbered legend keyed to the building badges.
-    title_y = scale_y + 20
     parking_label = f"{len(parking_spaces)} concept stalls" if parking_spaces else "Not allocated on supplied lot"
-    title_fields = [
-        ("Total units", f"{total_units}"),
-        ("Lot size", f"{lot.lot_width_m:g} x {lot.lot_depth_m:g} m"),
-        ("Street", lot.street_side),
-        ("Parking", parking_label),
+    legend = [
+        (f"badge:{_ARCHETYPE_COLORS.get(a, _DEFAULT_COLOR)[1]}:{number_by_archetype[a]}",
+         f"{ARCHETYPES[a].name} × {mix[a]}")
+        for a in archetype_order
     ]
-    parts.append(svg_kit.title_block(
-        left, title_y, min(260, lot_w_px),
+    legend += [
+        (f"line:{svg_kit.SOLAR}", "Solar face"),
+        (f"fill:{svg_kit.PAVING}:{svg_kit.PAVING_EDGE}", "Walkway & parking"),
+        (f"fill:{svg_kit.GREEN}:{svg_kit.GREEN_EDGE}", "Shared green"),
+        (f"dot:{svg_kit.WATER}:{svg_kit.WATER_EDGE}", "Rain garden"),
+        (f"dash:{svg_kit.ENVELOPE}", "Setback line"),
+    ]
+    notes = []
+    if walk is None and placements:
+        notes.append((svg_kit.WARN, "No clear walkway corridor between buildings; entry walk shown to the setback line."))
+    notes.append((svg_kit.MUTED, "Walkway / parking / shared green are concept layers, not a site plan approval."))
+    height = sheet.footer(
         "Development site plan",
-        title_fields,
-    ))
-    legend_y = title_y + 20 + 15 * len(title_fields) + 20
-    legend_x = left
-    from engine.archetypes import ARCHETYPES
-    for arch_id in archetype_order:
-        count = mix[arch_id]
-        arch = ARCHETYPES[arch_id]
-        fill, stroke = _ARCHETYPE_COLORS.get(arch_id, _DEFAULT_COLOR)
-        parts.append(svg_kit.numbered_badge(legend_x + 8, legend_y - 3, number_by_archetype[arch_id], stroke))
-        parts.append(
-            f'<text x="{legend_x + 22:.0f}" y="{legend_y:.0f}" font-size="9.5" fill="{svg_kit.LINE}">'
-            f'{arch.name} x {count}</text>'
-        )
-        legend_x += 170
-        if legend_x > w_px - 150:
-            legend_x = left
-            legend_y += 18
-
-    parts.append(
-        f'<text x="{left:.0f}" y="{legend_y + 18:.0f}" font-size="8.5" fill="{svg_kit.LINE}">'
-        'Walkway / parking / shared green are concept layers</text>'
+        [
+            ("Total units", f"{total_units}"),
+            ("Lot size", f"{lot.lot_width_m:g} × {lot.lot_depth_m:g} m"),
+            ("Street", lot.street_side),
+            ("Setbacks", f"front {lot.front_setback_m:g} · side {lot.side_setback_m:g} · rear {lot.rear_setback_m:g} m"),
+            ("Parking", parking_label),
+        ],
+        legend,
+        notes,
     )
-
-    parts.append('</svg>')
-    return "".join(parts)
+    return sheet.render(height)

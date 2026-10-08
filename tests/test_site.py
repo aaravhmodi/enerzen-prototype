@@ -177,7 +177,25 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertTrue(all(building.within(geometry.lot_boundary) for building in geometry.buildings))
         self.assertTrue(all(stall.within(geometry.lot_boundary) for stall in geometry.parking))
         self.assertIsNotNone(geometry.vehicle_access)
-        self.assertEqual(len(geometry.trees), 4)
+        self.assertGreaterEqual(len(geometry.trees), 2)
+        self.assertTrue(all(geometry.shared_green.contains(tree) for tree in geometry.trees))
+        self.assertTrue(geometry.rain_garden.within(geometry.shared_green))
+
+    def test_walkway_never_crosses_a_building(self):
+        site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
+        placements = place_units({"garden_suite": 12}, site)
+        geometry = build_site_geometry(placements, site, [])
+
+        self.assertEqual(len(placements), 12)
+        self.assertTrue(all(not geometry.pedestrian_spine.intersects(b.buffer(-0.01)) for b in geometry.buildings))
+
+    def test_shared_green_uses_the_rear_yard(self):
+        site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
+        geometry = build_site_geometry(place_units({"garden_suite": 2}, site), site, [])
+
+        min_x, min_y, max_x, max_y = geometry.shared_green.bounds
+        self.assertGreater(min_y, 50.0 - site.rear_setback_m)
+        self.assertGreater(max_x - min_x, 20.0)
         self.assertEqual(len(geometry.entrances), len(geometry.buildings))
         self.assertEqual(len(geometry.porches), len(geometry.buildings))
 

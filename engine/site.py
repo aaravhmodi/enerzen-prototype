@@ -176,84 +176,49 @@ def _driveway_polygon(site: SiteSpec, envelope: BuildableEnvelope,
     return [(bx + bw, y), (bx + bw, y + driveway_width), (site.lot_width_m, y + driveway_width), (site.lot_width_m, y)]
 
 
-_SCALE_PX_PER_M = 8
-_MARGIN_PX = 40
-
-
 def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
-    """SVG site plan as a clean technical drawing — white background, black
-    linework, full dimension strings, a bordered title block — matching an
-    actual site-plan submission rather than a marketing illustration."""
+    """SVG site plan for a single building: lot, street, buildable envelope,
+    driveway and footprint with its solar face, plus a key and legend."""
     from engine import svg_kit
 
-    band = svg_kit.STREET_BAND_PX
-    top = _MARGIN_PX + (band if site.street_side == "N" else 0)
-    bottom = (band if site.street_side == "S" else 0) + 150
-    left = _MARGIN_PX + (band if site.street_side == "W" else 0)
-    right = _MARGIN_PX + (band if site.street_side == "E" else 0) + 30
-
-    lot_w_px = site.lot_width_m * _SCALE_PX_PER_M
-    lot_h_px = site.lot_depth_m * _SCALE_PX_PER_M
-    w_px = lot_w_px + left + right
-    h_px = lot_h_px + top + bottom
-
-    def px(x_m, y_m):
-        return (left + x_m * _SCALE_PX_PER_M, top + y_m * _SCALE_PX_PER_M)
-
+    sheet = svg_kit.PlanSheet(site.lot_width_m, site.lot_depth_m, site.street_side)
     envelope = _buildable_envelope(site)
-    e_x0, e_y0 = px(envelope.x0, envelope.y0)
-    e_x1, e_y1 = px(envelope.x1, envelope.y1)
-    b_x0, b_y0 = px(layout.building_x_m, layout.building_y_m)
-    b_x1, b_y1 = px(layout.building_x_m + layout.building_w_m,
-                     layout.building_y_m + layout.building_h_m)
+    bx0, by0 = layout.building_x_m, layout.building_y_m
+    bx1, by1 = bx0 + layout.building_w_m, by0 + layout.building_h_m
+    b_center = sheet.px((bx0 + bx1) / 2, (by0 + by1) / 2)
 
-    drive_pts = " ".join(f"{px(x, y)[0]:.1f},{px(x, y)[1]:.1f}" for x, y in layout.driveway_points_m)
+    body = sheet.body
+    body.append(sheet.ground(envelope))
+    body.append(
+        '<g class="sp-access">'
+        f'<polygon points="{sheet.points(layout.driveway_points_m)}" fill="{svg_kit.PAVING}" '
+        f'stroke="{svg_kit.PAVING_EDGE}" stroke-width="0.9"/></g>'
+    )
+    body.append(sheet.building(bx0, by0, bx1, by1, "#ece7f4", "#6e5a86", 0, layout.orientation))
+    label = f"{layout.building_w_m:.1f} × {layout.building_h_m:.1f} m"
+    label_w = svg_kit.text_width(label, 8.5) + 12
+    body.append(f'<rect x="{b_center[0] - label_w / 2:.1f}" y="{b_center[1] - 7:.1f}" width="{label_w:.1f}" '
+                f'height="14" fill="#ece7f4" stroke="none"/>')
+    body.append(svg_kit.text(b_center[0], b_center[1] + 3, label, 8.5, svg_kit.INK, "middle", 500))
+    body.append('</g>')
+    body.append('<g class="sp-annotation">' + sheet.overall_dimensions() + '</g>')
 
-    solar_edge = {
-        "N": (b_x0, b_y0, b_x1, b_y0),
-        "S": (b_x0, b_y1, b_x1, b_y1),
-        "E": (b_x1, b_y0, b_x1, b_y1),
-        "W": (b_x0, b_y0, b_x0, b_y1),
-    }[layout.orientation]
-
-    width_dim_offset = (band if site.street_side == "S" else 0) + 16
-    depth_dim_offset = -(16 + (band if site.street_side == "E" else 0))
-
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w_px:.0f}" height="{h_px:.0f}" '
-        f'viewBox="0 0 {w_px:.0f} {h_px:.0f}" font-family="sans-serif">',
-        svg_kit.defs_block(),
-        svg_kit.street_edge(site.street_side, left, top, lot_w_px, lot_h_px),
-        svg_kit.lot_boundary(left, top, lot_w_px, lot_h_px),
-        f'<rect x="{e_x0:.1f}" y="{e_y0:.1f}" width="{e_x1 - e_x0:.1f}" height="{e_y1 - e_y0:.1f}" '
-        f'fill="none" stroke="{svg_kit.DASH_ENVELOPE}" stroke-width="1.25" stroke-dasharray="5,3"/>',
-        svg_kit.setback_dimensions(site.street_side, e_x0, e_y0, e_x1, e_y1, left, top, lot_w_px, lot_h_px,
-                                    site.front_setback_m, site.side_setback_m, site.rear_setback_m),
-        svg_kit.overall_dimensions(left, top, lot_w_px, lot_h_px, site.lot_width_m, site.lot_depth_m,
-                                    width_dim_offset, depth_dim_offset),
-        f'<polygon points="{drive_pts}" fill="#e5e7eb" stroke="{svg_kit.LINE}" stroke-width="1"/>',
-        f'<rect x="{b_x0:.1f}" y="{b_y0:.1f}" width="{b_x1 - b_x0:.1f}" height="{b_y1 - b_y0:.1f}" '
-        f'fill="{svg_kit.BUILDING_FILL}" stroke="{svg_kit.INK}" stroke-width="1.75"/>',
-        f'<text x="{(b_x0 + b_x1) / 2:.1f}" y="{(b_y0 + b_y1) / 2 + 3:.1f}" text-anchor="middle" '
-        f'font-size="8.5" fill="{svg_kit.LINE}">{layout.building_w_m:.1f} x {layout.building_h_m:.1f} m</text>',
-        f'<line x1="{solar_edge[0]:.1f}" y1="{solar_edge[1]:.1f}" x2="{solar_edge[2]:.1f}" y2="{solar_edge[3]:.1f}" '
-        f'stroke="#b45309" stroke-width="3"/>',
-        svg_kit.compass(w_px - (right - 30) / 2 if right > 30 else w_px - 20, top / 2 + 4 if top > 20 else 16),
-        svg_kit.scale_bar(left, top + lot_h_px + (band if site.street_side == "S" else 0) + 34, _SCALE_PX_PER_M),
-        svg_kit.title_block(
-            left, top + lot_h_px + (band if site.street_side == "S" else 0) + 54, min(220, lot_w_px),
-            "Site plan",
-            [
-                ("Street", site.street_side),
-                ("Solar score", f"{layout.solar_score:.2f}"),
-                ("Lot size", f"{site.lot_width_m:g} x {site.lot_depth_m:g} m"),
-            ],
-        ),
-    ]
-    if layout.notes:
-        parts.append(
-            f'<text x="{left:.0f}" y="{h_px - 8:.0f}" font-size="9" fill="#b91c1c">'
-            f'{layout.notes[0]}</text>'
-        )
-    parts.append('</svg>')
-    return "".join(parts)
+    notes = [(svg_kit.WARN, note) for note in layout.notes]
+    notes.append((svg_kit.MUTED, "Concept placement from passive-solar rules; not a survey or zoning review."))
+    height = sheet.footer(
+        "Site plan",
+        [
+            ("Lot size", f"{site.lot_width_m:g} × {site.lot_depth_m:g} m"),
+            ("Street", site.street_side),
+            ("Setbacks", f"front {site.front_setback_m:g} · side {site.side_setback_m:g} · rear {site.rear_setback_m:g} m"),
+            ("Solar score", f"{layout.solar_score:.2f}"),
+        ],
+        [
+            ("fill:#ece7f4:#6e5a86", "Building"),
+            (f"line:{svg_kit.SOLAR}", "Solar face"),
+            (f"fill:{svg_kit.PAVING}:{svg_kit.PAVING_EDGE}", "Driveway"),
+            (f"dash:{svg_kit.ENVELOPE}", "Setback line"),
+        ],
+        notes,
+    )
+    return sheet.render(height)

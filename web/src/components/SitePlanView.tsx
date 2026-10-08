@@ -16,45 +16,41 @@ export default function SitePlanView({
   const [showConcept, setShowConcept] = useState(false);
 
   return (
-    <div className="panel overflow-hidden">
-      <div className="flex flex-col gap-3 border-b border-stone-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <section className="site-plan-card">
+      <header className="site-plan-header">
         <div>
-          <p className="eyebrow">Site fit</p>
-          <h3 className="mt-1 text-xl font-semibold text-stone-950">Placement and solar exposure</h3>
+          <p className="micro-label">Site fit</p>
+          <h2>Placement and solar exposure</h2>
         </div>
         {conceptRenderB64 && (
-          <button
-            onClick={() => setShowConcept((v) => !v)}
-            className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:text-emerald-800"
-          >
-            {showConcept ? "Technical diagram" : "Concept illustration"}
+          <button className="secondary-button" onClick={() => setShowConcept((v) => !v)}>
+            {showConcept ? "Technical plan" : "Concept illustration"}
           </button>
         )}
-      </div>
+      </header>
 
-      <div className="grid gap-0 lg:grid-cols-[1fr_260px]">
-        <div className="bg-white p-5">
+      <div className="site-plan-body">
+        <div>
           {showConcept && conceptRenderB64 ? (
-            <div>
+            <figure className="site-render">
               <img
                 src={`data:image/png;base64,${conceptRenderB64}`}
                 alt="AI-generated concept illustration of the site plan"
-                className="w-full rounded-xl border border-stone-200 shadow-sm"
               />
-              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-                Concept illustration only - not to scale or authoritative. Use the technical diagram for dimensions.
-              </p>
-            </div>
+              <figcaption>
+                Concept illustration only, not to scale or authoritative. Use the technical plan for dimensions.
+              </figcaption>
+            </figure>
           ) : (
-            <div
-              className="rounded-xl border border-stone-200 bg-stone-50 p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full [&_svg]:overflow-visible"
-              dangerouslySetInnerHTML={{ __html: svg }}
-            />
+            <>
+              <div key={svg} className="site-canvas" dangerouslySetInnerHTML={{ __html: svg }} />
+              <p className="site-plan-caption">Drawn to scale from the placement engine.</p>
+            </>
           )}
         </div>
 
-        <aside className="border-t border-stone-200 bg-stone-50/80 p-5 lg:border-l lg:border-t-0">
-          <dl className="grid gap-3 text-xs text-stone-600">
+        <aside className="site-plan-stats">
+          <dl>
             <Stat
               label="Solar score"
               value={layout.solar_score.toFixed(2)}
@@ -78,27 +74,21 @@ export default function SitePlanView({
               tip="The direction the building's main facade faces, as placed on this lot."
             />
           </dl>
-          {layout.notes.length > 0 && (
-            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-              {layout.notes[0]}
-            </p>
-          )}
+          {layout.notes.length > 0 && <p className="site-plan-note">{layout.notes[0]}</p>}
         </aside>
       </div>
-    </div>
+    </section>
   );
 }
 
 function Stat({ label, value, ok, tip }: { label: string; value: string; ok?: boolean; tip?: string }) {
-  const valueColor = ok === undefined ? "text-stone-950" : ok ? "text-emerald-700" : "text-red-600";
-
   return (
-    <div className="tile p-3">
-      <dt className="flex items-center gap-1.5 tile-label">
+    <div>
+      <dt>
         {label}
         {tip && <InfoTooltip text={tip} />}
       </dt>
-      <dd className={`mt-1.5 text-base font-semibold ${valueColor}`}>{value}</dd>
+      <dd className={ok === undefined ? undefined : ok ? "is-good" : "is-warn"}>{value}</dd>
     </div>
   );
 }
