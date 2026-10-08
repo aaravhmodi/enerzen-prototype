@@ -1,9 +1,8 @@
 "use client";
 
-export type WizardStep = {
-  label: string;
-  caption: string;
-};
+import { useEffect, useRef } from "react";
+
+export type WizardStep = { label: string; caption: string };
 
 export default function WizardChrome({
   steps,
@@ -20,6 +19,8 @@ export default function WizardChrome({
   submitting = false,
   iteration,
   submitLabel = "Generate recommendation",
+  facts = [],
+  guidance,
 }: {
   steps: WizardStep[];
   currentStep: number;
@@ -35,70 +36,160 @@ export default function WizardChrome({
   submitting?: boolean;
   iteration?: string;
   submitLabel?: string;
+  facts?: { label: string; value: string }[];
+  guidance?: string;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [currentStep]);
+  function advance() {
+    const form = heading.current?.closest("form");
+    if (!form?.reportValidity()) return;
+    onNext();
+  }
   return (
-    <div className="wizard-shell panel overflow-hidden">
-      <div className="relative overflow-hidden border-b border-emerald-100/80 bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-800 px-5 py-6 text-white sm:px-7">
-        <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-lime-200/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-44 w-44 rounded-full bg-cyan-300/15 blur-3xl" />
-        <div className="relative">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-emerald-200">{eyebrow}</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight">{title}</h2>
-              <p className="mt-2 max-w-xl text-sm leading-6 text-emerald-50/75">{description}</p>
-            </div>
-            {iteration && <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold text-emerald-50">{iteration}</span>}
-          </div>
-
-          <ol className="mt-7 grid grid-cols-5 gap-1.5" aria-label="Workflow progress">
-            {steps.map((step, index) => {
-              const complete = index < currentStep;
-              const active = index === currentStep;
-              return (
-                <li key={step.label} className="min-w-0">
-                  <div className={`h-1 rounded-full transition-all duration-500 ${complete || active ? "bg-lime-300" : "bg-white/20"}`} />
-                  <div className={`mt-2 truncate text-[10px] font-semibold ${active ? "text-white" : complete ? "text-lime-200" : "text-emerald-100/50"}`} aria-current={active ? "step" : undefined}>
-                    {index + 1}. {step.label}
-                  </div>
-                  <div className="mt-0.5 hidden truncate text-[9px] text-emerald-100/45 sm:block">{step.caption}</div>
-                </li>
-              );
-            })}
-          </ol>
+    <div className="wizard-shell">
+      <aside className="wizard-rail">
+        <p className="micro-label">{eyebrow}</p>
+        <h2>
+          Make it
+          <br />
+          your own.
+        </h2>
+        <ol aria-label="Workflow progress">
+          {steps.map((step, index) => (
+            <li
+              key={step.label}
+              className={
+                index === currentStep
+                  ? "active"
+                  : index < currentStep
+                    ? "complete"
+                    : ""
+              }
+              aria-current={index === currentStep ? "step" : undefined}
+            >
+              <span className="step-number">
+                {index < currentStep ? "✓" : String(index + 1).padStart(2, "0")}
+              </span>
+              <span>
+                <strong>{step.label}</strong>
+                <small>{step.caption}</small>
+              </span>
+            </li>
+          ))}
+        </ol>
+        <div className="live-brief" aria-label="Live project brief">
+          <p className="micro-label">Taking shape</p>
+          <dl>
+            {facts.map((fact) => (
+              <div key={fact.label}>
+                <dt>{fact.label}</dt>
+                <dd key={fact.value} className="value-arrive">
+                  {fact.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
-      </div>
-
-      <div className="animate-screen-in p-5 sm:p-7">{children}</div>
-
-      <div className="flex items-center justify-between gap-3 border-t border-stone-200/80 bg-stone-50/70 px-5 py-4 sm:px-7">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={currentStep === 0 || submitting}
-          className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-600 transition hover:border-emerald-300 hover:text-emerald-800 disabled:cursor-not-allowed disabled:opacity-35"
-        >
-          Back
-        </button>
-        {isLastStep ? (
-          <button
-            type="submit"
-            disabled={nextDisabled || submitting}
-            className="rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-900/20 transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {submitting ? "Working…" : submitLabel}
-          </button>
-        ) : (
+        <div className="rail-note">
+          <span className="status-dot" />
+          <p>
+            Your choices.
+            <br />
+            One connected picture.
+          </p>
+        </div>
+      </aside>
+      <section className="wizard-stage" aria-busy={submitting}>
+        <div className="wizard-stage-top">
+          <span className="micro-label">
+            Step {String(currentStep + 1).padStart(2, "0")}{" "}
+            <span className="muted">
+              / {String(steps.length).padStart(2, "0")}
+            </span>
+          </span>
+          {iteration && <span className="micro-label">{iteration}</span>}
+        </div>
+        <div className="wizard-progress" aria-hidden="true">
+          <span
+            style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+          />
+        </div>
+        <div key={currentStep} className="wizard-content animate-screen-in">
+          <header className="step-heading">
+            <h2 ref={heading} tabIndex={-1} aria-label={title}>
+              {title.split(" ").map((word, index) => (
+                <span
+                  aria-hidden="true"
+                  className="word-reveal"
+                  key={index}
+                  style={{ animationDelay: `${index * 65}ms` }}
+                >
+                  {word}{" "}
+                </span>
+              ))}
+            </h2>
+            <p className="description-reveal">{description}</p>
+          </header>
+          <fieldset disabled={submitting} className="wizard-fields">
+            {children}
+          </fieldset>
+          {guidance && (
+            <aside
+              className="choice-guidance"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <span className="guidance-icon" aria-hidden="true">
+                ↳
+              </span>
+              <div key={guidance} className="value-arrive">
+                <span className="micro-label">A thought for your project</span>
+                <p>{guidance}</p>
+              </div>
+            </aside>
+          )}
+        </div>
+        <div className="wizard-actions">
           <button
             type="button"
-            onClick={onNext}
-            disabled={nextDisabled}
-            className="group rounded-xl bg-emerald-900 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-900/20 transition hover:-translate-y-0.5 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+            className="quiet-button"
+            onClick={onBack}
+            disabled={currentStep === 0 || submitting}
           >
-            {nextLabel} <span className="ml-1 transition-transform group-hover:translate-x-0.5">→</span>
+            ← Back
           </button>
-        )}
-      </div>
+          <span className="wizard-action-note">
+            Your choices stay as you go.
+          </span>
+          {isLastStep ? (
+            <button
+              key="submit"
+              type="submit"
+              className="primary-button"
+              disabled={nextDisabled || submitting}
+            >
+              {submitting ? "Exploring…" : submitLabel}{" "}
+              <span aria-hidden="true">↗</span>
+            </button>
+          ) : (
+            <button
+              key="advance"
+              type="button"
+              className="primary-button"
+              onClick={(event) => {
+                event.preventDefault();
+                advance();
+              }}
+              disabled={nextDisabled || submitting}
+            >
+              {nextLabel} <span aria-hidden="true">→</span>
+            </button>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
