@@ -39,13 +39,7 @@ def test_engine_material_values_reproduce_the_code_worksheets(case):
     assert nbc_effective_rsi(assembly) == pytest.approx(published, rel=0.01)
 
 
-METHOD_GAP = pytest.mark.xfail(strict=True, reason=(
-    "Known gap: the engine applies parallel path across the whole assembly, which overstates "
-    "effective RSI against the NBC isothermal-planes method (+4.6% on MW-03, +5.7% on MW-02). "
-    "Pending a decision to switch methods (docs/TRL5_VALIDATION_RESULTS.md)."))
-
-
-@pytest.mark.parametrize("case", ["MW-03", pytest.param("MW-02", marks=METHOD_GAP)])
-def test_engine_effective_rsi_within_five_percent_of_the_code(case):
+@pytest.mark.parametrize("case", CASES)
+def test_engine_effective_rsi_matches_the_code(case):
     published, assembly = CASES[case]
-    assert assembly.rsi_effective == pytest.approx(published, rel=0.05)
+    assert assembly.rsi_effective == pytest.approx(published, rel=0.01)

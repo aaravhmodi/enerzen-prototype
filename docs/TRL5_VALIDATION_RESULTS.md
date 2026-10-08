@@ -9,7 +9,7 @@ reruns it (`python -m pytest tests/validation -q`).
 | Check | Result | Status |
 |---|---|---|
 | R-values: engine material values vs NBC worksheets | +0.2% and +0.6% | Pass |
-| R-values: engine method vs NBC method | +4.6% and +5.7% (limit 5%) | **Fail on one case: known gap, decision needed** |
+| R-values: engine method vs NBC method | +0.2% and +0.6% after switching to the code method (was +4.6% / +5.7%) | Pass (fixed 2026-10-08) |
 | Energy: typical homes vs code-built benchmark | +2% (3-Bedroom Unit, Townhouse) | Pass |
 | Energy: falls as the target rises | All four designs | Pass |
 | Energy: Garden Suite vs benchmark | +50% | Outside limit; small-dwelling effect, needs a size-matched reference |
@@ -57,7 +57,8 @@ and with the code's method using the engine's values.
    ¾" air gap behind the cladding (a rainscreen) and ½" OSB; the worksheet has
    neither, so these walls are not identical.
 
-**Decision needed (user).** Switching the engine to the code's method would
+**Resolved 2026-10-08.** The user approved the switch; the engine now uses the
+code's method and both walls match within 1%. Original note: switching would
 align the effective R-values with Part 9 compliance practice and the
 flowchart's "confirm alignment with the targeted performance label", but
 changes every energy result slightly (heat loss up about 5%). Not changed

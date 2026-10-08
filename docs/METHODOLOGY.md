@@ -22,7 +22,7 @@ benchmarks (200 kWh/m2/yr existing and 130 kWh/m2/yr code-built new).
 
 **Material cost and carbon values are defaults.** R-values per inch come from
 published tables and the effective-R method cross-checks well against NRCan
-(a code 2x6 R22 wall computes to ~R16 effective, matching published values). But
+(the National Building Code method reproduces published wall worksheets within 1%). But
 the *cost* and *embodied carbon* per material are default ranges, not EnerZen's
 procurement data, and should be replaced before quoting.
 
@@ -401,25 +401,31 @@ The full table is listed in section 13. Imperial R converts to metric RSI by
 making every assembly about 5.7x better insulated than reality — that bug is
 fixed here.)
 
-### 4.2 Effective R-value (parallel-path)
+### 4.2 Effective R-value (National Building Code method)
 
-Heat takes two routes through a framed assembly: through the insulated cavity and
-through the framing members, which bridge the insulation. Each path's resistance
-is summed, converted to a U-factor, and area-weighted by the framing fraction:
+Heat takes two routes through a framed layer: through the insulated cavity and
+through the framing members, which bridge the insulation. Following the
+National Building Code (A-9.36.2.4, "isothermal planes"), the two routes are
+averaged in parallel within the framed layer only, and everything else is
+added in series:
 
 ```
-R_cavity_path  = air_films + continuous_layers + cavity_insulation
-R_framing_path = air_films + continuous_layers + framing_member
-U_assembly     = ff x (1 / R_framing_path) + (1 - ff) x (1 / R_cavity_path)
-R_effective    = 1 / U_assembly
+R_framed_layer = 1 / (ff / R_framing_member + (1 - ff) / R_cavity_insulation)
+R_effective    = air_films + continuous_layers + R_framed_layer
+U_assembly     = 1 / R_effective
 ```
 
 - **ff** — framing factor, the fraction of area that is framing (0.23 for 2x6 at
-  16" o.c., lower for deep roof joists). This finally makes thermal bridging
-  explicit: a code 2x6 R22 wall loses ~25% of its nominal R to the studs, landing
-  at ~R16 effective. Adding exterior continuous rigid cuts that loss.
+  16" o.c., lower for deep roof joists). Thermal bridging is explicit: the studs
+  cut a 2x6 R22 wall well below its nominal R. Adding exterior continuous rigid
+  reduces that loss.
 - Air films (NRCan): exterior 0.03; interior 0.12 wall / 0.11 ceiling / 0.16
   floor (RSI).
+- **Validation:** rebuilt from the engine's material table, two published NBC
+  wall worksheets (RSI 3.00 and 3.25) are reproduced within 1%
+  (`tests/validation/test_rvalues.py`). Before 2026-10-08 the engine applied
+  the parallel path across the whole assembly, which overstated effective R by
+  about 5%.
 
 `U_assembly` is what the energy model consumes; `R_nominal` (centre-of-cavity) is
 what marketing quotes.

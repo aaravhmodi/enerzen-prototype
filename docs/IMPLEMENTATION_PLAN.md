@@ -87,7 +87,7 @@ Chromium.
 | # | Topic | Decision | Status |
 |---|-------|----------|--------|
 | D1 | MURB size | Match the drawings: 5 storeys (G+4), 4 units/floor = 20 homes, 19 x 18 m | Done (`3e60957`) |
-| D2 | Wall R-values | Panel drawing says R-35 (2x6) / R-40 (2x8) effective with 2" exterior mineral wool; engine computes R-28.4 / R-33.9 at 2" | **Open.** User unsure; walls unchanged. Do not change without the user |
+| D2 | Wall R-values | Panel drawing says R-35 (2x6) / R-40 (2x8) effective with 2" exterior mineral wool; engine computes R-26.3 / R-31.5 at 2" (building-code method since 2026-10-08) | **Open.** User unsure; walls unchanged. Do not change without the user |
 | D3 | Path B order | Follow the flowchart: site plan + review first, then performance optimization | Done (`369ed90`) |
 | D4 | Resilience | Deferred by the user | Options kept in Phase 4 |
 | D5 | Soft costs / timeline | Published defaults, sourced in METHODOLOGY 6.9 | Done (`15c9ba0`) |

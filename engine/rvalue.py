@@ -118,14 +118,18 @@ class Assembly:
 
     @property
     def u_value(self) -> float:
-        """Effective U in W/m2.K — the number the energy model consumes."""
+        """Effective U in W/m2.K — the number the energy model consumes.
+
+        National Building Code A-9.36.2.4 method (isothermal planes): the
+        framing and cavity are averaged in parallel within the framed layer
+        only, then the continuous layers and air films are added in series.
+        Validated against published NBC worksheets (tests/validation)."""
         cont = self.rsi_continuous
         if self.cavity is None:
             return 1 / cont
         ff = self.cavity.framing_factor
-        r_cav = cont + self.cavity.rsi_cavity
-        r_frm = cont + self.cavity.rsi_framing
-        return ff / r_frm + (1 - ff) / r_cav
+        framed = 1 / (ff / self.cavity.rsi_framing + (1 - ff) / self.cavity.rsi_cavity)
+        return 1 / (cont + framed)
 
     @property
     def rsi_effective(self) -> float:
