@@ -19,7 +19,7 @@ function stagesFor(path: "single" | "development", c: ExploringContext): Stage[]
     return [
       { title: "Reading your brief", how: `${c.brief}. Budget and the ${c.target} target become hard constraints; your weights stay soft priorities.` },
       { title: "Site and regulatory context", how: `Loading ${c.place} climate, degree-days, snow load and regional energy rates. Zoning is not checked until a parcel is selected.` },
-      { title: "Matching the design catalog", how: "Lining up your floor area, storeys and footprint with EnerZen's catalog designs." },
+      { title: "Setting the design geometry", how: "Taking the catalog design you chose, or your custom footprint, as the starting geometry for every configuration." },
       { title: "Configuring building systems", how: "Combining wall, roof and foundation assemblies across insulation thicknesses with windows, mechanical and solar options." },
       { title: "Calculating performance", how: "Effective R-values, heat loss, EUI and TEDI, then cost, build weeks, embodied and lifecycle carbon for every configuration." },
       { title: "Applying the performance gate", how: `Setting aside configurations that exceed your budget or miss the ${c.target} threshold.` },
