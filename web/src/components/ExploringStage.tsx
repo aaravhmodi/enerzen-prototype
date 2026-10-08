@@ -14,7 +14,9 @@ type Stage = { title: string; how: string };
 
 // Narrates the engine's real pipeline, in the order it actually runs. The
 // stages advance on a timer: the API returns one response, not live progress.
-function stagesFor(path: "single" | "development", c: ExploringContext): Stage[] {
+type ExploringPath = "single" | "dev-scenarios" | "dev-performance";
+
+function stagesFor(path: ExploringPath, c: ExploringContext): Stage[] {
   if (path === "single") {
     return [
       { title: "Reading your brief", how: `${c.brief}. Budget and the ${c.target} target become hard constraints; your weights stay soft priorities.` },
@@ -27,16 +29,24 @@ function stagesFor(path: "single" | "development", c: ExploringContext): Stage[]
       { title: "Placing it on the site", how: `Fitting the footprint inside the setbacks on ${c.site} and turning its long face toward the sun.` },
     ];
   }
+  if (path === "dev-scenarios") {
+    return [
+      { title: "Reading the development brief", how: `${c.brief}. Budget and the ${c.target} target are hard constraints.` },
+      { title: "Land and planning context", how: `${c.site}. ${c.place} city-wide data is loaded; zoning is not checked until a parcel is selected.` },
+      { title: "Selecting housing types", how: "Taking the catalog types you allowed, with their footprints, storeys and homes per building." },
+      { title: "Pricing a cost floor", how: "Costing the cheapest catalog configuration of each type, so mixes that could never meet the budget are set aside early." },
+      { title: "Testing housing mixes", how: "Enumerating combinations of the selected types within the buildable area and the budget." },
+      { title: "Fitting mixes on the land", how: "Placing buildings in bands around a shared walkway. Mixes that do not fit inside the setbacks are set aside." },
+      { title: "Drawing the 2D site plan", how: "Walkway, street-facing entrances, parking and the shared rear garden for the leading scenario." },
+    ];
+  }
   return [
-    { title: "Reading the development brief", how: `${c.brief}. Budget and the ${c.target} target are hard constraints.` },
-    { title: "Land and planning context", how: `${c.site}. ${c.place} city-wide data is loaded; zoning is not checked until a parcel is selected.` },
-    { title: "Optimizing each housing type", how: "Running every selected catalog type through the envelope and systems optimizer to find its best configuration." },
-    { title: "Sizing the possibilities", how: "Capping each type by buildable area and budget before testing combinations." },
-    { title: "Testing housing mixes", how: "Enumerating mixes of the selected types and discarding any that exceed the budget." },
-    { title: "Fitting mixes on the land", how: "Placing buildings in bands around a shared walkway. Mixes that do not fit inside the setbacks are set aside." },
-    { title: "Development calculations", how: "Totalling cost, unit yield, floor area, average EUI, carbon and utility cost for each feasible mix." },
+    { title: "Reading the approved scenarios", how: "Carrying forward only the site plans you approved." },
+    { title: "Optimizing building performance", how: "Running each housing type through the envelope, window and mechanical options to find its best configuration." },
+    { title: "Applying the performance gate", how: `Setting aside configurations that miss the ${c.target} threshold or the budget.` },
+    { title: "Development calculations", how: "Hard and soft costs, pre-construction and fabrication time, energy, embodied and lifecycle carbon, lifecycle cost and yield for each scenario." },
     { title: "Ranking scenarios", how: "Weighting yield, cost, energy and carbon by your priorities." },
-    { title: "Drawing the 2D site plan", how: "Walkway, parking, the shared rear garden and numbered buildings for the leading mix." },
+    { title: "Preparing the recommendation", how: "Drawing the recommended community's site plan and, when available, its presentation render." },
   ];
 }
 
@@ -46,7 +56,7 @@ export default function ExploringStage({
   path,
   context,
 }: {
-  path: "single" | "development";
+  path: ExploringPath;
   context: ExploringContext;
 }) {
   const stages = stagesFor(path, context);

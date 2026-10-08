@@ -168,6 +168,49 @@ def pareto_rank(results: list[ConfigResult]) -> list[ConfigResult]:
     return sorted(results, key=lambda r: (r.pareto_rank, r.weighted_score))
 
 
+def _configurations(spec: ProjectSpec, loc, joist_depth: float, windows: list, mech_options: list):
+    """Every catalog envelope, window and mechanical combination across the
+    insulation sweep, with its envelope assemblies built for this project."""
+    for wall_opt, roof_opt, floor_opt, window, mech in itertools.product(
+            WALLS, ROOFS, FLOORS, windows, mech_options):
+        for w_rigid, r_rigid, f_rigid in itertools.product(
+                wall_opt.sweep, roof_opt.sweep, floor_opt.sweep):
+            env = EnvelopeCombo(
+                wall_id=wall_opt.id, roof_id=roof_opt.id, floor_id=floor_opt.id,
+                wall=wall_opt.build(w_rigid),
+                roof=roof_opt.build(joist_depth, r_rigid),
+                floor=floor_opt.build(
+                    f_rigid,
+                    floor_area_m2=spec.floor_area_m2,
+                    storeys=spec.storeys,
+                    frost_depth_m=loc.frost_depth_m if loc else 1.2,
+                    footprint_length_m=spec.footprint_length_m,
+                    footprint_width_m=spec.footprint_width_m,
+                ),
+                wall_ext_rigid_in=w_rigid, roof_deck_rigid_in=r_rigid,
+                floor_rigid_in=f_rigid, joist_depth_in=joist_depth,
+                wall_hours_per_m2=wall_opt.install_hours_per_m2,
+                roof_hours_per_m2=roof_opt.install_hours_per_m2,
+                floor_hours_per_m2=floor_opt.install_hours_per_m2,
+            )
+            yield wall_opt, roof_opt, floor_opt, window, mech, w_rigid, r_rigid, f_rigid, env
+
+
+def baseline_cost(spec: ProjectSpec) -> float:
+    """Hard cost of the cheapest catalog configuration, ignoring the energy
+    target. Nothing the optimizer returns can cost less, so it is a safe
+    floor for screening development scenarios against a budget."""
+    catalog = load_catalog()
+    loc = resolve_location(spec.location) if spec.location else None
+    joist_depth = loc.joist_depth_in if loc else catalog["snow"]["tiers"][0]["joist_depth_in"]
+    mech_options = [m for m in catalog["mechanical"] if spec.allow_gas or m["type"] != "gas"]
+    return min(
+        estimate_cost(spec, env, window, mech)["total_per_unit"]
+        for _wall, _roof, _floor, window, mech, _w, _r, _f, env
+        in _configurations(spec, loc, joist_depth, catalog["windows"], mech_options)
+    )
+
+
 def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigResult]:
     """
     Run optimization over all feasible assembly combinations.
@@ -220,31 +263,9 @@ def optimize(spec: ProjectSpec, weights: Optional[dict] = None) -> list[ConfigRe
                     and (spec.mechanical_option_id is None or m["id"] == spec.mechanical_option_id)]
 
     all_configs = []
-    for wall_opt, roof_opt, floor_opt, window, mech in itertools.product(
-            WALLS, ROOFS, FLOORS, catalog["windows"], mech_options):
-        for w_rigid, r_rigid, f_rigid in itertools.product(
-                wall_opt.sweep, roof_opt.sweep, floor_opt.sweep):
-
-            wall_asm  = wall_opt.build(w_rigid)
-            roof_asm  = roof_opt.build(joist_depth, r_rigid)
-            floor_asm = floor_opt.build(
-                f_rigid,
-                floor_area_m2=spec.floor_area_m2,
-                storeys=spec.storeys,
-                frost_depth_m=loc.frost_depth_m if loc else 1.2,
-                footprint_length_m=spec.footprint_length_m,
-                footprint_width_m=spec.footprint_width_m,
-            )
-
-            env = EnvelopeCombo(
-                wall_id=wall_opt.id, roof_id=roof_opt.id, floor_id=floor_opt.id,
-                wall=wall_asm, roof=roof_asm, floor=floor_asm,
-                wall_ext_rigid_in=w_rigid, roof_deck_rigid_in=r_rigid,
-                floor_rigid_in=f_rigid, joist_depth_in=joist_depth,
-                wall_hours_per_m2=wall_opt.install_hours_per_m2,
-                roof_hours_per_m2=roof_opt.install_hours_per_m2,
-                floor_hours_per_m2=floor_opt.install_hours_per_m2,
-            )
+    for wall_opt, roof_opt, floor_opt, window, mech, w_rigid, r_rigid, f_rigid, env in _configurations(
+            spec, loc, joist_depth, catalog["windows"], mech_options):
+            wall_asm, roof_asm, floor_asm = env.wall, env.roof, env.floor
 
             assembly = AssemblyConfig(
                 wall_u=wall_asm.u_value,

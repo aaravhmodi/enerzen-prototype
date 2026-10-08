@@ -139,7 +139,7 @@ export default function DevForm({
                     : state.target_label === "nzr"
                       ? "Net Zero Ready prioritizes energy performance. It does not by itself mean the community produces all the energy it uses."
                       : "Code minimum is a useful baseline. Compare a higher performance target to explore the energy and cost trade-offs."
-                  : "The engine will rank feasible mixes using your weights. This brief remains editable after you review the results."
+                  : "Next, EnerZen drafts site plan scenarios for you to review. Building performance is optimized only after you approve them, then ranked by these weights."
         }
         description={
           step === 0
@@ -160,6 +160,7 @@ export default function DevForm({
         nextDisabled={step === STEPS.length - 1 ? !canSubmit : !canContinue}
         nextLabel={step === 3 ? "Review brief" : "Continue"}
         isLastStep={step === STEPS.length - 1}
+        submitLabel="Generate site plans"
         submitting={submitting}
       >
         {step === 0 && (

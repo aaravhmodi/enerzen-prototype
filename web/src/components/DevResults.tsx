@@ -36,32 +36,32 @@ export default function DevResults({
   return (
     <div className="panel overflow-hidden">
       <div className="border-b border-stone-200 px-5 py-4">
-        <p className="eyebrow">Development configurations</p>
+        <p className="eyebrow">Ranked scenarios</p>
         <h3 className="mt-1 text-xl font-semibold text-stone-950">
-          {mixes.length} feasible unit mix{mixes.length > 1 ? "es" : ""} found
+          {mixes.length} scenario{mixes.length > 1 ? "s" : ""} passed the performance and budget gate
         </h3>
         <p className="mt-1 text-xs text-stone-500">
-          Click a row to update the site plan. Ranked by total units, then energy efficiency.
+          Ranked by your priorities after building performance optimization. Click a row to see its site plan.
         </p>
       </div>
 
       <div className={`${METRICS_GRID} border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400`}>
         <span />
         <span className="flex items-center justify-end gap-1 text-right">
-          Units
-          <InfoTooltip text="How many total dwelling units this mix places on the lot. More units generally means more revenue potential." />
+          Homes
+          <InfoTooltip text="Dwellings this mix places on the lot. A MURB counts all of its units." />
         </span>
         <span className="flex items-center justify-end gap-1 text-right">
-          Total cost
-          <InfoTooltip text="Combined construction cost for every unit in this mix." />
+          Project cost
+          <InfoTooltip text="Class D total: optimized hard cost for every home plus the soft-cost allowance." />
         </span>
         <span className="flex items-center justify-end gap-1 text-right">
           Avg EUI
           <InfoTooltip text="Average Energy Use Intensity across the mix, kWh per m² per year. Lower is more efficient." />
         </span>
         <span className="flex items-center justify-end gap-1 text-right">
-          NZR units
-          <InfoTooltip text="How many of the units meet Net Zero Ready out of the total. A full ratio means the whole mix qualifies." />
+          NZR homes
+          <InfoTooltip text="Homes that meet Net Zero Ready out of the total. A full ratio means the whole mix qualifies." />
         </span>
         <span className="flex items-center justify-end gap-1 text-right">
           Avg utility/mo
@@ -103,7 +103,7 @@ export default function DevResults({
               </div>
 
               <Metric value={String(mix.total_units)} highlight />
-              <Metric value={fmtCad(mix.total_cost)} />
+              <Metric value={fmtCad(mix.total_project_cost)} />
               <Metric value={`${mix.avg_eui_kwh_m2_yr} kWh/${M2}`} />
               <Metric
                 value={`${mix.nzr_unit_count}/${mix.total_units}`}

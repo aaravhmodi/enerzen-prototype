@@ -271,7 +271,26 @@ export type DevMixResult = {
   total_floor_area_m2: number;
   avg_monthly_utility: number;
   mix_label: string;
+  soft_cost: number;
+  total_project_cost: number;
+  construction_weeks: number;
+  soft_timeline_weeks: number;
+  lifecycle_carbon_30yr_kg_co2e_m2: number;
+  lifecycle_cost_30yr: number;
+  configurations: Record<string, string>;
 };
+
+// A housing mix that fits the land, before building performance is optimized.
+export type DevScenario = {
+  units: Record<string, number>;
+  dwellings: number;
+  screening_cost: number;
+  total_floor_area_m2: number;
+  site_coverage: number;
+  mix_label: string;
+};
+
+export type RejectedMix = { units: Record<string, number>; mix_label: string; reason: string };
 
 export async function fetchArchetypes(): Promise<ArchetypeInfo[]> {
   const res = await fetch(`${API_BASE}/archetypes`);
@@ -279,11 +298,18 @@ export async function fetchArchetypes(): Promise<ArchetypeInfo[]> {
   return data.archetypes;
 }
 
-export async function runDevOptimize(
+export async function runDevScenarios(
   spec: DevSpecInput,
   top_n = 10
-): Promise<{ mixes: DevMixResult[] }> {
-  return postJson("/dev-optimize", { spec, top_n });
+): Promise<{ scenarios: DevScenario[] }> {
+  return postJson("/dev-scenarios", { spec, top_n });
+}
+
+export async function runDevOptimize(
+  spec: DevSpecInput,
+  mixes: Record<string, number>[],
+): Promise<{ mixes: DevMixResult[]; rejected: RejectedMix[]; soft_cost_fraction: number }> {
+  return postJson("/dev-optimize", { spec, mixes, top_n: mixes.length });
 }
 
 export async function runDevSitePlan(

@@ -21,7 +21,7 @@ from engine.ai import (
     parse_freeform_spec,
 )
 from engine.archetypes import archetype_list
-from engine.dev_optimizer import DevSpec, optimize_dev_mix
+from engine.dev_optimizer import DevSpec, evaluate_dev_mixes, optimize_dev_mix, screen_dev_mixes
 from engine.location import location_names, resolve as resolve_location
 from engine.municipal import is_pickering, pickering_context
 from engine.multi_site import multi_site_plan_svg, place_units
@@ -128,6 +128,7 @@ class DevSpecIn(BaseModel):
 class DevOptimizeRequest(BaseModel):
     spec: DevSpecIn
     top_n: int = 10
+    mixes: Optional[list[dict[str, int]]] = None  # approved scenarios to evaluate
 
 
 class DevSitePlanRequest(BaseModel):
@@ -341,29 +342,41 @@ def get_archetypes():
     return {"archetypes": archetype_list()}
 
 
-@app.post("/dev-optimize")
-def run_dev_optimize(req: DevOptimizeRequest):
+@app.post("/dev-scenarios")
+def run_dev_scenarios(req: DevOptimizeRequest):
+    """Path B steps 3-4: housing-mix scenarios that fit the land, before
+    building performance is optimized."""
     dev = req.spec.to_engine_spec()
     _validate_location(dev.location)
-    mixes = optimize_dev_mix(dev, req.top_n)
+    scenarios = screen_dev_mixes(dev, req.top_n)
+    if not scenarios:
+        raise HTTPException(422, "No housing mix fits inside the setbacks within the budget. "
+                                 "Try a larger lot, smaller setbacks, another housing type or a higher budget.")
+    return {"scenarios": [dataclasses.asdict(s) for s in scenarios]}
+
+
+@app.post("/dev-optimize")
+def run_dev_optimize(req: DevOptimizeRequest):
+    """Path B steps 5-7: optimize building performance for the approved
+    scenarios, run development calculations and rank them. Without
+    approved mixes, screens and evaluates in one call."""
+    dev = req.spec.to_engine_spec()
+    _validate_location(dev.location)
+    if req.mixes:
+        mixes, rejected = evaluate_dev_mixes(dev, req.mixes)
+    else:
+        mixes, rejected = optimize_dev_mix(dev, req.top_n), []
     if not mixes:
-        raise HTTPException(422, "No feasible unit-mix configurations found for the given lot, budget, and unit types.")
+        reasons = "; ".join(f"{r['mix_label']}: {r['reason']}" for r in rejected[:3])
+        raise HTTPException(422, "No approved scenario passed the performance and budget gate."
+                                 + (f" {reasons}" if reasons else ""))
     return {
         "mixes": [
-            {
-                "units": m.units,
-                "total_units": m.total_units,
-                "total_cost": round(m.total_cost),
-                "avg_eui_kwh_m2_yr": m.avg_eui_kwh_m2_yr,
-                "avg_carbon_kg_co2e_m2": m.avg_carbon_kg_co2e_m2,
-                "nzr_unit_count": m.nzr_unit_count,
-                "fits_on_lot": m.fits_on_lot,
-                "total_floor_area_m2": m.total_floor_area_m2,
-                "avg_monthly_utility": m.avg_monthly_utility,
-                "mix_label": m.mix_label,
-            }
-            for m in mixes
-        ]
+            {k: v for k, v in dataclasses.asdict(m).items() if k != "weighted_score"}
+            for m in mixes[: req.top_n]
+        ],
+        "rejected": rejected,
+        "soft_cost_fraction": SOFT_COST_FRACTION,
     }
 
 

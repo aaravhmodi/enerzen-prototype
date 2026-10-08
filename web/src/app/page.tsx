@@ -7,7 +7,10 @@ import SitePlanView from "@/components/SitePlanView";
 import DevForm from "@/components/DevForm";
 import DevResults from "@/components/DevResults";
 import MultiSitePlanView from "@/components/MultiSitePlanView";
+import DevScenarioReview from "@/components/DevScenarioReview";
+import DevRecommendation from "@/components/DevRecommendation";
 import Architecture from "@/components/Architecture";
+import { fmtArea, fmtCad, fmtEui } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
 import {
   ConfigResult,
@@ -18,7 +21,10 @@ import {
   runSitePlan,
   DevSpecInput,
   DevMixResult,
+  DevScenario,
+  RejectedMix,
   runDevOptimize,
+  runDevScenarios,
   runDevSitePlan,
 } from "@/lib/api";
 
@@ -62,6 +68,14 @@ export default function Home() {
   const [selectedMix, setSelectedMix] = useState(0);
   const [lastDevSpec, setLastDevSpec] = useState<DevSpecInput | null>(null);
   const [devIterations, setDevIterations] = useState(0);
+  // Flowchart Path B: brief -> site plan review (max 3) -> performance optimization -> ranking.
+  const [devStage, setDevStage] = useState<"brief" | "review" | "final">("brief");
+  const [devPhase, setDevPhase] = useState<"scenarios" | "performance">("scenarios");
+  const [scenarios, setScenarios] = useState<DevScenario[] | null>(null);
+  const [approved, setApproved] = useState<boolean[]>([]);
+  const [selectedScenario, setSelectedScenario] = useState(0);
+  const [rejectedMixes, setRejectedMixes] = useState<RejectedMix[]>([]);
+  const [softFraction, setSoftFraction] = useState(0.25);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
   async function handleSingleSubmit(state: FormState) {
@@ -122,62 +136,94 @@ export default function Home() {
 
   async function handleDevSubmit(spec: DevSpecInput) {
     if (devIterations >= 3) {
-      setDevError(
-        "The development review loop is limited to 3 iterations. Start a new session to continue.",
-      );
+      setDevError("The site plan review is limited to 3 iterations. Approve a scenario to continue.");
       return;
     }
+    setDevPhase("scenarios");
     setDevSubmitting(true);
     setDevError(null);
     setDevSvg(null);
     setDevConcept(null);
     setLastDevSpec(spec);
-    setSelectedMix(0);
     try {
       const minimum = pause(MIN_EXPLORE_MS);
-      const { mixes } = await runDevOptimize(spec);
-      setDevMixes(mixes);
-      if (mixes.length > 0) {
-        const { svg, concept_render_b64 } = await runDevSitePlan(
-          spec,
-          mixes[0].units,
-          true,
-        );
-        setDevSvg(svg);
-        setDevConcept(concept_render_b64);
-      }
+      const { scenarios: found } = await runDevScenarios(spec);
+      const { svg } = await runDevSitePlan(spec, found[0].units, false);
       await minimum;
+      setScenarios(found);
+      setApproved(found.map(() => true));
+      setSelectedScenario(0);
+      setDevSvg(svg);
       setDevIterations((count) => count + 1);
+      setDevStage("review");
       setViewResults(true);
     } catch (e) {
       setDevError(e instanceof Error ? e.message : "Something went wrong");
-      setDevMixes(null);
-      setDevSvg(null);
-      setDevConcept(null);
     } finally {
       setDevSubmitting(false);
     }
   }
 
-  async function handleMixSelect(i: number) {
-    if (!lastDevSpec || !devMixes) return;
-    if (devSubmitting) return;
+  async function showDevPlan(units: Record<string, number>, render: boolean) {
+    if (!lastDevSpec || devSubmitting) return false;
     setDevSubmitting(true);
     setDevError(null);
     try {
-      const { svg, concept_render_b64 } = await runDevSitePlan(
-        lastDevSpec,
-        devMixes[i].units,
-        true,
-      );
-      setSelectedMix(i);
+      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, units, render);
       setDevSvg(svg);
       setDevConcept(concept_render_b64);
+      return true;
     } catch {
       setDevError("This site view could not be generated. Please try again.");
+      return false;
     } finally {
       setDevSubmitting(false);
     }
+  }
+
+  async function handleScenarioSelect(i: number) {
+    if (scenarios && (await showDevPlan(scenarios[i].units, false))) setSelectedScenario(i);
+  }
+
+  async function handleMixSelect(i: number) {
+    if (devMixes && (await showDevPlan(devMixes[i].units, true))) setSelectedMix(i);
+  }
+
+  async function handleApprove() {
+    if (!lastDevSpec || !scenarios) return;
+    const mixes = scenarios.filter((_, i) => approved[i]).map((scenario) => scenario.units);
+    if (mixes.length === 0) {
+      setDevError("Tick at least one scenario to carry into performance optimization.");
+      return;
+    }
+    setDevPhase("performance");
+    setDevSubmitting(true);
+    setDevError(null);
+    setViewResults(false);
+    try {
+      const minimum = pause(MIN_EXPLORE_MS);
+      const evaluated = await runDevOptimize(lastDevSpec, mixes);
+      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, evaluated.mixes[0].units, true);
+      await minimum;
+      setDevMixes(evaluated.mixes);
+      setRejectedMixes(evaluated.rejected);
+      setSoftFraction(evaluated.soft_cost_fraction);
+      setSelectedMix(0);
+      setDevSvg(svg);
+      setDevConcept(concept_render_b64);
+      setDevStage("final");
+    } catch (e) {
+      setDevError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setDevSubmitting(false);
+      setViewResults(true);
+    }
+  }
+
+  async function backToReview() {
+    setDevStage("review");
+    setDevConcept(null);
+    if (scenarios) await showDevPlan(scenarios[selectedScenario].units, false);
   }
 
   const busy = submitting || devSubmitting;
@@ -202,6 +248,24 @@ export default function Home() {
             ? `A ${lastDevSpec.lot_width_m} × ${lastDevSpec.lot_depth_m} m lot with ${lastDevSpec.front_setback_m} m front and ${lastDevSpec.rear_setback_m} m rear setbacks`
             : "Your land",
         };
+  const headingCopy =
+    screen === "single"
+      ? {
+          eyebrow: "Your project, in perspective",
+          title: "A direction worth exploring.",
+          description: "Explore the options, then revisit your brief to refine the direction.",
+        }
+      : devStage === "final"
+        ? {
+            eyebrow: "Recommended solution",
+            title: "Your recommended community.",
+            description: "Building performance optimized for the approved scenarios, then ranked by your priorities.",
+          }
+        : {
+            eyebrow: `Site plan review · ${Math.min(devIterations, 3)} of 3`,
+            title: "Review the site plans.",
+            description: "Approve the scenarios worth optimizing, or revise the brief and generate new plans.",
+          };
   const choose = (path: Screen) => {
     setScreen(path);
     setViewResults(false);
@@ -434,7 +498,7 @@ export default function Home() {
         </div>
         {exploring && (
           <ExploringStage
-            path={screen === "single" ? "single" : "development"}
+            path={screen === "single" ? "single" : devPhase === "scenarios" ? "dev-scenarios" : "dev-performance"}
             context={exploringContext}
           />
         )}
@@ -448,7 +512,7 @@ export default function Home() {
             <span className="loading-orbit" />
             <div>
               <strong>Redrawing the site plan</strong>
-              <p>Placing the selected mix and its walkway, parking and shared green.</p>
+              <p>Placing the selected mix with its walkway, entrances, parking and shared green.</p>
             </div>
           </div>
         )}
@@ -457,38 +521,42 @@ export default function Home() {
             <div className="results-heading">
               <div>
                 <p className="micro-label reveal-item" style={at(0)}>
-                  Your project, in perspective
+                  {headingCopy.eyebrow}
                 </p>
-                <h1
-                  ref={heading}
-                  tabIndex={-1}
-                  aria-label={screen === "single" ? "A direction worth exploring." : "The shape of your community."}
-                >
-                  {(screen === "single" ? "A direction worth exploring." : "The shape of your community.")
-                    .split(" ")
-                    .map((word, index) => (
-                      <span
-                        aria-hidden="true"
-                        className="word-reveal"
-                        key={index}
-                        style={{ animationDelay: `${120 + index * 90}ms` }}
-                      >
-                        {word}{" "}
-                      </span>
-                    ))}
+                <h1 ref={heading} tabIndex={-1} aria-label={headingCopy.title}>
+                  {headingCopy.title.split(" ").map((word, index) => (
+                    <span
+                      aria-hidden="true"
+                      className="word-reveal"
+                      key={`${headingCopy.title}-${index}`}
+                      style={{ animationDelay: `${120 + index * 90}ms` }}
+                    >
+                      {word}{" "}
+                    </span>
+                  ))}
                 </h1>
                 <p className="reveal-item" style={at(0.55)}>
-                  Explore the options, then revisit your brief to refine the direction.
+                  {headingCopy.description}
                 </p>
               </div>
-              <button
-                className="secondary-button reveal-item"
-                style={at(0.7)}
-                disabled={busy}
-                onClick={() => setViewResults(false)}
-              >
-                ← Edit project brief
-              </button>
+              {screen === "development" && devStage === "final" ? (
+                <button className="secondary-button reveal-item" style={at(0.7)} disabled={busy} onClick={backToReview}>
+                  ← Back to site plan review
+                </button>
+              ) : (
+                <button
+                  className="secondary-button reveal-item"
+                  style={at(0.7)}
+                  disabled={busy || (screen === "development" && devIterations >= 3)}
+                  onClick={() => setViewResults(false)}
+                >
+                  {screen === "development"
+                    ? devIterations >= 3
+                      ? "Review limit reached"
+                      : `← Revise brief (${3 - devIterations} left)`
+                    : "← Edit project brief"}
+                </button>
+              )}
             </div>
             {screen === "single" && results && (
               <>
@@ -518,35 +586,94 @@ export default function Home() {
                 )}
               </>
             )}
-            {screen === "development" && devMixes && (
+            {screen === "development" && devStage === "review" && scenarios && (
               <>
-                {devMixes.length === 0 ? (
-                  <div className="empty-state reveal-item" style={at(0.85)}>
-                    <h2>No feasible mix yet.</h2>
-                    <p>
-                      Try adjusting the budget, lot dimensions or housing types
-                      in your brief.
-                    </p>
+                <div className="review-actions reveal-item" style={at(0.85)}>
+                  <p>
+                    <strong>{approved.filter(Boolean).length}</strong> of {scenarios.length} scenarios selected for
+                    building performance optimization.
+                  </p>
+                  <button className="primary-button" disabled={busy} onClick={handleApprove}>
+                    Approve and optimize <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+                <div className="review-grid">
+                  <div className="reveal-item" style={at(1)}>
+                    <DevScenarioReview
+                      scenarios={scenarios}
+                      selectedIndex={selectedScenario}
+                      approved={approved}
+                      onSelect={handleScenarioSelect}
+                      onToggle={(i) => setApproved((current) => current.map((value, j) => (j === i ? !value : value)))}
+                    />
                   </div>
-                ) : (
-                  <>
-                    <div className="results-table reveal-item" style={at(0.9)}>
-                      <DevResults
-                        mixes={devMixes}
-                        selectedIndex={selectedMix}
-                        onSelect={handleMixSelect}
+                  {devSvg && scenarios[selectedScenario] && (
+                    <div className="reveal-item reveal-plan" style={at(1.4)}>
+                      <MultiSitePlanView
+                        svg={devSvg}
+                        eyebrow={`Scenario ${selectedScenario + 1} · 2D site plan`}
+                        title={scenarios[selectedScenario].mix_label}
+                        conceptRenderB64={null}
+                        stats={[
+                          { label: "Homes", value: String(scenarios[selectedScenario].dwellings) },
+                          { label: "Built area", value: fmtArea(scenarios[selectedScenario].total_floor_area_m2) },
+                          {
+                            label: "Site coverage",
+                            value: `${Math.round(scenarios[selectedScenario].site_coverage * 100)}%`,
+                            tip: "Building footprint as a share of the lot.",
+                          },
+                          {
+                            label: "From cost",
+                            value: fmtCad(scenarios[selectedScenario].screening_cost),
+                            tip: "Cheapest catalog configuration before performance optimization; a floor, not an estimate.",
+                          },
+                        ]}
                       />
                     </div>
-                    {devSvg && devMixes[selectedMix] && (
-                      <div className="reveal-item reveal-plan" style={at(1.9)}>
-                        <MultiSitePlanView
-                          svg={devSvg}
-                          mix={devMixes[selectedMix]}
-                          conceptRenderB64={devConcept}
-                        />
-                      </div>
-                    )}
-                  </>
+                  )}
+                </div>
+              </>
+            )}
+            {screen === "development" && devStage === "final" && devMixes && devMixes.length > 0 && (
+              <>
+                <div className="reveal-item" style={at(0.85)}>
+                  <DevRecommendation mix={devMixes[0]} softFraction={softFraction} />
+                </div>
+                <div className="results-table reveal-item" style={at(1.5)}>
+                  <DevResults mixes={devMixes} selectedIndex={selectedMix} onSelect={handleMixSelect} />
+                </div>
+                {rejectedMixes.length > 0 && (
+                  <div className="rejected-list reveal-item" style={at(1.8)}>
+                    <p className="micro-label">Set aside by the gate</p>
+                    <ul>
+                      {rejectedMixes.map((mix) => (
+                        <li key={mix.mix_label}>
+                          <strong>{mix.mix_label}</strong> {mix.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {devSvg && devMixes[selectedMix] && (
+                  <div className="reveal-item reveal-plan" style={at(2.1)}>
+                    <MultiSitePlanView
+                      svg={devSvg}
+                      eyebrow={selectedMix === 0 ? "Recommended · 2D site plan" : `Rank ${selectedMix + 1} · 2D site plan`}
+                      title={devMixes[selectedMix].mix_label}
+                      conceptRenderB64={devConcept}
+                      stats={[
+                        { label: "Homes", value: String(devMixes[selectedMix].total_units) },
+                        { label: "Project cost", value: fmtCad(devMixes[selectedMix].total_project_cost) },
+                        { label: "Avg EUI", value: fmtEui(devMixes[selectedMix].avg_eui_kwh_m2_yr) },
+                        {
+                          label: "NZR homes",
+                          value: `${devMixes[selectedMix].nzr_unit_count}/${devMixes[selectedMix].total_units}`,
+                          tone: devMixes[selectedMix].nzr_unit_count === devMixes[selectedMix].total_units ? "good" : "warn",
+                        },
+                        { label: "Utility / home", value: `${fmtCad(devMixes[selectedMix].avg_monthly_utility)}/mo` },
+                      ]}
+                    />
+                  </div>
                 )}
               </>
             )}

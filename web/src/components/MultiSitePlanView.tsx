@@ -1,32 +1,28 @@
 "use client";
 
-import type { DevMixResult } from "@/lib/api";
-import { fmtEui, fmtArea, fmtCad } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
-const ARCHETYPE_LABELS: Record<string, string> = {
-  garden_suite: "Garden Suite",
-  three_bhk: "3-Bedroom Unit",
-  murb: "MURB",
-  townhouse: "Townhouse",
-};
+export type PlanStat = { label: string; value: string; tip?: string; tone?: "good" | "warn" };
 
 export default function MultiSitePlanView({
   svg,
-  mix,
+  eyebrow,
+  title,
+  stats,
   conceptRenderB64,
 }: {
   svg: string;
-  mix: DevMixResult;
+  eyebrow: string;
+  title: string;
+  stats: PlanStat[];
   conceptRenderB64: string | null;
 }) {
-  const allNzr = mix.nzr_unit_count === mix.total_units;
   return (
     <section className="site-plan-card">
       <header className="site-plan-header">
         <div>
-          <p className="micro-label">2D site plan · concept</p>
-          <h2>{mix.mix_label}</h2>
+          <p className="micro-label">{eyebrow}</p>
+          <h2>{title}</h2>
         </div>
       </header>
 
@@ -51,42 +47,17 @@ export default function MultiSitePlanView({
 
         <aside className="site-plan-stats">
           <dl>
-            {Object.entries(mix.units).map(([id, count]) =>
-              count > 0 ? (
-                <div key={id}>
-                  <dt>{ARCHETYPE_LABELS[id] ?? id}</dt>
-                  <dd>{count}</dd>
-                </div>
-              ) : null,
-            )}
-            <div>
-              <dt>Total units</dt>
-              <dd>{mix.total_units}</dd>
-            </div>
-            <div>
-              <dt>Built area</dt>
-              <dd>{fmtArea(mix.total_floor_area_m2)}</dd>
-            </div>
-            <div>
-              <dt>
-                Avg EUI
-                <InfoTooltip text="Average Energy Use Intensity across all units in this mix. Lower means less energy consumed per m² each year." />
-              </dt>
-              <dd>{fmtEui(mix.avg_eui_kwh_m2_yr)}</dd>
-            </div>
-            <div>
-              <dt>
-                NZR compliant
-                <InfoTooltip text="How many units in this mix meet the Net Zero Ready envelope threshold, out of the total." />
-              </dt>
-              <dd className={allNzr ? "is-good" : "is-warn"}>
-                {mix.nzr_unit_count}/{mix.total_units} units
-              </dd>
-            </div>
-            <div>
-              <dt>Avg monthly utility</dt>
-              <dd>{fmtCad(mix.avg_monthly_utility)}/unit</dd>
-            </div>
+            {stats.map((stat) => (
+              <div key={stat.label}>
+                <dt>
+                  {stat.label}
+                  {stat.tip && <InfoTooltip text={stat.tip} />}
+                </dt>
+                <dd className={stat.tone === "good" ? "is-good" : stat.tone === "warn" ? "is-warn" : undefined}>
+                  {stat.value}
+                </dd>
+              </div>
+            ))}
           </dl>
         </aside>
       </div>

@@ -1,8 +1,12 @@
 # EnerZen — Implementation Plan to Close the Flowchart Gaps
 
-Status: proposal for review (2026-10-07). Governing spec:
-`EnerZen_Performance_Engine_Developer_Flowchart.docx`. Nothing here is built
-until the decisions in section 1 are confirmed.
+Status: updated 2026-10-08. Governing spec:
+`EnerZen_Performance_Engine_Developer_Flowchart.docx`.
+
+Decisions so far: D1 done (MURB is 5 storeys, 20 units, 19 x 18 m). D2 open
+(user unsure; walls unchanged). D3 done (Path B follows the flowchart order).
+D4 awaiting confirmation of the proposed definition. D5 done with published
+defaults (METHODOLOGY 6.9).
 
 ## Where the app stands
 
@@ -67,7 +71,7 @@ Path B report endpoint.
 9. Next steps: professionals and studies, driven by what is unchecked
    (for example, zoning not checked → municipal pre-consultation).
 
-### Phase 3 — Path B to flowchart
+### Phase 3 — Path B to flowchart (reorder done 2026-10-08; planning inputs and renewables remain)
 
 - Reorder per D3: brief → planning → typology/mix → **site plan → feedback (≤3)**
   → building performance optimization for the chosen mix → development

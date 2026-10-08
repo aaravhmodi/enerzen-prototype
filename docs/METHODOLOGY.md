@@ -1026,6 +1026,34 @@ types, sized from EnerZen's drawings:
 The MURB footprint is scaled from the PDF plans (about 19.3 x 18 m) because
 the dimension strings are on the DWG; confirm against the DWG.
 
+### Development path stages
+
+Source: `engine/dev_optimizer.py`. Path B follows the developer flowchart:
+
+1. **Scenarios (typology engine + 2D site plan).** Mixes of the allowed types
+   are enumerated, capped by buildable area and budget. A mix is kept when it
+   fits inside the setbacks and its *cost floor* is within budget. The floor
+   is the cheapest catalog configuration of each type, costed without the
+   energy simulation (`optimizer.baseline_cost`), so no mix the optimizer
+   could make affordable is dropped. Scenarios are ordered by the yield and
+   cost priorities.
+2. **User review.** The user reviews the site plans, may revise the brief up to
+   three times, and approves the scenarios to carry forward.
+3. **Building performance optimization and development calculations.** Each
+   approved housing type is optimized once (section 11); a scenario's totals
+   scale by its dwelling count. Scenarios whose optimized hard cost exceeds
+   the budget, or whose types have no configuration meeting the target, are
+   set aside with the reason. The rest are ranked by the yield, cost, energy
+   and carbon weights.
+
+Dwellings: a MURB counts all of its units (`units_per_building`) for yield,
+cost, floor area, utility and Net Zero Ready totals. Development
+calculations per scenario: hard cost, soft costs and total project cost
+(section 6.9), the soft timeline for the largest building and the total
+dwelling count, fabrication-to-close weeks summed across homes (the factory
+produces them in sequence), floor-area-weighted EUI, embodied and 30-year
+lifecycle carbon, and the 30-year lifecycle cost.
+
 ### Development site plan
 
 Sources: `engine/multi_site.py`, `engine/site_geometry.py`
