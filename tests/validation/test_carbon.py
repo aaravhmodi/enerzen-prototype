@@ -31,9 +31,11 @@ def _embodied(arch_id, target):
 
 
 SCOPE_GAP = pytest.mark.xfail(strict=True, reason=(
-    "Known gap: embodied carbon covers the envelope, windows and mechanical only; the published studies "
-    "also count interior partitions and intermediate floors, so 2-storey homes read about 55-60% low "
-    "and a MURB apartment (a small share of the building envelope) far lower."))
+    "Known gap: below the GTA average even after adding interior walls and intermediate floors "
+    "(+4-8 kgCO2e/m2). Likely causes: no basement in EnerZen designs (foundation concrete is 33% of "
+    "EMBARC's total), material factors to audit against BEAM/EPDs, and no shared MURB structure "
+    "(stairs, corridors, elevator core). See docs/TRL5_VALIDATION_RESULTS.md."))
+
 CASES = [
     ("garden_suite", "code"), ("garden_suite", "nzr"),
     pytest.param("three_bhk", "code", marks=SCOPE_GAP), pytest.param("three_bhk", "nzr", marks=SCOPE_GAP),

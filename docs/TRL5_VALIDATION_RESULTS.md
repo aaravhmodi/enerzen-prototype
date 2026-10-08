@@ -15,8 +15,8 @@ reruns it (`python -m pytest tests/validation -q`).
 | Energy: Garden Suite vs benchmark | +50% | Outside limit; small-dwelling effect, needs a size-matched reference |
 | Energy: MURB vs benchmark | −10% after the fix (was +74%) | Pass (fixed 2026-10-08) |
 | Embodied carbon: Garden Suite | 140–150 kgCO2e/m2 | Pass |
-| Embodied carbon: 2-storey homes | 73–87 kgCO2e/m2 vs about 191 | **Fail: scope gap, decision needed** |
-| Embodied carbon: MURB | 41–44 after the geometry fix (was 239 / 452) | **Low: carbon scope gap (fix in progress)** |
+| Embodied carbon: 2-storey homes | 78–96 kgCO2e/m2 vs about 189 (after adding interior walls and floors) | **Below the reference: partly expected (no basements); material factors to audit** |
+| Embodied carbon: MURB | 49 per home (was 239 / 452 before the geometry fix) | **Low: no shared structure modelled** |
 | Cost, construction time | — | Blocked on EnerZen data |
 
 ## 1. Effective R-values (assembly catalog)
@@ -118,36 +118,54 @@ geometry for every design, every design's results slightly.
 **References.** Published cradle-to-gate (A1–A3) intensities for Canadian
 Part 9 homes:
 [Builders for Climate Action EMBARC](https://www.buildersforclimateaction.org/uploads/1/5/9/3/15931000/bfca_pbc-embarc_report-web.pdf)
-(500+ GTA homes, average about 191 kgCO2e/m2);
+(503 as-built GTA homes; weighted average 189 kgCO2e/m2 of heated floor area,
+154 of total floor area);
 [City of Vancouver Part 9 benchmark](https://vancouver.ca/files/cov/vancouver-part-9-home-material-emissions-benchmark-report-BCA-2022.pdf)
 (13 homes, 138–357 kgCO2e/m2, 200 recommended); a Nelson and Castlegar BC
-study (34 homes, low about 71 kgCO2e/m2).
+study (34 homes, 72–309, average 150).
+
+**EMBARC scope.** Included: footings and slabs, foundation walls, posts and
+beams, exterior and party walls, cladding, windows, interior walls, floors,
+ceilings, roof. Excluded: mechanical, electrical and plumbing, millwork,
+stairs, doors, surface finishes; biogenic storage in lumber excluded.
+Concrete in foundation walls, slabs and footings is 33% of the total.
 
 **Method.** The cheapest passing configuration of each design at the code and
 Net Zero Ready targets, in Pickering. Proposed acceptance: inside the
-published range (71–357) and within 30% of the GTA average (134–248).
+published range (71–357) and within 30% of the GTA average.
 
 | Design | Code | NZR | Result |
 |---|---|---|---|
-| Garden Suite | 140 | 150 | Pass |
-| 3-Bedroom Unit | 73 | 86 | Low |
-| Townhouse | 75 | 87 | Low |
-| MURB (per home) | 239 | 452 | High |
+| Garden Suite | 143 | 177 | Pass |
+| 3-Bedroom Unit | 78 | 96 | Below the reference |
+| Townhouse | 80 | 93 | Below the reference |
+| MURB (per home) | 49 | 49 | Below the published range |
+
+(After the 2026-10-08 fixes: building-code R-values, MURB geometry, and
+interior walls and intermediate floors added to the carbon scope.)
 
 **Findings.**
 
 1. **Garden Suite: pass.**
-2. **Scope gap (2-storey homes about 55–60% low).** The engine counts the
-   envelope (walls, roof, floor), windows and the mechanical system. The
-   published studies also count interior partitions and intermediate floors.
-   The cost model already includes interior partitions, so the two engines
-   disagree on scope. A single-storey home is affected least, which is why
-   the Garden Suite passes.
-3. **MURB: high, from the same modelling bug as in section 2** (each dwelling
-   carries the whole building's slab).
+2. **Scope additions were small.** Interior walls and intermediate floors,
+   which EMBARC counts and the engine did not, add 4–8 kgCO2e/m2. An earlier
+   version of this document attributed the whole shortfall to them; that was
+   wrong.
+3. **2-storey homes sit about half the GTA average.** Part of this is
+   expected: EnerZen designs are slab-on-grade with no basement, while
+   foundation concrete is a third of EMBARC's total. Removing it from the
+   reference gives roughly 127 kgCO2e/m2, still above the engine's 78–96. The
+   remainder points to material carbon factors (for example ½" gypsum at
+   1.3 kgCO2e/m2 looks low against typical EPDs) and elements the engine
+   does not model (posts and beams, party walls).
+4. **MURB below the range.** A dwelling's share of the envelope is small, and
+   the engine has no shared structure (stairs, corridors, elevator core,
+   party walls).
 
-**Decision needed (user).** Add interior partitions and intermediate floors
-to embodied carbon so the scope matches the published studies (and the cost
-model). This raises embodied carbon for multi-storey designs.
+**Next steps.** Audit `engine/materials.py` carbon factors against BEAM or
+product EPDs; add party walls for townhouses and MURBs and the MURB's shared
+structure; then agree a no-basement reference with EnerZen so the
+comparison is like for like. These change results, so they need the user's
+agreement.
 
 **Test:** `tests/validation/test_carbon.py`.

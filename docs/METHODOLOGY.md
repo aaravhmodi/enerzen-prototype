@@ -731,7 +731,19 @@ embodied = opaque_wall_area x wall_embodied_per_m2
          + floor_area_surf  x floor_embodied_per_m2
          + window_area      x window_embodied_per_m2
          + mechanical_embodied
+         + floor_area x 0.9 x interior_wall_per_m2          (3.1 kgCO2e/m2 of wall)
+         + (storeys - 1) x slab_area x intermediate_floor_per_m2   (4.6 kgCO2e/m2)
 ```
+
+Interior walls (2x4 at 16" o.c. with 1/2" gypsum both sides, 0.9 m2 per m2 of
+floor, as in the cost model) and intermediate floors (2x10 joists at 16" o.c.,
+3/4" OSB subfloor, 1/2" gypsum ceiling) were added on 2026-10-08 to match the
+element list of the Builders for Climate Action EMBARC study. They add
+4–8 kgCO2e/m2. EMBARC also counts basements, posts and beams and party walls,
+and excludes mechanical, electrical and plumbing; EnerZen designs have no
+basement, so their intensity is expected to sit below EMBARC's GTA average
+(about 189 kgCO2e/m2 of heated floor area). See
+`docs/TRL5_VALIDATION_RESULTS.md` section 3.
 
 PV embodied carbon is added in the optimizer at 1500 kgCO2e per kW installed.
 
