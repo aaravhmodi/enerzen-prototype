@@ -45,7 +45,7 @@ cd web && npm install && npm run dev           # web, http://localhost:3000
 Before every push:
 
 ```
-python -m pytest tests -q                      # 38 tests at 9bacda1
+python -m pytest tests -q                      # 49 tests after Phase 1
 cd web && npx tsc --noEmit && npm run lint && npm run build
 ```
 
@@ -94,7 +94,13 @@ Chromium.
 
 ## 5. Next up
 
-### Phase 1 — Hard constraints and gate breakdown (not started)
+### Phase 1 — Hard constraints and gate breakdown (done)
+
+Done as specified below. Path A's minimum bedrooms is a brief-level check
+against catalog designs only (it is not sent to the API): designs below it
+are disabled on the Design step. Selecting an excluded system is refused by
+`/optimize`; an approved Path B mix with an excluded type is rejected with
+the reason.
 
 Flowchart: "Only solutions satisfying the hard constraints proceed."
 The user has agreed to this phase.

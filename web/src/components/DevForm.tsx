@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   fetchArchetypes,
+  fetchCatalog,
   fetchLocations,
   ArchetypeInfo,
   DevelopmentWeights,
@@ -24,6 +25,9 @@ const DEFAULT: DevSpecInput = {
   allowed_types: ["garden_suite", "three_bhk"],
   orientation: "S",
   weights: { yield: 100, cost: 0, energy: 0, carbon: 0 },
+  min_bedrooms: 0,
+  max_storeys: null,
+  excluded_mechanical_ids: [],
 };
 
 const STEPS: WizardStep[] = [
@@ -48,6 +52,9 @@ export default function DevForm({
   const [locations, setLocations] = useState<string[]>([]);
   const [archetypes, setArchetypes] = useState<ArchetypeInfo[]>([]);
   const [showSetbacks, setShowSetbacks] = useState(false);
+  const [mechanicalOptions, setMechanicalOptions] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   useEffect(() => {
     fetchLocations()
@@ -56,7 +63,37 @@ export default function DevForm({
     fetchArchetypes()
       .then(setArchetypes)
       .catch(() => setArchetypes([]));
+    fetchCatalog()
+      .then((catalog) => setMechanicalOptions(catalog.mechanical))
+      .catch(() => setMechanicalOptions([]));
   }, []);
+
+  // Mirrors engine/dev_optimizer.excluded_types so the brief shows what the
+  // hard constraints rule out before anything is submitted.
+  function ruledOut(archetype: ArchetypeInfo): string | null {
+    if (archetype.bedrooms < state.min_bedrooms)
+      return `Fewer than ${state.min_bedrooms} bedrooms`;
+    if (state.max_storeys !== null && archetype.storeys > state.max_storeys)
+      return `Taller than ${state.max_storeys} storey${state.max_storeys === 1 ? "" : "s"}`;
+    return null;
+  }
+
+  function toggleSystem(id: string) {
+    setState((s) => ({
+      ...s,
+      excluded_mechanical_ids: s.excluded_mechanical_ids.includes(id)
+        ? s.excluded_mechanical_ids.filter((m) => m !== id)
+        : [...s.excluded_mechanical_ids, id],
+    }));
+  }
+
+  const eligibleTypes = state.allowed_types.filter((id) => {
+    const archetype = archetypes.find((a) => a.id === id);
+    return !archetype || !ruledOut(archetype);
+  });
+  const systemsLeft =
+    mechanicalOptions.length === 0 ||
+    mechanicalOptions.some((m) => !state.excluded_mechanical_ids.includes(m.id));
 
   function set<K extends keyof DevSpecInput>(key: K, value: DevSpecInput[K]) {
     setState((s) => ({ ...s, [key]: value }));
@@ -82,7 +119,8 @@ export default function DevForm({
       step !== STEPS.length - 1 ||
       submitting ||
       iteration >= 3 ||
-      state.allowed_types.length === 0
+      eligibleTypes.length === 0 ||
+      !systemsLeft
     )
       return;
     onSubmit(state);
@@ -94,9 +132,9 @@ export default function DevForm({
         state.lot_depth_m > 0 &&
         state.total_budget_cad > 0
       : step === 2
-        ? state.allowed_types.length > 0
+        ? eligibleTypes.length > 0 && systemsLeft
         : true;
-  const canSubmit = state.allowed_types.length > 0 && iteration < 3;
+  const canSubmit = eligibleTypes.length > 0 && systemsLeft && iteration < 3;
 
   return (
     <form onSubmit={handleSubmit}>
@@ -334,10 +372,13 @@ export default function DevForm({
             <div className="grid gap-3 sm:grid-cols-2">
               {archetypes.map((archetype) => {
                 const checked = state.allowed_types.includes(archetype.id);
+                const reason = ruledOut(archetype);
                 const description =
-                  archetype.units_per_building > 1
-                    ? `${archetype.units_per_building} units per building`
-                    : `${archetype.floor_area_m2} m² · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`;
+                  (archetype.units_per_building > 1
+                    ? `${archetype.units_per_building} units per building · ${archetype.storeys} storeys`
+                    : `${archetype.floor_area_m2} m² · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`) +
+                  ` · ${archetype.bedrooms} bedroom${archetype.bedrooms === 1 ? "" : "s"}` +
+                  (archetype.units_per_building > 1 ? " minimum" : "");
                 return (
                   <label
                     key={archetype.id}
@@ -353,6 +394,11 @@ export default function DevForm({
                         <p className="mt-1 text-[10px] leading-4 text-stone-400">
                           {description}
                         </p>
+                        {checked && reason && (
+                          <p className="mt-1 text-[10px] font-semibold text-amber-700">
+                            Ruled out: {reason.toLowerCase()}
+                          </p>
+                        )}
                       </div>
                       <input
                         type="checkbox"
@@ -368,11 +414,73 @@ export default function DevForm({
                 );
               })}
             </div>
-            {state.allowed_types.length === 0 && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Minimum bedrooms per home">
+                <select
+                  className="input"
+                  value={state.min_bedrooms}
+                  onChange={(e) => set("min_bedrooms", Number(e.target.value))}
+                >
+                  <option value={0}>No minimum</option>
+                  {[1, 2, 3].map((count) => (
+                    <option key={count} value={count}>
+                      {count}+
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Maximum storeys">
+                <select
+                  className="input"
+                  value={state.max_storeys ?? ""}
+                  onChange={(e) =>
+                    set("max_storeys", e.target.value ? Number(e.target.value) : null)
+                  }
+                >
+                  <option value="">No limit</option>
+                  {[1, 2, 3, 4, 5].map((count) => (
+                    <option key={count} value={count}>
+                      {count}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            {mechanicalOptions.length > 0 && (
+              <fieldset className="rounded-2xl border border-stone-200 bg-white p-4">
+                <legend className="px-1 text-xs font-medium text-stone-500">
+                  Exclude mechanical systems
+                </legend>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {mechanicalOptions.map((option) => (
+                    <label key={option.id} className="flex items-center gap-2 text-xs text-stone-600">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-emerald-700"
+                        checked={state.excluded_mechanical_ids.includes(option.id)}
+                        onChange={() => toggleSystem(option.id)}
+                      />
+                      <span>{option.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+            {state.allowed_types.length === 0 ? (
               <p className="text-xs text-red-500">
                 Select at least one unit type to continue.
               </p>
-            )}
+            ) : eligibleTypes.length === 0 ? (
+              <p className="text-xs text-red-500">
+                Every selected type is ruled out by the bedroom or storey
+                limits. Relax a limit or select another type.
+              </p>
+            ) : !systemsLeft ? (
+              <p className="text-xs text-red-500">
+                Every mechanical system is excluded. Allow at least one to
+                continue.
+              </p>
+            ) : null}
           </div>
         )}
 

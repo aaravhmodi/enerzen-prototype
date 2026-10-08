@@ -1169,6 +1169,8 @@ h2:focus {
 .rejected-list { border: 1px dashed #dccfe3; border-radius: 14px; padding: 16px 20px; }
 .rejected-list ul { list-style: none; padding: 0; margin-top: 10px; display: grid; gap: 6px; font-size: 12px; color: #8e819a; }
 .rejected-list strong { color: #4f4957; font-weight: 500; margin-right: 8px; }
+.scenario-excluded { border-top: 1px solid #eee8f2; padding: 14px 22px 18px; }
+.scenario-excluded ul { list-style: none; padding: 0; margin-top: 8px; display: grid; gap: 4px; font-size: 12px; color: #8e819a; }
 @media (max-width: 960px) {
   .review-grid { grid-template-columns: 1fr; }
   .dev-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -18,6 +18,9 @@ export type FormState = {
   spec: ProjectSpecInput;
   site: SiteSpecInput;
   weights: OptimizationWeights;
+  // Brief-level hard constraint checked against catalog designs only; the
+  // engine has no bedroom model for custom geometry.
+  minBedrooms: number;
 };
 
 const DEFAULT_STATE: FormState = {
@@ -36,6 +39,7 @@ const DEFAULT_STATE: FormState = {
     num_units: 1,
     has_ac: true,
     allow_gas: true,
+    excluded_mechanical_ids: [],
     footprint_length_m: 12,
     footprint_width_m: 8,
   },
@@ -50,6 +54,7 @@ const DEFAULT_STATE: FormState = {
     longitude: null,
   },
   weights: { cost: 25, speed: 25, carbon: 25, energy: 25 },
+  minBedrooms: 0,
 };
 
 const STEPS: WizardStep[] = [
@@ -121,6 +126,40 @@ export default function ProjectForm({
       weights: { ...current.weights, [key]: value },
     }));
 
+  const meetsBedrooms = (design: ArchetypeInfo) =>
+    design.bedrooms >= state.minBedrooms;
+
+  function setMinBedrooms(value: number) {
+    setState((current) => ({ ...current, minBedrooms: value }));
+    const design = archetypes.find((candidate) => candidate.id === selectedDesign);
+    if (design && design.bedrooms < value) setSelectedDesign("");
+  }
+
+  function toggleExcludedSystem(id: string, excluded: boolean) {
+    setState((current) => {
+      const ids = new Set(current.spec.excluded_mechanical_ids);
+      if (excluded) ids.add(id);
+      else ids.delete(id);
+      return {
+        ...current,
+        spec: {
+          ...current.spec,
+          excluded_mechanical_ids: [...ids],
+          mechanical_option_id:
+            excluded && current.spec.mechanical_option_id === id
+              ? null
+              : current.spec.mechanical_option_id,
+        },
+      };
+    });
+  }
+
+  const usableSystems = mechanicalOptions.filter(
+    (option) =>
+      (state.spec.allow_gas || option.type !== "gas") &&
+      !state.spec.excluded_mechanical_ids.includes(option.id),
+  );
+
   function applyDesign(id: string) {
     setSelectedDesign(id);
     const design = archetypes.find((candidate) => candidate.id === id);
@@ -148,6 +187,7 @@ export default function ProjectForm({
         spec: { ...current.spec, ...stripUndefined(parsed) },
         site: { ...current.site, ...stripUndefined(parsed) },
         weights: current.weights,
+        minBedrooms: current.minBedrooms,
       }));
       setAssumptions(parsed.assumptions ?? []);
     } catch (e) {
@@ -165,7 +205,8 @@ export default function ProjectForm({
       : step === 1
         ? state.site.lot_width_m > 0 && state.site.lot_depth_m > 0
         : step === 3
-          ? state.spec.budget_per_unit > 0
+          ? state.spec.budget_per_unit > 0 &&
+            (mechanicalOptions.length === 0 || usableSystems.length > 0)
           : true;
 
   return (
@@ -352,6 +393,22 @@ export default function ProjectForm({
                   }
                 />
               </Field>
+              <Field label="Minimum bedrooms">
+                <select
+                  className="input"
+                  value={state.minBedrooms}
+                  onChange={(event) =>
+                    setMinBedrooms(Number(event.target.value))
+                  }
+                >
+                  <option value={0}>No minimum</option>
+                  {[1, 2, 3].map((count) => (
+                    <option key={count} value={count}>
+                      {count}+
+                    </option>
+                  ))}
+                </select>
+              </Field>
             </div>
           </div>
         )}
@@ -474,14 +531,20 @@ export default function ProjectForm({
                 <p className="mt-1 text-[10px] leading-4 text-stone-500">
                   Keep your project inputs and shape the form manually.
                 </p>
+                {state.minBedrooms > 0 && (
+                  <p className="mt-2 text-[10px] font-semibold text-amber-700">
+                    Bedrooms not verified
+                  </p>
+                )}
               </button>
               {archetypes.map((design) => (
                 <button
                   type="button"
                   key={design.id}
                   onClick={() => applyDesign(design.id)}
+                  disabled={!meetsBedrooms(design)}
                   aria-pressed={selectedDesign === design.id}
-                  className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${selectedDesign === design.id ? "border-emerald-400 bg-gradient-to-br from-emerald-50 to-lime-50 shadow-sm" : "border-stone-200 bg-white"}`}
+                  className={`rounded-2xl border p-4 text-left transition enabled:hover:-translate-y-0.5 enabled:hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 ${selectedDesign === design.id ? "border-emerald-400 bg-gradient-to-br from-emerald-50 to-lime-50 shadow-sm" : "border-stone-200 bg-white"}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-semibold text-stone-900">
@@ -493,8 +556,19 @@ export default function ProjectForm({
                   </div>
                   <p className="mt-1 text-[10px] leading-4 text-stone-500">
                     {design.floor_area_m2} m² · {design.storeys} storey
-                    {design.storeys === 1 ? "" : "s"}
+                    {design.storeys === 1 ? "" : "s"} · {design.bedrooms}{" "}
+                    bedroom{design.bedrooms === 1 ? "" : "s"}
+                    {design.units_per_building > 1 ? " minimum per home" : ""}
                   </p>
+                  {state.minBedrooms > 0 && (
+                    <p
+                      className={`mt-2 text-[10px] font-semibold ${meetsBedrooms(design) ? "text-emerald-700" : "text-stone-500"}`}
+                    >
+                      {meetsBedrooms(design)
+                        ? `Meets ${state.minBedrooms}+ bedrooms`
+                        : `Fewer than ${state.minBedrooms} bedrooms`}
+                    </p>
+                  )}
                   <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 opacity-70" />
                 </button>
               ))}
@@ -617,7 +691,7 @@ export default function ProjectForm({
                   }
                 >
                   <option value="">Optimize across catalog</option>
-                  {mechanicalOptions.map((option) => (
+                  {usableSystems.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.name}
                     </option>
@@ -637,6 +711,47 @@ export default function ProjectForm({
                 onChange={(value) => updateSpec("allow_gas", value)}
               />
             </div>
+            {mechanicalOptions.length > 0 && (
+              <fieldset className="rounded-xl border border-stone-200 bg-white px-4 py-3">
+                <legend className="px-1 text-xs font-medium text-stone-500">
+                  Exclude mechanical systems
+                </legend>
+                <p className="text-[10px] leading-4 text-stone-400">
+                  Excluded systems are never considered, whatever their score.
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {mechanicalOptions.map((option) => {
+                    const gasBlocked = !state.spec.allow_gas && option.type === "gas";
+                    return (
+                      <label
+                        key={option.id}
+                        className={`flex items-center gap-2 text-xs ${gasBlocked ? "text-stone-300" : "text-stone-600"}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-emerald-700"
+                          disabled={gasBlocked}
+                          checked={
+                            gasBlocked ||
+                            state.spec.excluded_mechanical_ids.includes(option.id)
+                          }
+                          onChange={(event) =>
+                            toggleExcludedSystem(option.id, event.target.checked)
+                          }
+                        />
+                        <span>{option.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {usableSystems.length === 0 && (
+                  <p className="mt-2 text-xs text-red-600">
+                    Every mechanical system is excluded. Allow at least one to
+                    continue.
+                  </p>
+                )}
+              </fieldset>
+            )}
           </div>
         )}
 

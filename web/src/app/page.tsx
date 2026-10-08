@@ -14,6 +14,8 @@ import { fmtArea, fmtCad, fmtEui } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
 import {
   ConfigResult,
+  ExcludedType,
+  GateBreakdown,
   SoftSummary,
   SiteLayout,
   runOptimize,
@@ -51,6 +53,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ConfigResult[] | null>(null);
   const [soft, setSoft] = useState<SoftSummary | null>(null);
+  const [gate, setGate] = useState<GateBreakdown | null>(null);
   const [siteData, setSiteData] = useState<{
     layout: SiteLayout;
     svg: string;
@@ -75,6 +78,7 @@ export default function Home() {
   const [approved, setApproved] = useState<boolean[]>([]);
   const [selectedScenario, setSelectedScenario] = useState(0);
   const [rejectedMixes, setRejectedMixes] = useState<RejectedMix[]>([]);
+  const [excludedTypes, setExcludedTypes] = useState<ExcludedType[]>([]);
   const [softFraction, setSoftFraction] = useState(0.25);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -95,6 +99,7 @@ export default function Home() {
       ]);
       setResults(optimizeRes.results);
       setSoft(optimizeRes.soft);
+      setGate(optimizeRes.gate);
       setViewResults(true);
       setSiteData({
         layout: siteRes.layout,
@@ -147,10 +152,11 @@ export default function Home() {
     setLastDevSpec(spec);
     try {
       const minimum = pause(MIN_EXPLORE_MS);
-      const { scenarios: found } = await runDevScenarios(spec);
+      const { scenarios: found, excluded_types } = await runDevScenarios(spec);
       const { svg } = await runDevSitePlan(spec, found[0].units, false);
       await minimum;
       setScenarios(found);
+      setExcludedTypes(excluded_types ?? []);
       setApproved(found.map(() => true));
       setSelectedScenario(0);
       setDevSvg(svg);
@@ -562,7 +568,9 @@ export default function Home() {
               <>
                 <div className="result-toolbar reveal-item" style={at(0.85)}>
                   <span className="micro-label">
-                    Top {results.length} configurations that passed the gate
+                    {gate
+                      ? `${gate.evaluated.toLocaleString()} evaluated · ${gate.passed.toLocaleString()} passed · ${gate.over_budget.toLocaleString()} over budget · ${gate.missed_target.toLocaleString()} missed the target`
+                      : `Top ${results.length} configurations that passed the gate`}
                   </span>
                   <button
                     className="secondary-button"
@@ -600,6 +608,7 @@ export default function Home() {
                 <div className="review-grid">
                   <div className="reveal-item" style={at(1)}>
                     <DevScenarioReview
+                      excluded={excludedTypes}
                       scenarios={scenarios}
                       selectedIndex={selectedScenario}
                       approved={approved}
