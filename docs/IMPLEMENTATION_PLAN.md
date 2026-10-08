@@ -5,7 +5,7 @@ Status: updated 2026-10-08. Governing spec:
 
 Decisions so far: D1 done (MURB is 5 storeys, 20 units, 19 x 18 m). D2 open
 (user unsure; walls unchanged). D3 done (Path B follows the flowchart order).
-D4 awaiting confirmation of the proposed definition. D5 done with published
+D4 deferred by the user (2026-10-08); the researched options are kept in Phase 4. D5 done with published
 defaults (METHODOLOGY 6.9).
 
 ## Where the app stands
@@ -83,7 +83,12 @@ Path B report endpoint.
 - Feedback loop: the user can move, swap or remove buildings between
   iterations; the engine re-validates fit and setbacks each time.
 
-### Phase 4 — Resilience priority
+### Phase 4 — Resilience priority (deferred)
+
+Options researched 2026-10-08, for when this resumes: hours of safety to
+12 C (LEED IPpc100's 54 F floor, 4-day outage), hours to 4.4 C (RMI's 40 F
+line), or LEED's 7-day degree-hour test. Needs NBCC January design
+temperatures added to the location data.
 
 Proposed definition for review: passive survivability, meaning hours a home
 stays above a safe indoor temperature in a winter outage. Derived from the
