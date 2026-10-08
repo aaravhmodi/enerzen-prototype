@@ -104,12 +104,13 @@ metrics, controls, tables and chart labels. Weight, size and spacing establish
 hierarchy; typeface changes do not. The Streamlit theme, custom controls and
 Altair charts share the same neutral, primary and semantic color tokens.
 
-After optimization, the interface can generate a project-specific PDF report in
-memory. It records the submitted brief, resolved location/snow/soil defaults,
-recommended systems, effective R-values, energy/carbon results, itemized costs,
-foundation quantities, utility/lifecycle outlook and model limitations. The
-downloaded report is a decision summary; it explicitly does not represent a
-permit, tender, structural design or professional geotechnical opinion.
+After optimization, both paths can generate a nine-section feasibility report
+as a PDF (section 15). It states a feasibility status from explicit checks,
+then the recommended solution, Class D capital cost, timeline, energy, carbon,
+lifecycle economics against a code-built benchmark, how the recommendation
+ranks on each priority, and the next steps the unchecked items call for. The
+report is a decision summary; it explicitly does not represent a permit,
+tender, structural design or professional geotechnical opinion.
 
 The search is exhaustive. The catalog holds 5 wall panels, 3 roof cassettes,
 2 floor cassettes, 3 window packages and 3 mechanical systems, so the engine
@@ -1064,6 +1065,8 @@ Source: `engine/dev_optimizer.py`. Path B follows the developer flowchart:
    energy simulation (`optimizer.baseline_cost`), so no mix the optimizer
    could make affordable is dropped. Scenarios are ordered by the yield and
    cost priorities.
+   Types that fail the brief's minimum bedrooms or maximum storeys never enter
+   a mix and are listed with the reason (section 11.2).
 2. **User review.** The user reviews the site plans, may revise the brief up to
    three times, and approves the scenarios to carry forward.
 3. **Building performance optimization and development calculations.** Each
@@ -1110,3 +1113,88 @@ concept layers are then drawn from one metre-based geometry model:
   one end.
 
 These are planning concepts, not a landscape design or site plan approval.
+
+---
+
+## 15. Feasibility report
+
+Sources: `engine/feasibility.py` (assessment), `engine/report.py` (layout),
+`/report` (Path A) and `/dev-report` (Path B).
+
+### 15.1 Status
+
+The status comes from a list of checks, each pass, fail or not checked:
+
+| Status | Rule |
+| --- | --- |
+| FEASIBLE | Every check passes and no constraint was relaxed |
+| FEASIBLE WITH MODIFICATIONS | Every check passes, but only after a named constraint was relaxed |
+| FURTHER STUDY REQUIRED | Any check failed or was not made |
+
+The checks are the budget and performance gate (section 11.2), the brief's
+hard constraints, site fit, and zoning. **Zoning is always "not checked"**:
+no Pickering parcel is selected and no municipal rules are evaluated, so
+every report currently reads FURTHER STUDY REQUIRED and says why, rather
+than claiming feasibility. On Path A, a site-fit failure no longer refuses
+the report; it is a failed check. Without a lot, site fit is not checked.
+The engine does not yet relax constraints on its own, so FEASIBLE WITH
+MODIFICATIONS is defined but not produced until a relaxation step exists.
+
+On Path B the report covers one approved mix (the top-ranked by default).
+All approved mixes are re-evaluated so it can be ranked against them; the
+gate check counts how many passed.
+
+### 15.2 Sections
+
+1. **Executive feasibility** — status, reasons, the checks, and headline
+   numbers.
+2. **Recommended solution** — Path A: design basis and selected systems with
+   effective R-values and foundation quantities. Path B: the mix and each
+   type's systems, a to-scale plan (lot, buildings, shared green, rain-garden
+   marker, walkway, parking) drawn from the placement engine, and the
+   green-space strategy: shared green area and share of the lot, and site
+   coverage. No 3D.
+3. **Capital cost (Class D)** — hard cost, soft costs (section 6.9), total
+   and budget.
+4. **Timeline** — soft timeline (section 6.9), fabrication and site work to
+   envelope close (section 7), and the sum.
+5. **Energy** — EUI, TEDI against the target's threshold, MEUI, PV and net
+   energy; Path B per type and area-weighted.
+6. **Carbon** — embodied, 30-year operational and lifecycle totals in tCO2e
+   first, then per m2, with the new low-rise embodied benchmark.
+7. **Lifecycle economics** — against a code-built new home of the same area
+   (15.3).
+8. **Priority achievement** — for each weighted objective, the
+   recommendation's rank among every feasible option (rank 1 is best; ties
+   share the better rank). Path A: cost, speed, embodied carbon and EUI
+   across all configurations that passed the gate. Path B: yield, cost, EUI
+   and embodied carbon across the feasible approved mixes.
+9. **Next steps** — required items driven by what was not checked
+   (zoning → municipal pre-consultation; site fit; regional soil defaults →
+   geotechnical investigation; preliminary snow-to-joist mapping →
+   structural engineer; a screening energy model → compliance model; Part 3
+   buildings; more than 10 dwellings → site plan application; catalog
+   defaults → EnerZen procurement data), then enhancements listed
+   separately.
+
+### 15.3 Code-built benchmark
+
+From `data/assemblies.json` → `benchmarks`: capital cost $2,200/m2
+(conventional new build), site EUI 130 kWh/m2/yr (code-built new) and
+embodied carbon 184 kgCO2e/m2.
+
+```
+benchmark capital   = 2,200 x floor area
+benchmark energy    = 130 x floor area                       (kWh/yr)
+variable rate       = (annual utility - fixed charges) / (gross energy - PV)
+benchmark utility   = fixed charges + benchmark energy x variable rate
+energy saving       = benchmark energy - (gross energy - PV)
+lifecycle saving    = LCC(benchmark capital, benchmark utility) - LCC(recommended)
+```
+
+Pricing the benchmark at the recommendation's own variable rate isolates
+consumption from fuel choice. Fixed charges are the electricity service
+charge, plus the gas customer charge when the recommendation burns gas. LCC
+is section 10.2 over 30 years. Path B sums each type's comparison over its
+dwellings.
+

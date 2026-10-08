@@ -340,6 +340,16 @@ def _archetype_detail(arch_id: str, sheet, bounds, entrance, stroke: str) -> tup
     return "".join(parts), badge
 
 
+def development_geometry(placements: list[UnitPlacement], lot: SiteSpec, mix: dict[str, int]):
+    """The walkway centre line and the landscape, parking and access geometry
+    drawn on the development plan (shared with the feasibility report)."""
+    from shapely.geometry import box
+
+    walk = spine_centre([box(p.x_m, p.y_m, p.x_m + p.w_m, p.y_m + p.h_m) for p in placements], lot)
+    parking_spaces = _parking_spaces(sum(mix.values()), lot, walk)
+    return walk, build_site_geometry(placements, lot, parking_spaces)
+
+
 def multi_site_plan_svg(
     placements: list[UnitPlacement],
     lot: SiteSpec,
@@ -348,17 +358,13 @@ def multi_site_plan_svg(
     """SVG concept plan for a development: street and sidewalk, a shared
     walkway through a clear corridor, parking, the rear shared garden, and
     numbered buildings keyed to a legend."""
-    from shapely.geometry import box
-
     from engine import svg_kit
     from engine.archetypes import ARCHETYPES
 
     sheet = svg_kit.PlanSheet(lot.lot_width_m, lot.lot_depth_m, lot.street_side)
     envelope = _buildable_envelope(lot)
     total_units = sum(mix.values())
-    walk = spine_centre([box(p.x_m, p.y_m, p.x_m + p.w_m, p.y_m + p.h_m) for p in placements], lot)
-    parking_spaces = _parking_spaces(total_units, lot, walk)
-    geometry = build_site_geometry(placements, lot, parking_spaces)
+    walk, geometry = development_geometry(placements, lot, mix)
     s = sheet.scale
 
     def poly(polygon) -> str:
@@ -435,7 +441,7 @@ def multi_site_plan_svg(
 
     body.append('<g class="sp-annotation">' + sheet.overall_dimensions() + '</g>')
 
-    parking_label = f"{len(parking_spaces)} concept stalls" if parking_spaces else "Not allocated on supplied lot"
+    parking_label = f"{len(geometry.parking)} concept stalls" if geometry.parking else "Not allocated on supplied lot"
     legend = [
         (f"badge:{_ARCHETYPE_COLORS.get(a, _DEFAULT_COLOR)[1]}:{number_by_archetype[a]}",
          f"{ARCHETYPES[a].name} × {mix[a]}")
