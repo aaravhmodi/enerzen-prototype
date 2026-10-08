@@ -1,10 +1,12 @@
 // Run with PLAYWRIGHT_MODULE pointing to the installed Playwright module.
+// PLAYWRIGHT_CHANNEL picks an installed browser (e.g. msedge on Windows);
+// leave it unset to use Playwright's bundled Chromium (e.g. in a cloud sandbox).
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const os = require('node:os');
 (async () => {
-  const browser = await chromium.launch({headless:true, channel:'msedge'});
+  const browser = await chromium.launch({headless:true, channel:process.env.PLAYWRIGHT_CHANNEL || undefined});
   const page = await browser.newPage({viewport:{width:1440,height:1000}, deviceScaleFactor:1});
   const screenshot = (name) => page.screenshot({path:path.join(os.tmpdir(),name), fullPage:true, animations:'disabled'});
   page.setDefaultTimeout(10000);
