@@ -39,15 +39,17 @@ ARCHETYPES: dict[str, Archetype] = {
         footprint_width_m=8.0,
         typology="single_family",
     ),
+    # MURB.pdf / ENERZEN_PLAN_G+4.dwg: ground + 4 floors, 4 units per floor,
+    # a square plan scaling to about 19 x 18 m, 2-bed units of 695 ft2 (65 m2).
     "murb": Archetype(
         id="murb",
-        name="MURB (6-storey, 4 units/floor)",
-        floor_area_m2=65.0 * 24,   # 24 dwelling units total
-        storeys=6,
-        footprint_length_m=20.0,
-        footprint_width_m=15.0,
+        name="MURB (5-storey, 4 units/floor)",
+        floor_area_m2=65.0 * 20,   # 20 dwelling units total
+        storeys=5,
+        footprint_length_m=19.0,
+        footprint_width_m=18.0,
         typology="murb",
-        units_per_building=24,
+        units_per_building=20,
     ),
     "townhouse": Archetype(
         id="townhouse",

@@ -987,6 +987,21 @@ presentation, but is explicitly illustrative only: text-to-image models
 cannot hold exact setback distances or right angles, so the SVG — not the
 illustration — is the source of truth for any dimension.
 
+### Building archetypes
+
+Source: `engine/archetypes.py`. The development path places these catalog
+types, sized from EnerZen's drawings:
+
+| Type | Storeys | Footprint (E-W x N-S) | Units | Area per unit | Basis |
+|------|---------|-----------------------|-------|---------------|-------|
+| Garden Suite (1 BR) | 1 | 7.0 x 6.5 m | 1 | 46 m2 | Garden Suite drawing I121 (366 ft2 net interior) |
+| 3-Bedroom Unit | 2 | 10.0 x 8.0 m | 1 | 163 m2 | 3 BHK unit DWG (1,750 ft2) |
+| MURB | 5 | 19.0 x 18.0 m | 20 | 65 m2 | MURB.pdf and the G+4 DWG: ground + 4 floors, 4 units per floor, 695 ft2 two-bed units |
+| Townhouse (3 BR, attached) | 2 | 6.0 x 12.0 m per unit | 1 per unit | 150 m2 | Catalog placeholder |
+
+The MURB footprint is scaled from the PDF plans (about 19.3 x 18 m) because
+the dimension strings are on the DWG; confirm against the DWG.
+
 ### Development site plan
 
 Sources: `engine/multi_site.py`, `engine/site_geometry.py`
