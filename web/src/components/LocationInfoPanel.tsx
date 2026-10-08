@@ -132,18 +132,27 @@ export default function LocationInfoPanel({
 
           {detail.multifamily_energy_benchmark && (
             <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 p-3">
-              <p className="font-semibold text-sky-900">Toronto multifamily benchmark</p>
+              <p className="font-semibold text-sky-900">{detail.multifamily_energy_benchmark.municipality ?? "Toronto"} multifamily benchmark</p>
               <p className="mt-1 text-[11px] leading-4 text-sky-800">
                 2024 weather-normalized site EUI median: <strong>{detail.multifamily_energy_benchmark.median_kwh_m2_yr} kWh/m²·yr</strong>
                 <br />
                 Middle 50%: {detail.multifamily_energy_benchmark.p25_kwh_m2_yr}–{detail.multifamily_energy_benchmark.p75_kwh_m2_yr} kWh/m²·yr
               </p>
               <p className="mt-1 text-[10px] leading-4 text-sky-700">
-                Context only: {detail.multifamily_energy_benchmark.usable_eui_rows} large buildings in the Toronto slice; not a low-rise-home calibration.
+                Context only: {detail.multifamily_energy_benchmark.usable_eui_rows} large buildings. {detail.multifamily_energy_benchmark.limitation}
               </p>
             </div>
           )}
 
+          {detail.municipal_context && (
+            <section className="municipal-context">
+              <div className="flex items-center justify-between gap-3"><h3>Pickering data library</h3><span className="micro-label">City-wide</span></div>
+              <p className="mt-2 text-xs text-stone-500">No site selected yet. Explore the city while your pilot location takes shape.</p>
+              <div className="municipal-counts">{detail.municipal_context.layers.map(layer => <a key={layer.label} href={layer.source_url} target="_blank" rel="noreferrer"><strong>{layer.count.toLocaleString()}</strong><span>{layer.label} ↗</span></a>)}</div>
+              <details><summary>Explore {detail.municipal_context.neighbourhoods.length} neighbourhoods</summary><p className="mt-3 leading-6">{detail.municipal_context.neighbourhoods.join(" · ")}</p></details>
+              <details className="mt-3"><summary>Sources &amp; coverage</summary><p className="mt-3 leading-5">{detail.municipal_context.geometry_note}</p><p className="mt-2">Snapshot retrieved {detail.municipal_context.retrieved_at}.</p><div className="source-links">{detail.municipal_context.sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noreferrer">{source.label} ↗</a>)}</div></details>
+            </section>
+          )}
           <div className="mt-3 rounded-lg border border-amber-100 bg-amber-50/70 p-3">
             <p className="font-semibold text-amber-900">Planning / zoning intelligence</p>
             <p className="mt-1 text-[11px] leading-4 text-amber-800">

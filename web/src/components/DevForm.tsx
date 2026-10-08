@@ -13,7 +13,7 @@ const DEFAULT: DevSpecInput = {
   side_setback_m: 1.2,
   rear_setback_m: 7.5,
   total_budget_cad: 1500000,
-  location: "Toronto",
+  location: "Pickering (Dunbarton)",
   target_label: "nzr",
   allowed_types: ["garden_suite", "three_bhk"],
   orientation: "S",

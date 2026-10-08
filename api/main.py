@@ -23,6 +23,7 @@ from engine.ai import (
 from engine.archetypes import archetype_list
 from engine.dev_optimizer import DevSpec, optimize_dev_mix
 from engine.location import location_names, resolve as resolve_location
+from engine.municipal import is_pickering, pickering_context
 from engine.multi_site import multi_site_plan_svg, place_units
 from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize
 from engine.report import generate_results_pdf
@@ -200,7 +201,18 @@ def location_detail(name: str):
             "source_url": "https://open.toronto.ca/dataset/zoning-by-law/",
             "source_label": "City of Toronto Zoning By-law dataset",
         }
+    municipal = pickering_context() if is_pickering(name) else None
+    if municipal:
+        toronto_benchmark = municipal['energy_benchmark']
+        regulatory_intelligence = {
+            'status': 'not_checked',
+            'label': 'Pickering city-wide context',
+            'detail': 'Municipal inventories and energy benchmarks are loaded. Select a parcel later to establish its zoning, setbacks and permitted uses. Current lot dimensions are scenario assumptions.',
+            'source_url': municipal['sources'][1]['url'],
+            'source_label': 'City of Pickering zoning maps and by-laws',
+        }
     return {
+        "municipal_context": municipal,
         "name": loc.name,
         "climate_zone": loc.climate_zone,
         "region_name": loc.region_name,

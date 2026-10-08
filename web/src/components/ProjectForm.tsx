@@ -32,7 +32,7 @@ const DEFAULT_STATE: FormState = {
     target_label: "nzr",
     solar_option_id: "PV0",
     mechanical_option_id: null,
-    location: "Toronto",
+    location: "Pickering (Dunbarton)",
     num_units: 1,
     has_ac: true,
     allow_gas: true,

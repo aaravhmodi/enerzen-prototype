@@ -1,0 +1,135 @@
+{
+  "municipality": "Pickering",
+  "scope": "citywide",
+  "retrieved_at": "2026-10-08",
+  "parcel_selected": false,
+  "layers": [
+    {
+      "label": "Building footprints",
+      "count": 27949,
+      "source_url": "https://maps.pickering.ca/arcgisinter/rest/services/public/OpenData/MapServer/6"
+    },
+    {
+      "label": "Parks inventory",
+      "count": 198,
+      "source_url": "https://maps.pickering.ca/arcgisinter/rest/services/public/OpenData/MapServer/3"
+    },
+    {
+      "label": "Neighbourhoods",
+      "count": 21,
+      "source_url": "https://maps.pickering.ca/arcgisinter/rest/services/public/OpenData/MapServer/7"
+    },
+    {
+      "label": "Residential development records",
+      "count": 544,
+      "source_url": "https://maps.pickering.ca/arcgisinter/rest/services/public/OpenData/MapServer/12"
+    }
+  ],
+  "neighbourhoods": [
+    "Amberlea",
+    "Bay Ridges",
+    "Brock Industrial",
+    "Brock Ridge",
+    "Brock-Taunton",
+    "City Centre",
+    "Duffin Heights",
+    "Dunbarton",
+    "Highbush",
+    "Lamoreaux",
+    "Liverpool",
+    "Mount Pleasant",
+    "Pickering Innovation Corridor",
+    "Rosebank",
+    "Rouge Park",
+    "Rougemount",
+    "Thompson's Corners",
+    "Village East",
+    "West Shore",
+    "Wilson Meadows",
+    "Woodlands"
+  ],
+  "geometry_note": "City-wide inventory only. The clipParcelBoundary layer returns a single feature and is not treated as an individual-lot dataset. No pilot parcel is selected.",
+  "sources": [
+    {
+      "label": "City GIS and open data",
+      "url": "https://maps.pickering.ca/arcgisinter/rest/services/public/OpenData/MapServer"
+    },
+    {
+      "label": "Zoning maps and by-laws",
+      "url": "https://www.pickering.ca/business-building-development/planning-and-development/zoning/"
+    },
+    {
+      "label": "Sustainable development standards",
+      "url": "https://www.pickering.ca/business-building-development/planning-and-development/sustainable-development/"
+    },
+    {
+      "label": "Municipal energy reports",
+      "url": "https://www.pickering.ca/property-roads-safety/sustainability-sustainable/energy-and-greenhouse-gas-emissions/"
+    },
+    {
+      "label": "Ontario 2024 building energy data",
+      "url": "https://data.ontario.ca/en/dataset/0eab2faf-6186-4a5b-8de1-b15872943c24/resource/aeb34aef-5029-4b65-8093-c86ad682b037/download/odc_final_dataset_2024.xlsx"
+    }
+  ],
+  "energy_benchmark": {
+    "source_year": 2024,
+    "municipality": "Pickering",
+    "reported_rows": 9,
+    "city_reported_rows": 37,
+    "usable_eui_rows": 9,
+    "median_kwh_m2_yr": 188.4,
+    "p25_kwh_m2_yr": 149.5,
+    "p75_kwh_m2_yr": 272.2,
+    "source_url": "https://data.ontario.ca/en/dataset/0eab2faf-6186-4a5b-8de1-b15872943c24/resource/aeb34aef-5029-4b65-8093-c86ad682b037/download/odc_final_dataset_2024.xlsx",
+    "source_field": "WN_Site_EUI1",
+    "conversion": "GJ/m2 / 0.0036 = kWh/m2",
+    "limitation": "Self-reported large multifamily buildings only; small sample, not a low-rise calibration or a target for new homes. Data Quality Checker Run does not mean validated.",
+    "records": [
+      {
+        "id": 102808,
+        "eui_gj_m2": 1.1834274425940865,
+        "quality_checker_run": "Yes"
+      },
+      {
+        "id": 102849,
+        "eui_gj_m2": 0.6847139132494272,
+        "quality_checker_run": "No"
+      },
+      {
+        "id": 102851,
+        "eui_gj_m2": 1.2028024825841663,
+        "quality_checker_run": "No"
+      },
+      {
+        "id": 102855,
+        "eui_gj_m2": 0.47120097255874566,
+        "quality_checker_run": "Yes"
+      },
+      {
+        "id": 102872,
+        "eui_gj_m2": 0.5394011133238271,
+        "quality_checker_run": "No"
+      },
+      {
+        "id": 102925,
+        "eui_gj_m2": 0.9799895226982465,
+        "quality_checker_run": "No"
+      },
+      {
+        "id": 102926,
+        "eui_gj_m2": 0.5382386109244224,
+        "quality_checker_run": "Yes"
+      },
+      {
+        "id": 137989,
+        "eui_gj_m2": 0.5258385853307712,
+        "quality_checker_run": "No"
+      },
+      {
+        "id": 137992,
+        "eui_gj_m2": 0.6781263996528,
+        "quality_checker_run": "No"
+      }
+    ]
+  }
+}

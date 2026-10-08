@@ -108,6 +108,15 @@ export async function fetchCatalog(): Promise<{
 }
 
 export type LocationDetail = {
+  municipal_context?: {
+    municipality: string;
+    retrieved_at: string;
+    scope: string;
+    layers: { label: string; count: number; source_url: string }[];
+    neighbourhoods: string[];
+    geometry_note: string;
+    sources: { label: string; url: string }[];
+  } | null;
   name: string;
   climate_zone: string;
   region_name: string;
@@ -129,6 +138,8 @@ export type LocationDetail = {
     source_label?: string | null;
   };
   multifamily_energy_benchmark?: {
+    municipality?: string;
+    source_url?: string;
     median_kwh_m2_yr: number;
     p25_kwh_m2_yr: number;
     p75_kwh_m2_yr: number;
