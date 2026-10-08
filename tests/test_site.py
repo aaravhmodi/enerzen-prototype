@@ -189,6 +189,28 @@ class SitePlanSvgTests(unittest.TestCase):
         self.assertEqual(len(placements), 12)
         self.assertTrue(all(not geometry.pedestrian_spine.intersects(b.buffer(-0.01)) for b in geometry.buildings))
 
+    def test_entrances_and_paths_avoid_parking_and_buildings(self):
+        from engine.multi_site import _parking_spaces
+        site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
+        mix = {"garden_suite": 2, "three_bhk": 1}
+        placements = place_units(mix, site)
+        geometry = build_site_geometry(placements, site, _parking_spaces(3, site))
+
+        self.assertTrue(geometry.parking)
+        self.assertFalse(any(porch.intersects(stall) for porch in geometry.porches for stall in geometry.parking))
+        self.assertTrue(geometry.entry_paths)
+        self.assertFalse(any(path.intersects(b.buffer(-0.01)) for path in geometry.entry_paths for b in geometry.buildings))
+
+    def test_townhouse_row_door_is_on_a_long_face(self):
+        site = SiteSpec(lot_width_m=60.0, lot_depth_m=40.0, street_side="W")
+        placements = place_units({"townhouse": 6}, site)
+        geometry = build_site_geometry(placements, site, [])
+        min_x, min_y, max_x, max_y = geometry.buildings[0].bounds
+        door = geometry.entrances[0]
+
+        self.assertGreater(max_x - min_x, max_y - min_y)
+        self.assertTrue(abs(door.y - min_y) < 1e-6 or abs(door.y - max_y) < 1e-6)
+
     def test_shared_green_uses_the_rear_yard(self):
         site = SiteSpec(lot_width_m=30.0, lot_depth_m=50.0, street_side="N")
         geometry = build_site_geometry(place_units({"garden_suite": 2}, site), site, [])

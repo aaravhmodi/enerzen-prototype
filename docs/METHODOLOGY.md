@@ -999,7 +999,15 @@ concept layers are then drawn from one metre-based geometry model:
   the lot centre when that is clear; otherwise through the clear corridor
   between buildings (at least 1.8 m plus 0.4 m clearance each side) nearest
   the centre. If no corridor exists, only an entry walk to the setback line is
-  drawn and the plan says so. Entrances face the walkway.
+  drawn and the plan says so.
+- **Entrances** — front doors face the street, as on the EnerZen Garden Suite
+  and MURB drawings. A door moves to the side facing the walkway when its
+  street face would open onto a parking stall, or when the street face is the
+  short end of a townhouse row (each townhouse then gets its own door along
+  that long face). A 1.2 m path joins each porch to the walkway when it can do
+  so without crossing a building or stall.
+- **Building detail** — MURBs show the corridor, elevator core and balconies
+  from the unit drawings; townhouse rows show party walls between units.
 - **Parking** — 2.7 x 5.5 m placeholder stalls in the front setback, either
   side of the walkway, only when the frontage holds one per unit.
 - **Shared green** — the rear setback becomes one shared garden strip (inset

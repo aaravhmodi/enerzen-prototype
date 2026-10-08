@@ -273,6 +273,73 @@ def _all_placed(placements: list[UnitPlacement], mix: dict[str, int]) -> bool:
     return all(placed_units.get(k, 0) >= v for k, v in mix.items() if v > 0)
 
 
+def _archetype_detail(arch_id: str, sheet, bounds, entrance, stroke: str) -> tuple[str, tuple[float, float]]:
+    """Plan detail taken from the EnerZen unit drawings, and where the
+    numbered badge should sit so it does not cover that detail.
+
+    MURB: a corridor across the long axis with the elevator core at its centre
+    and balconies on both long faces. Townhouse: party walls between units
+    and a front door per unit along the entrance face.
+    """
+    from engine import svg_kit
+    from engine.archetypes import ARCHETYPES
+
+    x0, y0, x1, y1 = bounds
+    a, b = sheet.px(x0, y0)
+    c, d = sheet.px(x1, y1)
+    cx, cy = (a + c) / 2, (b + d) / 2
+    long_x = (c - a) >= (d - b)
+    parts: list[str] = []
+    badge = (cx, cy)
+    if arch_id == "murb":
+        band = (min(c - a, d - b)) * 0.08
+        core = min(c - a, d - b) * 0.16
+        if long_x:
+            parts.append(f'<rect x="{a:.1f}" y="{cy - band:.1f}" width="{c - a:.1f}" height="{2 * band:.1f}" '
+                         f'fill="white" stroke="{stroke}" stroke-width="0.6"/>')
+            balcony_faces = (b, d)
+        else:
+            parts.append(f'<rect x="{cx - band:.1f}" y="{b:.1f}" width="{2 * band:.1f}" height="{d - b:.1f}" '
+                         f'fill="white" stroke="{stroke}" stroke-width="0.6"/>')
+            balcony_faces = (a, c)
+        parts.append(f'<rect x="{cx - core / 2:.1f}" y="{cy - core / 2:.1f}" width="{core:.1f}" height="{core:.1f}" '
+                     f'fill="{stroke}" stroke="none"/>')
+        parts.append(f'<line x1="{cx - core / 2 + 2:.1f}" y1="{cy - core / 2 + 2:.1f}" x2="{cx + core / 2 - 2:.1f}" '
+                     f'y2="{cy + core / 2 - 2:.1f}" stroke="white" stroke-width="0.7"/>')
+        bal_long, bal_deep = 2.7 * sheet.scale, 1.2 * sheet.scale
+        for face in balcony_faces:
+            for t in (0.3, 0.7):
+                if long_x:
+                    bx, by = a + (c - a) * t - bal_long / 2, (face - bal_deep) if face == b else face
+                    w, h = bal_long, bal_deep
+                else:
+                    bx, by = (face - bal_deep) if face == a else face, b + (d - b) * t - bal_long / 2
+                    w, h = bal_deep, bal_long
+                parts.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{w:.1f}" height="{h:.1f}" '
+                             f'fill="white" stroke="{stroke}" stroke-width="0.6"/>')
+        badge = (a + (c - a) * 0.22, b + (d - b) * 0.25) if long_x else (a + (c - a) * 0.25, b + (d - b) * 0.22)
+    elif arch_id == "townhouse":
+        unit = ARCHETYPES["townhouse"].footprint_length_m * sheet.scale
+        span = (c - a) if long_x else (d - b)
+        n = max(1, round(span / unit))
+        for k in range(1, n):
+            if long_x:
+                lx = a + span * k / n
+                parts.append(f'<line x1="{lx:.1f}" y1="{b:.1f}" x2="{lx:.1f}" y2="{d:.1f}" stroke="{stroke}" stroke-width="0.9"/>')
+            else:
+                ly = b + span * k / n
+                parts.append(f'<line x1="{a:.1f}" y1="{ly:.1f}" x2="{c:.1f}" y2="{ly:.1f}" stroke="{stroke}" stroke-width="0.9"/>')
+        ex, ey = sheet.px(entrance.x, entrance.y)
+        on_long_face = abs(ey - b) < 1 or abs(ey - d) < 1 if long_x else abs(ex - a) < 1 or abs(ex - c) < 1
+        if on_long_face:
+            for k in range(n):
+                t = (k + 0.5) / n
+                dx, dy = (a + (c - a) * t, ey) if long_x else (ex, b + (d - b) * t)
+                parts.append(f'<circle cx="{dx:.1f}" cy="{dy:.1f}" r="1.8" fill="{svg_kit.INK}" stroke="white" stroke-width="0.6"/>')
+        badge = (a + span / n / 2, cy) if long_x else (cx, b + span / n / 2)
+    return "".join(parts), badge
+
+
 def multi_site_plan_svg(
     placements: list[UnitPlacement],
     lot: SiteSpec,
@@ -340,6 +407,10 @@ def multi_site_plan_svg(
         body.append(f'<rect id="parking-space-{i}" x="{p0[0]:.1f}" y="{p0[1]:.1f}" width="{p1[0] - p0[0]:.1f}" '
                     f'height="{p1[1] - p0[1]:.1f}" fill="{svg_kit.PAVING}" stroke="{svg_kit.LINE}" stroke-width="0.6"/>')
         body.append(svg_kit.text((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2 + 3, "P", 7.5, svg_kit.MUTED, "middle", 600))
+    for i, path in enumerate(geometry.entry_paths, start=1):
+        for part in getattr(path, "geoms", [path]):
+            body.append(f'<polygon id="entry-path-{i}" points="{poly(part)}" fill="{svg_kit.PAVING}" '
+                        f'stroke="{svg_kit.PAVING_EDGE}" stroke-width="0.6"/>')
     body.append('</g>')
 
     # Buildings, numbered by archetype and keyed to the legend.
@@ -351,14 +422,15 @@ def multi_site_plan_svg(
         fill, stroke = _ARCHETYPE_COLORS.get(p.archetype_id, _DEFAULT_COLOR)
         x0, y0, x1, y1 = building.bounds
         body.append(sheet.building(x0, y0, x1, y1, fill, stroke, index, lot.solar_orientation))
+        detail, badge_at = _archetype_detail(p.archetype_id, sheet, building.bounds, entrance, stroke)
+        body.append(detail)
         body.append(f'<polygon id="porch-{index}" points="{poly(porch)}" fill="{svg_kit.PORCH}" '
                     f'stroke="{svg_kit.PORCH_EDGE}" stroke-width="0.7"/>')
         ex, ey = sheet.px(entrance.x, entrance.y)
         body.append(f'<circle id="building-entrance-{index}" cx="{ex:.1f}" cy="{ey:.1f}" r="2.2" '
                     f'fill="{svg_kit.INK}" stroke="white" stroke-width="0.7"/>')
-        cx, cy = sheet.px((x0 + x1) / 2, (y0 + y1) / 2)
         if min(x1 - x0, y1 - y0) * s >= 16:
-            body.append(svg_kit.numbered_badge(cx, cy, number_by_archetype.get(p.archetype_id, 0), stroke))
+            body.append(svg_kit.numbered_badge(*badge_at, number_by_archetype.get(p.archetype_id, 0), stroke))
         body.append('</g>')
 
     body.append('<g class="sp-annotation">' + sheet.overall_dimensions() + '</g>')

@@ -159,8 +159,8 @@ class PlanSheet:
     # ── Buildings ──────────────────────────────────────────────────────────
     def building(self, x0: float, y0: float, x1: float, y1: float, fill: str, stroke: str,
                  index: int, solar_side: str | None, extra: str = "") -> str:
-        """A footprint with a soft offset shadow, a ridge line along its long
-        axis and, when given, an accent on the solar-facing edge."""
+        """A footprint with a soft offset shadow and, when given, an accent on
+        the solar-facing edge. The caller adds any detail and closes the group."""
         a, b = self.px(x0, y0)
         c, d = self.px(x1, y1)
         w, h = c - a, d - b
@@ -170,13 +170,6 @@ class PlanSheet:
             f'<rect x="{a:.1f}" y="{b:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{fill}" stroke="{stroke}" '
             f'stroke-width="1.3"{extra}/>',
         ]
-        inset = min(w, h) * 0.18
-        if w >= h:
-            parts.append(f'<line x1="{a + inset:.1f}" y1="{b + h / 2:.1f}" x2="{c - inset:.1f}" y2="{b + h / 2:.1f}" '
-                         f'stroke="{stroke}" stroke-width="0.6" stroke-dasharray="2,2"/>')
-        else:
-            parts.append(f'<line x1="{a + w / 2:.1f}" y1="{b + inset:.1f}" x2="{a + w / 2:.1f}" y2="{d - inset:.1f}" '
-                         f'stroke="{stroke}" stroke-width="0.6" stroke-dasharray="2,2"/>')
         if solar_side:
             edge = {"N": (a, b, c, b), "S": (a, d, c, d), "E": (c, b, c, d), "W": (a, b, a, d)}[solar_side]
             parts.append(f'<line x1="{edge[0]:.1f}" y1="{edge[1]:.1f}" x2="{edge[2]:.1f}" y2="{edge[3]:.1f}" '
