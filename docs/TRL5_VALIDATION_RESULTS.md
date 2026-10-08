@@ -14,7 +14,9 @@ reruns it (`python -m pytest tests/validation -q`).
 | Energy: falls as the target rises | All four designs | Pass |
 | Energy: Garden Suite vs benchmark | +50% | Outside limit; small-dwelling effect, needs a size-matched reference |
 | Energy: MURB vs benchmark | +74% | **Fail: modelling bug found, decision needed** |
-| Embodied carbon vs published Part 9 studies | — | To run |
+| Embodied carbon: Garden Suite | 140–150 kgCO2e/m2 | Pass |
+| Embodied carbon: 2-storey homes | 73–87 kgCO2e/m2 vs about 191 | **Fail: scope gap, decision needed** |
+| Embodied carbon: MURB | 239 (code), 452 (NZR) | **Fail: same MURB modelling bug** |
 | Cost, construction time | — | Blocked on EnerZen data |
 
 ## 1. Effective R-values (assembly catalog)
@@ -107,3 +109,42 @@ dwelling. This changes MURB results and, if wall and roof areas come from
 geometry for every design, every design's results slightly.
 
 **Test:** `tests/validation/test_energy.py`.
+
+## 3. Embodied carbon (carbon engine)
+
+**References.** Published cradle-to-gate (A1–A3) intensities for Canadian
+Part 9 homes:
+[Builders for Climate Action EMBARC](https://www.buildersforclimateaction.org/uploads/1/5/9/3/15931000/bfca_pbc-embarc_report-web.pdf)
+(500+ GTA homes, average about 191 kgCO2e/m2);
+[City of Vancouver Part 9 benchmark](https://vancouver.ca/files/cov/vancouver-part-9-home-material-emissions-benchmark-report-BCA-2022.pdf)
+(13 homes, 138–357 kgCO2e/m2, 200 recommended); a Nelson and Castlegar BC
+study (34 homes, low about 71 kgCO2e/m2).
+
+**Method.** The cheapest passing configuration of each design at the code and
+Net Zero Ready targets, in Pickering. Proposed acceptance: inside the
+published range (71–357) and within 30% of the GTA average (134–248).
+
+| Design | Code | NZR | Result |
+|---|---|---|---|
+| Garden Suite | 140 | 150 | Pass |
+| 3-Bedroom Unit | 73 | 86 | Low |
+| Townhouse | 75 | 87 | Low |
+| MURB (per home) | 239 | 452 | High |
+
+**Findings.**
+
+1. **Garden Suite: pass.**
+2. **Scope gap (2-storey homes about 55–60% low).** The engine counts the
+   envelope (walls, roof, floor), windows and the mechanical system. The
+   published studies also count interior partitions and intermediate floors.
+   The cost model already includes interior partitions, so the two engines
+   disagree on scope. A single-storey home is affected least, which is why
+   the Garden Suite passes.
+3. **MURB: high, from the same modelling bug as in section 2** (each dwelling
+   carries the whole building's slab).
+
+**Decision needed (user).** Add interior partitions and intermediate floors
+to embodied carbon so the scope matches the published studies (and the cost
+model). This raises embodied carbon for multi-storey designs.
+
+**Test:** `tests/validation/test_carbon.py`.
