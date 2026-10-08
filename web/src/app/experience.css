@@ -736,7 +736,14 @@ h2:focus {
 }
 .results-workspace {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 26px;
+}
+/* Grid items default to min-width: auto, so a wide table would stretch the
+   column past the screen; let them shrink and scroll inside instead. */
+.results-workspace > *,
+.review-grid > * {
+  min-width: 0;
 }
 .results-heading {
   display: flex;
@@ -1166,4 +1173,34 @@ h2:focus {
   .review-grid { grid-template-columns: 1fr; }
   .dev-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .review-actions { flex-direction: column; align-items: flex-start; }
+}
+
+/* Phones: keep narration first, plans as large as the screen allows. */
+.site-plan-open { display: inline-flex; margin-top: 10px; font-size: 12px; color: #6e5a86; text-decoration: underline; text-underline-offset: 3px; background: none; border: 0; padding: 4px 0; }
+@media (max-width: 700px) {
+  .exploring { padding-top: 0; }
+  .exploring-art { order: 0; max-width: 260px; margin: 8px auto 0; }
+  .exploring-art .art-topline, .exploring-art .art-caption { display: none; }
+  .exploring h1 { font-size: 40px; }
+  .exploring-now { min-height: 120px; }
+  .site-plan-card { border-radius: 14px; }
+  .site-plan-header, .site-plan-body > div { padding: 16px 12px; }
+  .site-canvas { padding: 2px; border-radius: 8px; }
+  .site-plan-stats { padding: 16px; }
+  .site-plan-stats dd { font-size: 17px; }
+  .scenario-list-header { flex-direction: column; align-items: flex-start; padding: 18px 16px 14px; }
+  .scenario-check { padding-left: 12px; }
+  .scenario-main { padding: 12px 14px 12px 8px; }
+  .dev-recommendation { padding: 20px 16px; }
+  .dev-recommendation h2 { font-size: 22px; }
+  .dev-tile > strong { font-size: 16px; }
+  .result-toolbar { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 700px) {
+  /* Ranking rows stack: scenario name on top, its five metrics in a row below. */
+  .results-table > .panel { min-width: 0; }
+  .results-table [class*="_52px_88px"] { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px 6px; }
+  .results-table [class*="_52px_88px"] > :first-child { grid-column: 1 / -1; }
+  .results-table [class*="_52px_88px"] > :first-child:empty { display: none; }
+  .results-table [class*="_52px_88px"] p { font-size: 12px; }
 }

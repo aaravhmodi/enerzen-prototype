@@ -4,6 +4,13 @@ import { useState } from "react";
 import type { SiteLayout } from "@/lib/api";
 import InfoTooltip from "@/components/InfoTooltip";
 
+// Opens the vector plan on its own so it can be zoomed, e.g. on a phone.
+function openPlan(svg: string) {
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  window.open(url, "_blank", "noopener");
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export default function SitePlanView({
   svg,
   layout,
@@ -45,6 +52,7 @@ export default function SitePlanView({
             <>
               <div key={svg} className="site-canvas" dangerouslySetInnerHTML={{ __html: svg }} />
               <p className="site-plan-caption">Drawn to scale from the placement engine.</p>
+              <button type="button" className="site-plan-open" onClick={() => openPlan(svg)}>Open full-size plan ↗</button>
             </>
           )}
         </div>

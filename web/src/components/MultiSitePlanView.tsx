@@ -2,6 +2,13 @@
 
 import InfoTooltip from "@/components/InfoTooltip";
 
+// Opens the vector plan on its own so it can be zoomed, e.g. on a phone.
+function openPlan(svg: string) {
+  const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+  window.open(url, "_blank", "noopener");
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export type PlanStat = { label: string; value: string; tip?: string; tone?: "good" | "warn" };
 
 export default function MultiSitePlanView({
@@ -33,6 +40,7 @@ export default function MultiSitePlanView({
           <p className="site-plan-caption">
             Drawn to scale from the placement engine. Walkway, parking and shared green are concept layers.
           </p>
+          <button type="button" className="site-plan-open" onClick={() => openPlan(svg)}>Open full-size plan ↗</button>
           {conceptRenderB64 && (
             <figure className="site-render">
               <p className="micro-label">AI presentation render</p>
