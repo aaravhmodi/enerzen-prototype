@@ -124,7 +124,9 @@ export default function Home() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_34rem),linear-gradient(135deg,#f8faf5_0%,#eef3eb_48%,#f9faf7_100%)]">
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.18),transparent_34rem),linear-gradient(135deg,#f8faf5_0%,#eef3eb_48%,#f9faf7_100%)]">
+      <div className="aurora-drift pointer-events-none fixed -left-28 top-24 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+      <div className="aurora-drift pointer-events-none fixed -right-24 bottom-10 h-80 w-80 rounded-full bg-lime-300/10 blur-3xl" />
       <header className="sticky top-0 z-20 border-b border-white/70 bg-white/75 px-5 py-3 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
