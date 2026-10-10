@@ -1,0 +1,18 @@
+.git/
+.env*
+.vercel/
+**/__pycache__/
+.pytest_cache/
+web/
+ui/
+docs/
+tests/
+scripts/
+*.dwg
+*.bak
+*.pdf
+*.docx
+*.log
+# Training inputs; the API only loads the fitted models.
+data/hot2000/variants/
+data/hot2000/verify_variants/

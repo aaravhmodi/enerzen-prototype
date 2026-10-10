@@ -1,0 +1,21 @@
+# Runs the API and the web app on a home server, published on its Tailscale address
+# only. Set TAILSCALE_IP (e.g. TAILSCALE_IP=100.76.57.23) and OPENAI_KEY in .env.
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # The web app below calls the API from the browser, from this address.
+      CORS_ORIGINS: http://${TAILSCALE_IP}:3000
+    ports:
+      - "${TAILSCALE_IP}:8001:8001"
+
+  web:
+    build:
+      context: web
+      args:
+        NEXT_PUBLIC_API_URL: http://${TAILSCALE_IP}:8001
+    restart: unless-stopped
+    ports:
+      - "${TAILSCALE_IP}:3000:3000"

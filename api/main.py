@@ -7,6 +7,7 @@ Run: uvicorn api.main:app --reload
 
 import base64
 import dataclasses
+import os
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -35,9 +36,13 @@ from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
 
 app = FastAPI(title="EnerZen API")
 
+# A self-hosted web app (see compose.yaml) names its own address here, comma-separated.
+EXTRA_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://enerzen-prototype.vercel.app"],
+    allow_origins=["http://localhost:3000", "https://enerzen-prototype.vercel.app",
+                   *EXTRA_ORIGINS],
     # Preview deployments get per-build URLs like
     # enerzen-prototype-<hash>-aaravhmodis-projects.vercel.app; allow those too.
     allow_origin_regex=r"https://enerzen-prototype-[a-z0-9]+-aaravhmodis-projects\.vercel\.app",

@@ -35,6 +35,16 @@ pip install -r ui/requirements.txt
 streamlit run ui/app.py
 ```
 
+## Run on a home server
+
+`compose.yaml` runs the API and the web app in Docker, published on the server's Tailscale address only. Put `TAILSCALE_IP` and `OPENAI_KEY` in a `.env` beside it, then:
+
+```bash
+docker compose up -d --build
+```
+
+The web app is at `http://<TAILSCALE_IP>:3000` and the API at `http://<TAILSCALE_IP>:8001`. The web app is built against that API address, and the API allows it through `CORS_ORIGINS`.
+
 ## Structure
 
 ```
