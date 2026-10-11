@@ -176,12 +176,15 @@ def _driveway_polygon(site: SiteSpec, envelope: BuildableEnvelope,
     return [(bx + bw, y), (bx + bw, y + driveway_width), (site.lot_width_m, y + driveway_width), (site.lot_width_m, y)]
 
 
-def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
+def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec, units=None) -> str:
     """SVG site plan for a single building: lot, street, buildable envelope,
-    driveway and footprint with its solar face, plus a key and legend."""
+    driveway and footprint with its solar face, plus a key and legend.
+    `units` (engine.units.Units) picks the unit of the dimension labels."""
     from engine import svg_kit
+    from engine.units import Units
 
-    sheet = svg_kit.PlanSheet(site.lot_width_m, site.lot_depth_m, site.street_side)
+    units = units or Units()
+    sheet = svg_kit.PlanSheet(site.lot_width_m, site.lot_depth_m, site.street_side, units=units)
     envelope = _buildable_envelope(site)
     bx0, by0 = layout.building_x_m, layout.building_y_m
     bx1, by1 = bx0 + layout.building_w_m, by0 + layout.building_h_m
@@ -195,7 +198,7 @@ def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
         f'stroke="{svg_kit.PAVING_EDGE}" stroke-width="0.9"/></g>'
     )
     body.append(sheet.building(bx0, by0, bx1, by1, "#ece7f4", "#6e5a86", 0, layout.orientation))
-    label = f"{layout.building_w_m:.1f} × {layout.building_h_m:.1f} m"
+    label = units.dims(layout.building_w_m, layout.building_h_m, sep=" × ")
     label_w = svg_kit.text_width(label, 8.5) + 12
     body.append(f'<rect x="{b_center[0] - label_w / 2:.1f}" y="{b_center[1] - 7:.1f}" width="{label_w:.1f}" '
                 f'height="14" fill="#ece7f4" stroke="none"/>')
@@ -208,9 +211,10 @@ def site_plan_svg(layout: SiteLayout, spec, site: SiteSpec) -> str:
     height = sheet.footer(
         "Site plan",
         [
-            ("Lot size", f"{site.lot_width_m:g} × {site.lot_depth_m:g} m"),
+            ("Lot size", units.dims(site.lot_width_m, site.lot_depth_m, sep=" × ")),
             ("Street", site.street_side),
-            ("Setbacks", f"front {site.front_setback_m:g} · side {site.side_setback_m:g} · rear {site.rear_setback_m:g} m"),
+            ("Setbacks", f"front {units.length_number(site.front_setback_m)} · side "
+                         f"{units.length_number(site.side_setback_m)} · rear {units.length(site.rear_setback_m)}"),
             ("Solar score", f"{layout.solar_score:.2f}"),
         ],
         [

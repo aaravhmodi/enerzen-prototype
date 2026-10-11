@@ -354,14 +354,18 @@ def multi_site_plan_svg(
     placements: list[UnitPlacement],
     lot: SiteSpec,
     mix: dict[str, int],
+    units=None,
 ) -> str:
     """SVG concept plan for a development: street and sidewalk, a shared
     walkway through a clear corridor, parking, the rear shared garden, and
-    numbered buildings keyed to a legend."""
+    numbered buildings keyed to a legend. `units` (engine.units.Units) picks
+    the unit of the dimension labels."""
     from engine import svg_kit
+    from engine.units import Units
     from engine.archetypes import ARCHETYPES
 
-    sheet = svg_kit.PlanSheet(lot.lot_width_m, lot.lot_depth_m, lot.street_side)
+    units = units or Units()
+    sheet = svg_kit.PlanSheet(lot.lot_width_m, lot.lot_depth_m, lot.street_side, units=units)
     envelope = _buildable_envelope(lot)
     total_units = sum(mix.values())
     walk, geometry = development_geometry(placements, lot, mix)
@@ -462,9 +466,10 @@ def multi_site_plan_svg(
         "Development site plan",
         [
             ("Total units", f"{total_units}"),
-            ("Lot size", f"{lot.lot_width_m:g} × {lot.lot_depth_m:g} m"),
+            ("Lot size", units.dims(lot.lot_width_m, lot.lot_depth_m, sep=" × ")),
             ("Street", lot.street_side),
-            ("Setbacks", f"front {lot.front_setback_m:g} · side {lot.side_setback_m:g} · rear {lot.rear_setback_m:g} m"),
+            ("Setbacks", f"front {units.length_number(lot.front_setback_m)} · side "
+                         f"{units.length_number(lot.side_setback_m)} · rear {units.length(lot.rear_setback_m)}"),
             ("Parking", parking_label),
         ],
         legend,

@@ -1,3 +1,5 @@
+import type { UnitSystem } from "@/lib/units";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 export type ProjectSpecInput = {
@@ -213,18 +215,20 @@ export async function runOptimize(
 export async function runSitePlan(
   spec: ProjectSpecInput,
   site: SiteSpecInput,
-  render_concept = false
+  render_concept = false,
+  units: UnitSystem = "metric"
 ): Promise<{ layout: SiteLayout; svg: string; concept_render_b64: string | null }> {
-  return postJson("/site-plan", { spec, site, render_concept });
+  return postJson("/site-plan", { spec, site, render_concept, units });
 }
 
 export async function runReport(
   spec: ProjectSpecInput,
   weights?: OptimizationWeights,
   site?: SiteSpecInput,
-  top_n_index = 0
+  top_n_index = 0,
+  units: UnitSystem = "metric"
 ): Promise<{ pdf_b64: string }> {
-  return postJson("/report", { spec, weights, site, top_n_index });
+  return postJson("/report", { spec, weights, site, top_n_index, units });
 }
 
 export async function runParseSpec(text: string): Promise<Partial<ProjectSpecInput & SiteSpecInput> & { assumptions: string[] }> {
@@ -326,14 +330,16 @@ export async function runDevReport(
   spec: DevSpecInput,
   mixes: Record<string, number>[],
   mix: Record<string, number>,
+  units: UnitSystem = "metric",
 ): Promise<{ pdf_b64: string }> {
-  return postJson("/dev-report", { spec, mixes, mix });
+  return postJson("/dev-report", { spec, mixes, mix, units });
 }
 
 export async function runDevSitePlan(
   spec: DevSpecInput,
   mix: Record<string, number>,
   render_concept = false,
+  units: UnitSystem = "metric",
 ): Promise<{ svg: string; concept_render_b64: string | null }> {
-  return postJson("/dev-site-plan", { spec, mix, render_concept });
+  return postJson("/dev-site-plan", { spec, mix, render_concept, units });
 }

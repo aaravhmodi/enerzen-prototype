@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ConfigResult, SoftSummary } from "@/lib/api";
-import { fmtEui, fmtCarbon, fmtCad } from "@/lib/units";
+import { fmtCad, useUnits } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
 function Metric({
@@ -42,6 +42,7 @@ function Metric({
 }
 
 export default function ResultsPanel({ results, soft }: { results: ConfigResult[]; soft?: SoftSummary | null }) {
+  const u = useUnits();
   const top = results[0];
   const carbonPercent = Math.min(100, Math.max(0, 100 - top.embodied_carbon_kg_co2e_m2 / 5));
   const euiPercent = Math.min(100, Math.max(0, 100 - top.eui_kwh_m2_yr));
@@ -80,8 +81,8 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
               />
               <Metric
                 label="EUI"
-                value={fmtEui(top.eui_kwh_m2_yr)}
-                tip="Energy Use Intensity — total site energy this building consumes per m² per year, across heating, cooling, hot water, and appliances. Lower means a more efficient building and a smaller utility bill."
+                value={u.eui(top.eui_kwh_m2_yr)}
+                tip={`Energy Use Intensity — total site energy this building consumes per ${u.areaUnit} per year, across heating, cooling, hot water, and appliances. Lower means a more efficient building and a smaller utility bill.`}
               />
               <Metric
                 label="NZR probability"
@@ -96,13 +97,13 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
             <div className="mt-5 space-y-5">
               <Signal
                 label="EUI efficiency"
-                value={fmtEui(top.eui_kwh_m2_yr)}
+                value={u.eui(top.eui_kwh_m2_yr)}
                 percent={euiPercent}
-                tip="How this configuration's energy intensity compares on a 0-100 scale — further right means less energy consumed per m² each year."
+                tip={`How this configuration's energy intensity compares on a 0-100 scale — further right means less energy consumed per ${u.areaUnit} each year.`}
               />
               <Signal
                 label="Embodied carbon"
-                value={fmtCarbon(top.embodied_carbon_kg_co2e_m2)}
+                value={u.carbon(top.embodied_carbon_kg_co2e_m2)}
                 percent={carbonPercent}
                 tip="Carbon emitted manufacturing the materials in this assembly — further right means fewer emissions baked into construction, before the building even operates."
               />
@@ -120,13 +121,13 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
       <div className="reveal-tiles grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric
           label="Embodied carbon"
-          value={fmtCarbon(top.embodied_carbon_kg_co2e_m2)}
+          value={u.carbon(top.embodied_carbon_kg_co2e_m2)}
           tip="Carbon footprint of the materials themselves (cradle-to-gate), independent of how the building is operated."
         />
         <Metric
           label="30-yr lifecycle carbon"
-          value={fmtCarbon(top.lifecycle_carbon_30yr_kg_co2e_m2)}
-          tip="Embodied carbon plus estimated operational carbon over 30 years, per m²."
+          value={u.carbon(top.lifecycle_carbon_30yr_kg_co2e_m2)}
+          tip={`Embodied carbon plus estimated operational carbon over 30 years, per ${u.areaUnit}.`}
         />
         <Metric
           label="Avg. monthly utility"
@@ -145,11 +146,11 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
         />
         <Metric
           label="TEDI"
-          value={fmtEui(top.tedi_kwh_m2_yr)}
+          value={u.eui(top.tedi_kwh_m2_yr)}
           tip={
             top.tedi_threshold_kwh_m2_yr === null
               ? "Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. The current code target does not enforce a TEDI threshold."
-              : `Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. Target threshold here is ${top.tedi_threshold_kwh_m2_yr} kWh/m²/yr.`
+              : `Thermal Energy Demand Intensity: envelope heating demand before mechanical efficiency. Target threshold here is ${u.eui(top.tedi_threshold_kwh_m2_yr)}.`
           }
         />
         {soft && (
@@ -173,8 +174,8 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
         )}
         <Metric
           label="MEUI"
-          value={fmtEui(top.meui_kwh_m2_yr)}
-          tip="Mechanical Energy Use Intensity: purchased heating, cooling, and domestic hot-water energy per m² per year."
+          value={u.eui(top.meui_kwh_m2_yr)}
+          tip={`Mechanical Energy Use Intensity: purchased heating, cooling, and domestic hot-water energy per ${u.areaUnit} per year.`}
         />
       </div>
 
@@ -204,13 +205,13 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
                 <th className="px-4 py-3 font-semibold">
                   <span className="flex items-center gap-1.5">
                     EUI
-                    <InfoTooltip text="Energy Use Intensity, kWh per m² per year. Lower is better." />
+                    <InfoTooltip text={`Energy Use Intensity, kWh per ${u.areaUnit} per year. Lower is better.`} />
                   </span>
                 </th>
                 <th className="px-4 py-3 font-semibold">
                   <span className="flex items-center gap-1.5">
                     Carbon
-                    <InfoTooltip text="Embodied carbon of the materials, kgCO2e per m². Lower is better." />
+                    <InfoTooltip text={`Embodied carbon of the materials, kgCO2e per ${u.areaUnit}. Lower is better.`} />
                   </span>
                 </th>
                 <th className="px-4 py-3 font-semibold">
@@ -228,8 +229,8 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
                   <td className="px-4 py-3 text-stone-600">{r.roof_id}</td>
                   <td className="px-4 py-3 text-stone-600">{fmtCad(r.construction_cost)}</td>
                   <td className="px-4 py-3 text-stone-600">{r.construction_weeks.toFixed(1)}</td>
-                  <td className="px-4 py-3 text-stone-600">{r.eui_kwh_m2_yr.toFixed(0)}</td>
-                  <td className="px-4 py-3 text-stone-600">{r.embodied_carbon_kg_co2e_m2.toFixed(0)}</td>
+                  <td className="px-4 py-3 text-stone-600">{u.intensity(r.eui_kwh_m2_yr)}</td>
+                  <td className="px-4 py-3 text-stone-600">{u.intensity(r.embodied_carbon_kg_co2e_m2)}</td>
                   <td className="px-4 py-3 text-stone-600">{fmtCad(r.lifecycle_cost_30yr)}</td>
                 </tr>
               ))}

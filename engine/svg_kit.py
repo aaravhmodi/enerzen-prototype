@@ -13,6 +13,8 @@ sp-building, sp-annotation) so the web app can animate them in sequence.
 from dataclasses import dataclass, field
 from html import escape
 
+from engine.units import FT_PER_M, Units
+
 FONT = "Inter, 'Helvetica Neue', Arial, sans-serif"
 
 PAPER = "#fbfaf8"
@@ -71,6 +73,7 @@ class PlanSheet:
     width: float = 0
     footer_y: float = 0
     body: list[str] = field(default_factory=list)
+    units: Units = field(default_factory=Units)  # for dimension labels only
 
     def __post_init__(self):
         self.scale = max(5.0, min(16.0, 440.0 / max(self.lot_w_m, self.lot_d_m, 1)))
@@ -198,8 +201,8 @@ class PlanSheet:
 
     def overall_dimensions(self) -> str:
         x, y, w, h = self.left, self.top, self.lot_w_px, self.lot_h_px
-        width_label = f"{self.lot_w_m:g} m"
-        depth_label = f"{self.lot_d_m:g} m"
+        width_label = self.units.length(self.lot_w_m)
+        depth_label = self.units.length(self.lot_d_m)
         wy = y - 20 if self.street_side == "S" else y + h + 20
         dx = x - 20 if self.street_side == "E" else x + w + 20
         return self.dimension(x, wy, x + w, wy, width_label) + self.dimension(dx, y, dx, y + h, depth_label)
@@ -213,14 +216,19 @@ class PlanSheet:
         )
 
     def scale_bar(self, x: float, y: float) -> str:
-        metres = next((m for m in (5, 10, 20, 50, 100) if m * self.scale >= 60), 100)
+        if self.units.imperial:
+            feet = next((f for f in (10, 20, 50, 100, 200, 500) if f / FT_PER_M * self.scale >= 60), 500)
+            metres, label = feet / FT_PER_M, f"{feet} ft"
+        else:
+            metres = next((m for m in (5, 10, 20, 50, 100) if m * self.scale >= 60), 100)
+            label = f"{metres:g} m"
         length = metres * self.scale
         half = length / 2
         return (
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{half:.1f}" height="3" fill="{INK}" stroke="none"/>'
             f'<rect x="{x + half:.1f}" y="{y:.1f}" width="{half:.1f}" height="3" fill="white" stroke="{INK}" stroke-width="0.8"/>'
             + text(x, y + 14, "0", 7.5, MUTED)
-            + text(x + length, y + 14, f"{metres:g} m", 7.5, MUTED, "middle")
+            + text(x + length, y + 14, label, 7.5, MUTED, "middle")
         )
 
     def footer(self, title: str, fields: list[tuple[str, str]], legend: list[tuple[str, str]],

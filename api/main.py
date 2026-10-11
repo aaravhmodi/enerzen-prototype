@@ -8,7 +8,7 @@ Run: uvicorn api.main:app --reload
 import base64
 import dataclasses
 import os
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,6 +33,7 @@ from engine.report import generate_development_report, generate_unit_report
 from engine.soft import SOFT_COST_FRACTION, permit_class, soft_cost, soft_timeline
 from engine.regulatory import toronto_zoning_lookup
 from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
+from engine.units import Units
 
 app = FastAPI(title="EnerZen API")
 
@@ -97,10 +98,15 @@ class OptimizeRequest(BaseModel):
     site: Optional[SiteSpecIn] = None
 
 
+# Display units for drawings and reports. Inputs and results are always SI.
+UnitSystem = Literal["metric", "imperial"]
+
+
 class SitePlanRequest(BaseModel):
     spec: ProjectSpecIn
     site: SiteSpecIn
     render_concept: bool = False
+    units: UnitSystem = "metric"
 
 
 class ReportRequest(BaseModel):
@@ -109,6 +115,7 @@ class ReportRequest(BaseModel):
     weights: Optional[dict] = None
     top_n_index: int = 0
     include_rationale: bool = False
+    units: UnitSystem = "metric"
 
 
 class ParseSpecRequest(BaseModel):
@@ -146,12 +153,14 @@ class DevReportRequest(BaseModel):
     spec: DevSpecIn
     mixes: list[dict[str, int]]                # the approved scenarios: the feasible set to rank against
     mix: Optional[dict[str, int]] = None       # the one to report; defaults to the top-ranked
+    units: UnitSystem = "metric"
 
 
 class DevSitePlanRequest(BaseModel):
     spec: DevSpecIn
     mix: dict[str, int]
     render_concept: bool = False
+    units: UnitSystem = "metric"
 
 
 def _serialize_result(result: ConfigResult) -> dict:
@@ -316,7 +325,7 @@ def run_site_plan(req: SitePlanRequest):
     spec = req.spec.to_engine_spec()
     site = req.site.to_engine_spec()
     layout = place_building(spec, site)
-    svg = site_plan_svg(layout, spec, site)
+    svg = site_plan_svg(layout, spec, site, Units(req.units))
 
     response = {"layout": _serialize_layout(layout), "svg": svg, "concept_render_b64": None}
     if req.render_concept:
@@ -365,10 +374,11 @@ def run_report(req: ReportRequest):
     catalog = load_catalog()
     checks = [fz.gate_check(gate), _constraints_check(spec, catalog), site_check, fz.zoning_check(resolved.name)]
     timeline = _spec_soft_timeline(spec)
+    units = Units(req.units)
     steps, enhancements = fz.next_steps(
         location=resolved, checks=checks, target_label=spec.target_label,
         surrogate_verified=top.surrogate_verified, dwellings=spec.num_units,
-        part3=timeline["permit_class"] == "part3", has_pv=top.pv_capacity_kw > 0)
+        part3=timeline["permit_class"] == "part3", has_pv=top.pv_capacity_kw > 0, units=units)
     pdf_bytes = generate_unit_report(
         spec=spec, result=top, location=resolved, labels=_report_labels(top, spec, catalog),
         soft_timeline=timeline, assessment=fz.assess(checks),
@@ -376,10 +386,10 @@ def run_report(req: ReportRequest):
         ranks=fz.objective_ranks(top, results, [
             ("Capital cost", "cost", "construction_cost", False, lambda v: f"${v:,.0f}"),
             ("Construction speed", "speed", "construction_weeks", False, lambda v: f"{v:g} weeks"),
-            ("Embodied carbon", "carbon", "embodied_carbon_kg_co2e_m2", False, lambda v: f"{v:,.0f} kgCO2e/m2"),
-            ("Operating energy", "energy", "eui_kwh_m2_yr", False, lambda v: f"{v:g} kWh/m2/yr"),
+            ("Embodied carbon", "carbon", "embodied_carbon_kg_co2e_m2", False, units.carbon),
+            ("Operating energy", "energy", "eui_kwh_m2_yr", False, units.eui),
         ]),
-        weights=weights, steps=steps, enhancements=enhancements)
+        weights=weights, steps=steps, enhancements=enhancements, units=units)
     return {"pdf_b64": base64.b64encode(pdf_bytes).decode("ascii")}
 
 
@@ -449,6 +459,7 @@ def run_dev_report(req: DevReportRequest):
         fz.Check("Site fit", fz.PASS, f"All {len(placements)} buildings fit inside the setbacks."),
         fz.zoning_check(resolved.name),
     ]
+    units = Units(req.units)
     types = list(chosen.units)
     largest = max(types, key=lambda t: (ARCHETYPES[t].storeys, ARCHETYPES[t].units_per_building))
     arch = ARCHETYPES[largest]
@@ -460,7 +471,7 @@ def run_dev_report(req: DevReportRequest):
     steps, enhancements = fz.next_steps(
         location=resolved, checks=checks, target_label=dev.target_label,
         surrogate_verified=all(best[t].surrogate_verified for t in types), dwellings=chosen.total_units,
-        part3=part3, has_pv=False)
+        part3=part3, has_pv=False, units=units)
     rates = _rates(resolved, catalog)
     benchmarks = {t: fz.benchmark_comparison(best[t], ARCHETYPES[t].floor_area_m2 / ARCHETYPES[t].units_per_building,
                                              catalog, rates) for t in types}
@@ -472,10 +483,10 @@ def run_dev_report(req: DevReportRequest):
         ranks=fz.objective_ranks(chosen, feasible, [
             ("Unit yield", "yield", "total_units", True, lambda v: f"{v} homes"),
             ("Capital cost", "cost", "total_cost", False, lambda v: f"${v:,.0f}"),
-            ("Operating energy", "energy", "avg_eui_kwh_m2_yr", False, lambda v: f"{v:g} kWh/m2/yr"),
-            ("Embodied carbon", "carbon", "avg_carbon_kg_co2e_m2", False, lambda v: f"{v:,.0f} kgCO2e/m2"),
+            ("Operating energy", "energy", "avg_eui_kwh_m2_yr", False, units.eui),
+            ("Embodied carbon", "carbon", "avg_carbon_kg_co2e_m2", False, units.carbon),
         ]),
-        weights=weights, steps=steps, enhancements=enhancements, excluded=excluded)
+        weights=weights, steps=steps, enhancements=enhancements, excluded=excluded, units=units)
     return {"pdf_b64": base64.b64encode(pdf_bytes).decode("ascii")}
 
 
@@ -540,7 +551,7 @@ def run_dev_site_plan(req: DevSitePlanRequest):
         solar_orientation=dev.orientation,
     )
     placements = place_units(req.mix, site)
-    svg = multi_site_plan_svg(placements, site, req.mix)
+    svg = multi_site_plan_svg(placements, site, req.mix, Units(req.units))
     response = {"svg": svg, "concept_render_b64": None}
     if req.render_concept:
         try:

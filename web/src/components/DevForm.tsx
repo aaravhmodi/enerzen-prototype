@@ -11,7 +11,7 @@ import {
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
-import { fmtArea } from "@/lib/units";
+import { useUnits } from "@/lib/units";
 
 const DEFAULT: DevSpecInput = {
   lot_width_m: 30,
@@ -48,6 +48,7 @@ export default function DevForm({
   submitting: boolean;
   iteration: number;
 }) {
+  const u = useUnits();
   const [state, setState] = useState<DevSpecInput>(DEFAULT);
   const [step, setStep] = useState(0);
   const [locations, setLocations] = useState<string[]>([]);
@@ -149,7 +150,7 @@ export default function DevForm({
           {
             label: "Site area",
             value: Number.isFinite(state.lot_width_m * state.lot_depth_m)
-              ? fmtArea(state.lot_width_m * state.lot_depth_m)
+              ? u.area(state.lot_width_m * state.lot_depth_m)
               : "Add dimensions",
           },
           {
@@ -249,29 +250,35 @@ export default function DevForm({
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Lot width (E–W, m)">
+              <Field label={`Lot width (E–W, ${u.lengthUnit})`}>
                 <input
                   type="number"
                   className="input"
-                  min={5}
-                  max={500}
-                  step={0.5}
-                  value={state.lot_width_m}
+                  min={u.lengthInput(5)}
+                  max={u.lengthInput(500)}
+                  step={u.lengthStep(0.5)}
+                  value={u.lengthInput(state.lot_width_m)}
                   onChange={(e) =>
-                    set("lot_width_m", parseFloat(e.target.value))
+                    set(
+                      "lot_width_m",
+                      u.lengthFromInput(parseFloat(e.target.value)),
+                    )
                   }
                 />
               </Field>
-              <Field label="Lot depth (N–S, m)">
+              <Field label={`Lot depth (N–S, ${u.lengthUnit})`}>
                 <input
                   type="number"
                   className="input"
-                  min={5}
-                  max={500}
-                  step={0.5}
-                  value={state.lot_depth_m}
+                  min={u.lengthInput(5)}
+                  max={u.lengthInput(500)}
+                  step={u.lengthStep(0.5)}
+                  value={u.lengthInput(state.lot_depth_m)}
                   onChange={(e) =>
-                    set("lot_depth_m", parseFloat(e.target.value))
+                    set(
+                      "lot_depth_m",
+                      u.lengthFromInput(parseFloat(e.target.value)),
+                    )
                   }
                 />
               </Field>
@@ -342,14 +349,16 @@ export default function DevForm({
                       key={key}
                       className="text-[10px] capitalize text-stone-400"
                     >
-                      {key.replace("_setback_m", "")} (m)
+                      {key.replace("_setback_m", "")} ({u.lengthUnit})
                       <input
                         type="number"
                         className="input mt-1"
                         min={0}
-                        step={0.1}
-                        value={state[key]}
-                        onChange={(e) => set(key, parseFloat(e.target.value))}
+                        step={u.lengthStep(0.1)}
+                        value={u.lengthInput(state[key])}
+                        onChange={(e) =>
+                          set(key, u.lengthFromInput(parseFloat(e.target.value)))
+                        }
                       />
                     </label>
                   ))}
@@ -377,7 +386,7 @@ export default function DevForm({
                 const description =
                   (archetype.units_per_building > 1
                     ? `${archetype.units_per_building} units per building · ${archetype.storeys} storeys`
-                    : `${fmtArea(archetype.floor_area_m2)} · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`) +
+                    : `${u.area(archetype.floor_area_m2)} · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`) +
                   ` · ${archetype.bedrooms} bedroom${archetype.bedrooms === 1 ? "" : "s"}` +
                   (archetype.units_per_building > 1 ? " minimum" : "");
                 return (
@@ -568,7 +577,7 @@ export default function DevForm({
             <div className="grid gap-3 sm:grid-cols-2">
               <Summary
                 label="Site"
-                value={`${state.lot_width_m} × ${state.lot_depth_m} m · ${state.location}`}
+                value={`${u.dims(state.lot_width_m, state.lot_depth_m)} · ${state.location}`}
               />
               <Summary
                 label="Budget"

@@ -18,9 +18,9 @@ from reportlab.platypus import (
     Table, TableStyle,
 )
 
-from engine.geometry import SQFT_PER_M2
 from engine.feasibility import FEASIBLE, FEASIBLE_WITH_MODIFICATIONS, FAIL, PASS, SECTIONS
 from engine.soft import SOFT_COST_FRACTION, soft_cost
+from engine.units import Units
 from engine import svg_kit
 
 # The website's visual language: warm paper, charcoal ink, a trace of lavender.
@@ -64,10 +64,6 @@ W = 7.2 * inch
 
 def _money(value):
     return f"-${-value:,.0f}" if value < 0 else f"${value:,.0f}"
-
-
-def _sqft(m2):
-    return f"{m2 * SQFT_PER_M2:,.0f} sq ft"
 
 
 def _t(kg):
@@ -211,15 +207,16 @@ def _timeline_rows(soft_timeline, build_weeks, build_basis):
     ]
 
 
-def _lifecycle_rows(b, area, capex, eui, utility, lcc):
+def _lifecycle_rows(b, area, capex, eui, utility, lcc, units):
     return [
         ["Measure", "Recommended", "Code-built benchmark", "Difference"],
-        ["Capital cost per sq ft", _money(b["cost_per_m2"] / SQFT_PER_M2),
-         _money(b["benchmark_cost_per_m2"] / SQFT_PER_M2),
-         _money((b["cost_per_m2"] - b["benchmark_cost_per_m2"]) / SQFT_PER_M2)],
+        [f"Capital cost per {units.area_unit}", _money(units.per_area(b["cost_per_m2"])),
+         _money(units.per_area(b["benchmark_cost_per_m2"])),
+         _money(units.per_area(b["cost_per_m2"] - b["benchmark_cost_per_m2"]))],
         ["Capital cost (hard)", _money(capex), _money(b["benchmark_cost_per_m2"] * area),
          _money(capex - b["benchmark_cost_per_m2"] * area)],
-        ["Site EUI (kWh/m2/yr)", f"{eui:g}", f"{b['benchmark_eui']:g}", f"{eui - b['benchmark_eui']:+.1f}"],
+        [f"Site EUI (kWh/{units.area_unit}/yr)", units.intensity(eui), units.intensity(b["benchmark_eui"]),
+         f"{units.per_area(eui - b['benchmark_eui']):+.{2 if units.imperial else 1}f}"],
         ["Annual energy saving", f"{b['energy_saving_kwh_yr']:,} kWh/yr", "", ""],
         ["Annual utility cost", _money(utility), _money(b["benchmark_annual_utility"]),
          f"{_money(b['utility_saving_yr'])} saved / yr"],
@@ -261,8 +258,10 @@ def _next(steps, enhancements, styles):
 # ── Path A ──────────────────────────────────────────────────────────────────
 
 def generate_unit_report(*, spec, result, location, labels, soft_timeline, assessment, benchmark,
-                         ranks, weights, steps, enhancements) -> bytes:
-    """Path A feasibility report for the recommended configuration."""
+                         ranks, weights, steps, enhancements, units=None) -> bytes:
+    """Path A feasibility report for the recommended configuration.
+    `units` (engine.units.Units) picks metric or imperial display units."""
+    units = units or Units()
     out = BytesIO()
     styles = _styles()
     doc = _doc(out, "EnerZen Feasibility Report", "Feasibility report · individual unit")
@@ -272,9 +271,9 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
         Paragraph("FEASIBILITY REPORT · INDIVIDUAL UNIT", styles["eyebrow"]),
         Paragraph("Feasibility of the recommended unit", styles["title"]),
         Paragraph(
-            f"{location.name} &nbsp; | &nbsp; {spec.footprint_length_m:g} x "
-            f"{spec.footprint_width_m:g} m footprint &nbsp; | &nbsp; {spec.storeys} storey"
-            f"{'s' if spec.storeys > 1 else ''} &nbsp; | &nbsp; {_sqft(area)} conditioned",
+            f"{location.name} &nbsp; | &nbsp; {units.dims(spec.footprint_length_m, spec.footprint_width_m)} "
+            f"footprint &nbsp; | &nbsp; {spec.storeys} storey"
+            f"{'s' if spec.storeys > 1 else ''} &nbsp; | &nbsp; {units.area(area)} conditioned",
             styles["body"]),
         Paragraph(f"Prepared {date.today().strftime('%B %d, %Y')}", styles["small"]),
         Spacer(1, 14),
@@ -283,17 +282,18 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
     story += _executive(assessment, [
         ["Total project cost", "Brief to close", "Site EUI", "Lifecycle carbon"],
         [_money(hard + soft_cost(hard)), f"{soft_timeline['total_weeks'] + result.construction_weeks:g} weeks",
-         f"{result.eui_kwh_m2_yr:g} kWh/m2/yr", _t(result.lifecycle_carbon_30yr_kg_co2e_m2 * area)],
+         units.eui(result.eui_kwh_m2_yr), _t(result.lifecycle_carbon_30yr_kg_co2e_m2 * area)],
     ], styles)
 
-    tedi_limit = (f"TEDI limit {result.tedi_threshold_kwh_m2_yr:g} kWh/m2/yr"
+    tedi_limit = (f"TEDI limit {units.eui(result.tedi_threshold_kwh_m2_yr)}"
                   if result.tedi_threshold_kwh_m2_yr is not None else "No TEDI gate for the code target")
     story += [_heading(2, styles), Paragraph("Design basis", styles["h3"]), _table([
         ["Input", "Resolved value", "Design implication"],
         ["Location", location.name, f"Climate zone {location.climate_zone}; {location.region_name}"],
-        ["Snow", f"Ss {location.ss:g} kPa; roof S {location.roof_snow_load_kpa:g} kPa",
+        ["Snow", f"Ss {units.pressure(location.ss)}; roof S {units.pressure(location.roof_snow_load_kpa)}",
          f"{location.snow_tier['name']}; {location.joist_depth_in}\" preliminary joist"],
-        ["Soil defaults", f"{location.allowable_bearing_kpa:g} kPa bearing; {location.frost_depth_m:g} m frost depth",
+        ["Soil defaults", f"{units.pressure(location.allowable_bearing_kpa)} bearing; "
+                          f"{units.length(location.frost_depth_m)} frost depth",
          "Regional defaults; confirm by geotechnical investigation"],
         ["Target", labels["target"], tedi_limit],
     ], [1.25 * inch, 2.25 * inch, 3.7 * inch]), Paragraph("Selected systems", styles["h3"]), _table([
@@ -309,12 +309,12 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
     if "eps_area_m2" in floor:
         story += [Paragraph("Foundation quantities", styles["h3"]), _table([
             ["Quantity", "Result"],
-            ["Footprint", f"{floor['footprint_length_m']:g} x {floor['footprint_width_m']:g} m = "
-                          f"{_sqft(floor['footprint_area_m2'])}"],
-            ["EPS blanket", f"{floor['extended_length_m']:g} x {floor['extended_width_m']:g} m = "
-                            f"{_sqft(floor['eps_area_m2'])}; {floor['eps_volume_m3']:g} m3"],
-            ["Slab concrete", f"{floor['slab_concrete_m3']:g} m3"],
-            ["Frost-wall concrete", f"{floor['frost_wall_concrete_m3']:g} m3"],
+            ["Footprint", f"{units.dims(floor['footprint_length_m'], floor['footprint_width_m'])} = "
+                          f"{units.area(floor['footprint_area_m2'])}"],
+            ["EPS blanket", f"{units.dims(floor['extended_length_m'], floor['extended_width_m'])} = "
+                            f"{units.area(floor['eps_area_m2'])}; {units.volume(floor['eps_volume_m3'])}"],
+            ["Slab concrete", units.volume(floor["slab_concrete_m3"])],
+            ["Frost-wall concrete", units.volume(floor["frost_wall_concrete_m3"])],
         ], [2.2 * inch, 5 * inch])]
 
     cb = result.cost_breakdown
@@ -347,11 +347,12 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
                                                          "Engine build schedule"),
                                           [3.0 * inch, 0.9 * inch, 3.3 * inch])]
 
-    story += _energy_unit(result, area, styles)
-    story += _carbon_rows([("Recommended unit", result, area)], benchmark["benchmark_embodied_kg_m2"], styles)
+    story += _energy_unit(result, area, styles, units)
+    story += _carbon_rows([("Recommended unit", result, area)], benchmark["benchmark_embodied_kg_m2"], styles, units)
 
     story += [_heading(7, styles), _table(_lifecycle_rows(benchmark, area, hard, result.eui_kwh_m2_yr,
-                                                          result.annual_utility_cost, result.lifecycle_cost_30yr),
+                                                          result.annual_utility_cost, result.lifecycle_cost_30yr,
+                                                          units),
                                           [2.3 * inch, 1.5 * inch, 1.6 * inch, 1.8 * inch]),
               _lifecycle_note(benchmark, styles)]
     story += _priority(ranks, weights, styles, "configuration")
@@ -360,17 +361,17 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
     return out.getvalue()
 
 
-def _energy_unit(result, area, styles):
+def _energy_unit(result, area, styles, units):
     threshold = result.tedi_threshold_kwh_m2_yr
     rows = [
         ["Measure", "Achieved", "Target"],
-        ["Site EUI", f"{result.eui_kwh_m2_yr:g} kWh/m2/yr", ""],
-        ["TEDI (heating demand)", f"{result.tedi_kwh_m2_yr:g} kWh/m2/yr",
-         f"<= {threshold:g} kWh/m2/yr" if threshold is not None else "No TEDI gate (code)"],
-        ["MEUI", f"{result.meui_kwh_m2_yr:g} kWh/m2/yr", ""],
+        ["Site EUI", units.eui(result.eui_kwh_m2_yr), ""],
+        ["TEDI (heating demand)", units.eui(result.tedi_kwh_m2_yr),
+         f"<= {units.eui(threshold)}" if threshold is not None else "No TEDI gate (code)"],
+        ["MEUI", units.eui(result.meui_kwh_m2_yr), ""],
         ["PV generation", f"{result.pv_generation_kwh_yr:,.0f} kWh/yr ({result.pv_capacity_kw:g} kW)", ""],
         ["Net energy after PV", f"{result.net_operational_energy_kwh_yr:,.0f} kWh/yr "
-                                f"({result.net_eui_kwh_m2_yr:g} kWh/m2/yr)", "Net zero" if result.net_zero else ""],
+                                f"({units.eui(result.net_eui_kwh_m2_yr)})", "Net zero" if result.net_zero else ""],
         ["EnerGuide rating", f"{result.energuide_score:g} / 100", ""],
         ["NZR probability", f"{result.nzr_probability:.0%}", "Monte Carlo over weather, airtightness, occupants"],
     ]
@@ -380,7 +381,7 @@ def _energy_unit(result, area, styles):
     return [_heading(5, styles), _table(rows, [2.0 * inch, 2.6 * inch, 2.6 * inch]), Paragraph(basis, styles["small"])]
 
 
-def _carbon_rows(items, bench_embodied, styles):
+def _carbon_rows(items, bench_embodied, styles, units):
     """items: (label, ConfigResult, conditioned area m2), totals first."""
     rows = [["", "Embodied", "Operational, 30 yr", "Lifecycle, 30 yr"]]
     tot = [0.0, 0.0, 0.0]
@@ -392,8 +393,9 @@ def _carbon_rows(items, bench_embodied, styles):
             rows.append([label] + [_t(v) for v in vals])
     rows.append(["Total" if len(items) > 1 else "Total (tCO2e)"] + [_t(v) for v in tot])
     total_area = sum(a for _l, _r, a in items)
-    rows.append(["Per m2 (kgCO2e/m2)"] + [f"{v / total_area:,.0f}" for v in tot])
-    rows.append(["Benchmark embodied, new low-rise", f"{bench_embodied:g} kgCO2e/m2", "", ""])
+    rows.append([f"Per {units.area_unit} (kgCO2e/{units.area_unit})"]
+                + [f"{units.per_area(v / total_area):,.{1 if units.imperial else 0}f}" for v in tot])
+    rows.append(["Benchmark embodied, new low-rise", units.carbon(bench_embodied), "", ""])
     return [_heading(6, styles), _table(rows, [2.3 * inch, 1.6 * inch, 1.65 * inch, 1.65 * inch]), Paragraph(
         "Embodied carbon is cradle-to-gate for the catalog assemblies and systems; operational carbon uses the "
         "Ontario grid and natural gas factors over 30 years (METHODOLOGY section 8).", styles["small"])]
@@ -454,12 +456,15 @@ def _plan_drawing(site, placements, geometry, names):
 
 def generate_development_report(*, dev, mix, best, location, labels, placements, site, geometry,
                                  soft_timeline, assessment, benchmarks, ranks, weights, steps,
-                                 enhancements, excluded) -> bytes:
+                                 enhancements, excluded, units=None) -> bytes:
     """Path B feasibility report for the recommended housing mix.
 
     mix: DevMixResult; best: {archetype_id: ConfigResult per dwelling};
-    benchmarks: {archetype_id: benchmark_comparison per dwelling}."""
+    benchmarks: {archetype_id: benchmark_comparison per dwelling};
+    units: engine.units.Units, metric or imperial display units."""
     from engine.archetypes import ARCHETYPES
+
+    units = units or Units()
 
     out = BytesIO()
     styles = _styles()
@@ -472,15 +477,15 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
     story = [
         Paragraph("FEASIBILITY REPORT · COMMUNITY DEVELOPMENT", styles["eyebrow"]),
         Paragraph("Feasibility of the recommended mix", styles["title"]),
-        Paragraph(f"{location.name} &nbsp; | &nbsp; {dev.lot_width_m:g} x {dev.lot_depth_m:g} m lot "
-                  f"({_sqft(lot_area)}) &nbsp; | &nbsp; {mix.mix_label}", styles["body"]),
+        Paragraph(f"{location.name} &nbsp; | &nbsp; {units.dims(dev.lot_width_m, dev.lot_depth_m)} lot "
+                  f"({units.area(lot_area)}) &nbsp; | &nbsp; {mix.mix_label}", styles["body"]),
         Paragraph(f"Prepared {date.today().strftime('%B %d, %Y')}", styles["small"]),
         Spacer(1, 14),
     ]
     story += _executive(assessment, [
         ["Homes", "Total project cost", "Brief to close", "Average EUI"],
         [f"{mix.total_units}", _money(mix.total_project_cost),
-         f"{mix.soft_timeline_weeks + mix.construction_weeks:g} weeks", f"{mix.avg_eui_kwh_m2_yr:g} kWh/m2/yr"],
+         f"{mix.soft_timeline_weeks + mix.construction_weeks:g} weeks", units.eui(mix.avg_eui_kwh_m2_yr)],
     ], styles)
 
     # 2. Recommended solution
@@ -495,7 +500,7 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
     footprint = sum(p.w_m * p.h_m for p in placements)
     walkway = not geometry.pedestrian_spine.is_empty
     green_text = (
-        f"A shared rear green of {_sqft(green_area)} ({green_area / lot_area:.0%} of the lot) gives every home "
+        f"A shared rear green of {units.area(green_area)} ({green_area / lot_area:.0%} of the lot) gives every home "
         "access to common open space"
         + (", reached by a shared walkway from the street. " if walkway else ". ")
         + (f"{len(geometry.parking)} concept parking stalls sit on the street side. " if geometry.parking else "")
@@ -506,8 +511,9 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
     plan = _plan_drawing(site, placements, geometry, names)
     legend = Paragraph("<br/>".join(f"{i + 1}. {ARCHETYPES[t].name}" for i, t in enumerate(types))
                        + "<br/>Green: shared green; blue: rain garden; beige: walkway and parking."
-                       + f"<br/><br/>Lot {dev.lot_width_m:g} x {dev.lot_depth_m:g} m; setbacks front "
-                         f"{dev.front_setback_m:g}, side {dev.side_setback_m:g}, rear {dev.rear_setback_m:g} m. "
+                       + f"<br/><br/>Lot {units.dims(dev.lot_width_m, dev.lot_depth_m)}; setbacks front "
+                         f"{units.length_number(dev.front_setback_m)}, side {units.length_number(dev.side_setback_m)}, "
+                         f"rear {units.length(dev.rear_setback_m)}. "
                          "Drawn to scale from the placement engine.", styles["small"])
     plan_table = Table([[plan, legend]], colWidths=[3.9 * inch, 3.3 * inch])
     plan_table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
@@ -541,16 +547,17 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
     e_rows = [["Housing type", "Site EUI", "TEDI achieved", "TEDI target", "PV"]]
     for t in types:
         r = best[t]
-        e_rows.append([ARCHETYPES[t].name, f"{r.eui_kwh_m2_yr:g}", f"{r.tedi_kwh_m2_yr:g}",
-                       f"<= {r.tedi_threshold_kwh_m2_yr:g}" if r.tedi_threshold_kwh_m2_yr is not None else "No gate",
+        e_rows.append([ARCHETYPES[t].name, units.intensity(r.eui_kwh_m2_yr), units.intensity(r.tedi_kwh_m2_yr),
+                       f"<= {units.intensity(r.tedi_threshold_kwh_m2_yr)}" if r.tedi_threshold_kwh_m2_yr is not None
+                       else "No gate",
                        f"{r.pv_generation_kwh_yr * dwellings[t]:,.0f} kWh/yr"])
-    e_rows.append(["Area-weighted", f"{mix.avg_eui_kwh_m2_yr:g}", "", "", ""])
+    e_rows.append(["Area-weighted", units.intensity(mix.avg_eui_kwh_m2_yr), "", "", ""])
     story += [_heading(5, styles), _table(e_rows, [2.4 * inch, 1.0 * inch, 1.1 * inch, 1.1 * inch, 1.6 * inch]),
-              Paragraph(f"kWh/m2/yr. {mix.nzr_unit_count} of {mix.total_units} homes meet Net Zero Ready. "
+              Paragraph(f"kWh/{units.area_unit}/yr. {mix.nzr_unit_count} of {mix.total_units} homes meet Net Zero Ready. "
                         "Degree-day screening model; confirm with a compliance model.", styles["small"])]
 
     story += _carbon_rows([(ARCHETYPES[t].name, best[t], area_per[t] * dwellings[t]) for t in types],
-                          next(iter(benchmarks.values()))["benchmark_embodied_kg_m2"], styles)
+                          next(iter(benchmarks.values()))["benchmark_embodied_kg_m2"], styles, units)
 
     # 7. Lifecycle economics, summed over every home
     agg = {k: sum(benchmarks[t][k] * dwellings[t] for t in types)
@@ -563,7 +570,7 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
                 "rate_cad_per_kwh": first["rate_cad_per_kwh"], "sources": first["sources"]})
     annual_utility = sum(best[t].annual_utility_cost * dwellings[t] for t in types)
     story += [_heading(7, styles), _table(_lifecycle_rows(agg, total_area, mix.total_cost, mix.avg_eui_kwh_m2_yr,
-                                                          annual_utility, mix.lifecycle_cost_30yr),
+                                                          annual_utility, mix.lifecycle_cost_30yr, units),
                                           [2.3 * inch, 1.5 * inch, 1.6 * inch, 1.8 * inch]),
               _lifecycle_note(agg, styles, rate=len(types) == 1)]
     story += _priority(ranks, weights, styles, "mix")

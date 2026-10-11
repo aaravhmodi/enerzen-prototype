@@ -13,7 +13,7 @@ import {
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
-import { fmtArea, m2ToSqft, sqftToM2 } from "@/lib/units";
+import { useUnits } from "@/lib/units";
 
 export type FormState = {
   spec: ProjectSpecInput;
@@ -74,6 +74,7 @@ export default function ProjectForm({
   submitting: boolean;
 }) {
   const [state, setState] = useState<FormState>(DEFAULT_STATE);
+  const u = useUnits();
   const [step, setStep] = useState(0);
   const [locations, setLocations] = useState<string[]>([]);
   const [solarOptions, setSolarOptions] = useState<
@@ -233,7 +234,7 @@ export default function ProjectForm({
           {
             label: "Home",
             value:
-              fmtArea(state.spec.floor_area_m2) +
+              u.area(state.spec.floor_area_m2) +
               " · " +
               state.spec.storeys +
               " storeys",
@@ -383,16 +384,16 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Floor area (sq ft)">
+              <Field label={`Floor area (${u.areaUnit})`}>
                 <input
                   type="number"
                   className="input"
                   min={1}
-                  value={Math.round(m2ToSqft(state.spec.floor_area_m2))}
+                  value={u.areaInput(state.spec.floor_area_m2)}
                   onChange={(event) =>
                     updateSpec(
                       "floor_area_m2",
-                      sqftToM2(Number(event.target.value)),
+                      u.areaFromInput(Number(event.target.value)),
                     )
                   }
                 />
@@ -425,25 +426,33 @@ export default function ProjectForm({
               longitude={state.site.longitude}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Lot width (E–W, m)">
+              <Field label={`Lot width (E–W, ${u.lengthUnit})`}>
                 <input
                   type="number"
                   className="input"
-                  min={5}
-                  value={state.site.lot_width_m}
+                  min={u.lengthInput(5)}
+                  step="any"
+                  value={u.lengthInput(state.site.lot_width_m)}
                   onChange={(event) =>
-                    updateSite("lot_width_m", Number(event.target.value))
+                    updateSite(
+                      "lot_width_m",
+                      u.lengthFromInput(Number(event.target.value)),
+                    )
                   }
                 />
               </Field>
-              <Field label="Lot depth (N–S, m)">
+              <Field label={`Lot depth (N–S, ${u.lengthUnit})`}>
                 <input
                   type="number"
                   className="input"
-                  min={5}
-                  value={state.site.lot_depth_m}
+                  min={u.lengthInput(5)}
+                  step="any"
+                  value={u.lengthInput(state.site.lot_depth_m)}
                   onChange={(event) =>
-                    updateSite("lot_depth_m", Number(event.target.value))
+                    updateSite(
+                      "lot_depth_m",
+                      u.lengthFromInput(Number(event.target.value)),
+                    )
                   }
                 />
               </Field>
@@ -472,16 +481,19 @@ export default function ProjectForm({
               ).map((key) => (
                 <Field
                   key={key}
-                  label={`${key.replace("_setback_m", "")} setback (m)`}
+                  label={`${key.replace("_setback_m", "")} setback (${u.lengthUnit})`}
                 >
                   <input
                     type="number"
                     className="input"
                     min={0}
-                    step={0.1}
-                    value={state.site[key]}
+                    step={u.lengthStep(0.1)}
+                    value={u.lengthInput(state.site[key])}
                     onChange={(event) =>
-                      updateSite(key, Number(event.target.value))
+                      updateSite(
+                        key,
+                        u.lengthFromInput(Number(event.target.value)),
+                      )
                     }
                   />
                 </Field>
@@ -559,7 +571,7 @@ export default function ProjectForm({
                     )}
                   </div>
                   <p className="mt-1 text-[10px] leading-4 text-stone-500">
-                    {fmtArea(design.floor_area_m2)} · {design.storeys} storey
+                    {u.area(design.floor_area_m2)} · {design.storeys} storey
                     {design.storeys === 1 ? "" : "s"} · {design.bedrooms}{" "}
                     bedroom{design.bedrooms === 1 ? "" : "s"}
                     {design.units_per_building > 1 ? " minimum per home" : ""}
@@ -595,27 +607,37 @@ export default function ProjectForm({
                   <option value="W">West</option>
                 </select>
               </Field>
-              <Field label="Footprint length × width (m)">
+              <Field label={`Footprint length × width (${u.lengthUnit})`}>
                 <div className="flex gap-2">
                   <input
                     type="number"
                     className="input"
-                    value={state.spec.footprint_length_m ?? ""}
+                    step="any"
+                    value={
+                      state.spec.footprint_length_m == null
+                        ? ""
+                        : u.lengthInput(state.spec.footprint_length_m)
+                    }
                     onChange={(event) =>
                       updateSpec(
                         "footprint_length_m",
-                        Number(event.target.value),
+                        u.lengthFromInput(Number(event.target.value)),
                       )
                     }
                   />
                   <input
                     type="number"
                     className="input"
-                    value={state.spec.footprint_width_m ?? ""}
+                    step="any"
+                    value={
+                      state.spec.footprint_width_m == null
+                        ? ""
+                        : u.lengthInput(state.spec.footprint_width_m)
+                    }
                     onChange={(event) =>
                       updateSpec(
                         "footprint_width_m",
-                        Number(event.target.value),
+                        u.lengthFromInput(Number(event.target.value)),
                       )
                     }
                   />
@@ -813,11 +835,11 @@ export default function ProjectForm({
             <div className="grid gap-3 sm:grid-cols-2">
               <Summary
                 label="Project"
-                value={`${state.spec.typology.replace("_", " ")} · ${fmtArea(state.spec.floor_area_m2)}`}
+                value={`${state.spec.typology.replace("_", " ")} · ${u.area(state.spec.floor_area_m2)}`}
               />
               <Summary
                 label="Site"
-                value={`${state.site.lot_width_m} × ${state.site.lot_depth_m} m · ${state.spec.location}`}
+                value={`${u.dims(state.site.lot_width_m, state.site.lot_depth_m)} · ${state.spec.location}`}
               />
               <Summary
                 label="Target"

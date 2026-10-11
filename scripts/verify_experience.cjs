@@ -28,8 +28,17 @@ const os = require('node:os');
   await screenshot('enerzen-paths.png');
   await page.getByRole('button').filter({hasText:'Room for a community.'}).click();
   await page.getByRole('heading', {name:'Development',exact:true}).waitFor();
+  // Units: the brief is typed in metres here, and the header toggle only changes the display.
+  const brief = () => page.getByLabel('Live project brief').filter({visible:true}).innerText();
+  await page.getByRole('button',{name:'Metric units',exact:true}).click();
   await page.getByLabel('Lot width').fill('45');
-  assert.ok((await page.getByLabel('Live project brief').filter({visible:true}).innerText()).includes('24,219 sq ft'));
+  assert.ok((await brief()).includes('2,250 m²'));
+  await page.getByRole('button',{name:'Imperial units',exact:true}).click();
+  assert.ok((await brief()).includes('24,219 sq ft'));
+  assert.equal(await page.getByLabel('Lot width').inputValue(),'147.64');
+  await page.getByRole('button',{name:'Metric units',exact:true}).click();
+  assert.equal(await page.getByLabel('Lot width').inputValue(),'45');
+  console.log('Unit toggle');
   await page.getByLabel('Lot width').press('Enter');
   assert.equal(unexpectedSubmissions,0,'Enter must not submit an incomplete wizard');
   await page.getByRole('button',{name:'Continue',exact:false}).click();

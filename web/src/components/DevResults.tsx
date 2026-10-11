@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import type { DevMixResult } from "@/lib/api";
-import { fmtCad, fmtArea, M2 } from "@/lib/units";
+import { fmtCad, useUnits } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
 const ARCHETYPE_COLORS: Record<string, string> = {
@@ -20,7 +20,7 @@ const ARCHETYPE_LABELS: Record<string, string> = {
 };
 
 // Shared column template so the header legend and every data row line up.
-const METRICS_GRID = "grid grid-cols-[minmax(0,1fr)_52px_88px_84px_68px_92px] gap-3";
+const METRICS_GRID = "grid grid-cols-[minmax(0,1fr)_52px_88px_108px_68px_92px] gap-3";
 
 export default function DevResults({
   mixes,
@@ -31,6 +31,7 @@ export default function DevResults({
   selectedIndex: number;
   onSelect: (i: number) => void;
 }) {
+  const u = useUnits();
   if (mixes.length === 0) return null;
 
   return (
@@ -57,7 +58,7 @@ export default function DevResults({
         </span>
         <span className="flex items-center justify-end gap-1 text-right">
           Avg EUI
-          <InfoTooltip text="Average Energy Use Intensity across the mix, kWh per m² per year. Lower is more efficient." />
+          <InfoTooltip text={`Average Energy Use Intensity across the mix, kWh per ${u.areaUnit} per year. Lower is more efficient.`} />
         </span>
         <span className="flex items-center justify-end gap-1 text-right">
           NZR homes
@@ -98,13 +99,13 @@ export default function DevResults({
                   )}
                 </div>
                 <p className="mt-1.5 text-xs text-stone-500">
-                  {fmtArea(mix.total_floor_area_m2)} total built area
+                  {u.area(mix.total_floor_area_m2)} total built area
                 </p>
               </div>
 
               <Metric value={String(mix.total_units)} highlight />
               <Metric value={fmtCad(mix.total_project_cost)} />
-              <Metric value={`${mix.avg_eui_kwh_m2_yr} kWh/${M2}`} />
+              <Metric value={`${u.intensity(mix.avg_eui_kwh_m2_yr, 1)} kWh/${u.areaUnit}`} />
               <Metric
                 value={`${mix.nzr_unit_count}/${mix.total_units}`}
                 ok={mix.nzr_unit_count === mix.total_units}

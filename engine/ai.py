@@ -21,7 +21,7 @@ from io import BytesIO
 
 from dotenv import load_dotenv
 
-from engine.geometry import SQFT_PER_M2
+from engine.units import SQFT_PER_M2
 
 load_dotenv()
 

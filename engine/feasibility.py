@@ -18,6 +18,7 @@ and the status is FURTHER STUDY REQUIRED until one is.
 from dataclasses import dataclass, field
 
 from engine.finance import lifecycle_cost
+from engine.units import Units
 
 FEASIBLE = "FEASIBLE"
 FEASIBLE_WITH_MODIFICATIONS = "FEASIBLE WITH MODIFICATIONS"
@@ -140,9 +141,11 @@ def objective_ranks(chosen, feasible: list, objectives: list[tuple]) -> list[dic
 
 
 def next_steps(*, location, checks: list[Check], target_label: str, surrogate_verified: bool,
-               dwellings: int, part3: bool, has_pv: bool) -> tuple[list[str], list[str]]:
+               dwellings: int, part3: bool, has_pv: bool, units=None) -> tuple[list[str], list[str]]:
     """Required next steps, driven by what the engine did not check, and
-    optional enhancements listed separately."""
+    optional enhancements listed separately. `units` (engine.units.Units)
+    picks the display units of the quantities quoted."""
+    units = units or Units()
     steps = []
     by_name = {c.name: c for c in checks}
     zoning = by_name.get("Zoning and permitted use")
@@ -155,16 +158,16 @@ def next_steps(*, location, checks: list[Check], target_label: str, surrogate_ve
         steps.append("Supply the lot dimensions and setbacks so the engine can check site fit.")
     elif site and site.status == FAIL:
         steps.append(f"Resolve the site-fit failure: {site.detail}")
-    steps.append(f"Geotechnical investigation: bearing capacity ({location.allowable_bearing_kpa:g} kPa) and "
-                 f"frost depth ({location.frost_depth_m:g} m) are regional defaults.")
+    steps.append(f"Geotechnical investigation: bearing capacity ({units.pressure(location.allowable_bearing_kpa)}) "
+                 f"and frost depth ({units.length(location.frost_depth_m)}) are regional defaults.")
     steps.append(f"Structural engineer to confirm roof and floor framing for the ground snow load "
-                 f"(Ss {location.ss:g} kPa); the snow-to-joist mapping is preliminary.")
+                 f"(Ss {units.pressure(location.ss)}); the snow-to-joist mapping is preliminary.")
     if target_label != "code" and not surrogate_verified:
         steps.append("Confirm the energy target with a compliance model (HOT2000 for Part 9, whole-building "
                      "simulation for Part 3); the engine's degree-day model is a screening estimate.")
     if part3:
         steps.append("Engage Part 3 consultants (architect, structural, mechanical, fire) for a building over "
-                     "3 storeys or about 6,460 sq ft (600 m2).")
+                     f"3 storeys or {units.area(600)} in building area.")
     if dwellings > 10:
         steps.append("Prepare a site plan approval application (more than 10 dwellings are subject to site plan "
                      "control).")

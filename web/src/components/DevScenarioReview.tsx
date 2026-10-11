@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import type { DevScenario, ExcludedType } from "@/lib/api";
-import { fmtArea, fmtCad } from "@/lib/units";
+import { fmtCad, useUnits } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
 /** Flowchart Path B, "present to user": site plan scenarios before performance optimization. */
@@ -21,6 +21,7 @@ export default function DevScenarioReview({
   onSelect: (index: number) => void;
   onToggle: (index: number) => void;
 }) {
+  const u = useUnits();
   return (
     <section className="scenario-list">
       <header className="scenario-list-header">
@@ -56,7 +57,7 @@ export default function DevScenarioReview({
             <button type="button" className="scenario-main" onClick={() => onSelect(i)} aria-pressed={i === selectedIndex}>
               <span className="scenario-name">{scenario.mix_label}</span>
               <span className="scenario-meta">
-                {scenario.dwellings} home{scenario.dwellings === 1 ? "" : "s"} · {fmtArea(scenario.total_floor_area_m2)} ·{" "}
+                {scenario.dwellings} home{scenario.dwellings === 1 ? "" : "s"} · {u.area(scenario.total_floor_area_m2)} ·{" "}
                 {Math.round(scenario.site_coverage * 100)}% coverage
               </span>
               <span className="scenario-cost">{fmtCad(scenario.screening_cost)}</span>

@@ -10,7 +10,7 @@ import MultiSitePlanView from "@/components/MultiSitePlanView";
 import DevScenarioReview from "@/components/DevScenarioReview";
 import DevRecommendation from "@/components/DevRecommendation";
 import Architecture from "@/components/Architecture";
-import { fmtArea, fmtCad, fmtEui } from "@/lib/units";
+import { fmtCad, setUnitSystem, useUnits, type UnitSystem } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
 import {
   ConfigResult,
@@ -41,6 +41,7 @@ const at = (seconds: number) => ({ "--d": `${seconds}s` }) as CSSProperties;
 
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
+  const u = useUnits();
 
   const [viewResults, setViewResults] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -97,7 +98,7 @@ export default function Home() {
           20,
           state.site,
         ),
-        runSitePlan(state.spec, state.site),
+        runSitePlan(state.spec, state.site, false, u.system),
         pause(MIN_EXPLORE_MS),
       ]);
       setResults(optimizeRes.results);
@@ -126,6 +127,8 @@ export default function Home() {
         lastState.spec,
         normalizeWeights(lastState.weights),
         lastState.site,
+        0,
+        u.system,
       );
       downloadPdf(pdf_b64, "enerzen-feasibility-report.pdf");
     } catch (e) {
@@ -140,7 +143,7 @@ export default function Home() {
     setDownloadingDevReport(true);
     setDevError(null);
     try {
-      const { pdf_b64 } = await runDevReport(lastDevSpec, approvedMixes, devMixes[selectedMix].units);
+      const { pdf_b64 } = await runDevReport(lastDevSpec, approvedMixes, devMixes[selectedMix].units, u.system);
       downloadPdf(pdf_b64, "enerzen-development-feasibility-report.pdf");
     } catch (e) {
       setDevError(e instanceof Error ? e.message : "Report generation failed");
@@ -163,7 +166,7 @@ export default function Home() {
     try {
       const minimum = pause(MIN_EXPLORE_MS);
       const { scenarios: found, excluded_types } = await runDevScenarios(spec);
-      const { svg } = await runDevSitePlan(spec, found[0].units, false);
+      const { svg } = await runDevSitePlan(spec, found[0].units, false, u.system);
       await minimum;
       setScenarios(found);
       setExcludedTypes(excluded_types ?? []);
@@ -185,7 +188,7 @@ export default function Home() {
     setDevSubmitting(true);
     setDevError(null);
     try {
-      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, units, render);
+      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, units, render, u.system);
       setDevSvg(svg);
       setDevConcept(concept_render_b64);
       return true;
@@ -219,7 +222,7 @@ export default function Home() {
     try {
       const minimum = pause(MIN_EXPLORE_MS);
       const evaluated = await runDevOptimize(lastDevSpec, mixes);
-      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, evaluated.mixes[0].units, true);
+      const { svg, concept_render_b64 } = await runDevSitePlan(lastDevSpec, evaluated.mixes[0].units, true, u.system);
       await minimum;
       setDevMixes(evaluated.mixes);
       setApprovedMixes(mixes);
@@ -243,6 +246,24 @@ export default function Home() {
     if (scenarios) await showDevPlan(scenarios[selectedScenario].units, false);
   }
 
+  // The API draws a plan in one unit system, so the plans on screen are redrawn
+  // when it changes. A failed redraw leaves the plan in its previous units.
+  function changeUnits(system: UnitSystem) {
+    if (system === u.system) return;
+    setUnitSystem(system);
+    if (lastState && siteData) {
+      runSitePlan(lastState.spec, lastState.site, false, system)
+        .then(({ svg }) => setSiteData((data) => data && { ...data, svg }))
+        .catch(() => {});
+    }
+    const mix = devStage === "final" ? devMixes?.[selectedMix]?.units : scenarios?.[selectedScenario]?.units;
+    if (lastDevSpec && devSvg && mix) {
+      runDevSitePlan(lastDevSpec, mix, false, system)
+        .then(({ svg }) => setDevSvg(svg))
+        .catch(() => {});
+    }
+  }
+
   const busy = submitting || devSubmitting;
   const exploring = busy && !viewResults && (screen === "single" || screen === "development");
   const exploringContext: ExploringContext =
@@ -251,9 +272,9 @@ export default function Home() {
           place: placeName(lastState?.spec.location),
           target: targetName(lastState?.spec.target_label),
           brief: lastState
-            ? `${lastState.spec.typology.replace("_", " ")}, ${fmtArea(lastState.spec.floor_area_m2)} over ${lastState.spec.storeys} storeys`
+            ? `${lastState.spec.typology.replace("_", " ")}, ${u.area(lastState.spec.floor_area_m2)} over ${lastState.spec.storeys} storeys`
             : "Your home",
-          site: lastState ? `a ${lastState.site.lot_width_m} × ${lastState.site.lot_depth_m} m lot` : "your lot",
+          site: lastState ? `a ${u.dims(lastState.site.lot_width_m, lastState.site.lot_depth_m)} lot` : "your lot",
         }
       : {
           place: placeName(lastDevSpec?.location),
@@ -262,7 +283,7 @@ export default function Home() {
             ? `${lastDevSpec.allowed_types.length} housing types, $${(lastDevSpec.total_budget_cad / 1_000_000).toFixed(2)}M budget`
             : "Your community",
           site: lastDevSpec
-            ? `A ${lastDevSpec.lot_width_m} × ${lastDevSpec.lot_depth_m} m lot with ${lastDevSpec.front_setback_m} m front and ${lastDevSpec.rear_setback_m} m rear setbacks`
+            ? `A ${u.dims(lastDevSpec.lot_width_m, lastDevSpec.lot_depth_m)} lot with ${u.length(lastDevSpec.front_setback_m)} front and ${u.length(lastDevSpec.rear_setback_m)} rear setbacks`
             : "Your land",
         };
   const headingCopy =
@@ -313,6 +334,21 @@ export default function Home() {
           </span>
         </button>
         <nav aria-label="Main navigation">
+          <div className="unit-toggle" role="group" aria-label="Units">
+            {(["imperial", "metric"] as const).map((system) => (
+              <button
+                key={system}
+                type="button"
+                disabled={busy}
+                aria-pressed={u.system === system}
+                aria-label={system === "imperial" ? "Imperial units" : "Metric units"}
+                onClick={() => changeUnits(system)}
+              >
+                <span className="unit-long">{system === "imperial" ? "Imperial" : "Metric"}</span>
+                <span className="unit-short">{system === "imperial" ? "ft" : "m"}</span>
+              </button>
+            ))}
+          </div>
           <span className="pilot-chip">
             <span /> Pickering pilot
           </span>
@@ -636,7 +672,7 @@ export default function Home() {
                         conceptRenderB64={null}
                         stats={[
                           { label: "Homes", value: String(scenarios[selectedScenario].dwellings) },
-                          { label: "Built area", value: fmtArea(scenarios[selectedScenario].total_floor_area_m2) },
+                          { label: "Built area", value: u.area(scenarios[selectedScenario].total_floor_area_m2) },
                           {
                             label: "Site coverage",
                             value: `${Math.round(scenarios[selectedScenario].site_coverage * 100)}%`,
@@ -696,7 +732,7 @@ export default function Home() {
                       stats={[
                         { label: "Homes", value: String(devMixes[selectedMix].total_units) },
                         { label: "Project cost", value: fmtCad(devMixes[selectedMix].total_project_cost) },
-                        { label: "Avg EUI", value: fmtEui(devMixes[selectedMix].avg_eui_kwh_m2_yr) },
+                        { label: "Avg EUI", value: u.eui(devMixes[selectedMix].avg_eui_kwh_m2_yr) },
                         {
                           label: "NZR homes",
                           value: `${devMixes[selectedMix].nzr_unit_count}/${devMixes[selectedMix].total_units}`,

@@ -1,7 +1,7 @@
 "use client";
 
 import type { DevMixResult } from "@/lib/api";
-import { fmtArea, fmtCad, fmtCarbon, fmtEui } from "@/lib/units";
+import { fmtCad, useUnits } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
 const TYPE_NAMES: Record<string, string> = {
@@ -13,9 +13,10 @@ const TYPE_NAMES: Record<string, string> = {
 
 /** Flowchart Path B steps 6-7: development calculations for the recommended scenario. */
 export default function DevRecommendation({ mix, softFraction }: { mix: DevMixResult; softFraction: number }) {
+  const u = useUnits();
   const tiles: { label: string; value: string; tip: string }[] = [
     { label: "Homes", value: String(mix.total_units), tip: "Dwellings in this scenario. A MURB counts all of its units." },
-    { label: "Built area", value: fmtArea(mix.total_floor_area_m2), tip: "Total conditioned floor area across all homes." },
+    { label: "Built area", value: u.area(mix.total_floor_area_m2), tip: "Total conditioned floor area across all homes." },
     { label: "Hard cost", value: fmtCad(mix.total_cost), tip: "Optimized construction cost for every home, Class D." },
     {
       label: "Soft costs",
@@ -33,11 +34,11 @@ export default function DevRecommendation({ mix, softFraction }: { mix: DevMixRe
       value: `${mix.construction_weeks} wk`,
       tip: "Factory fabrication and site work to envelope close for every home, produced in sequence.",
     },
-    { label: "Avg EUI", value: fmtEui(mix.avg_eui_kwh_m2_yr), tip: "Floor-area-weighted energy use intensity across the homes." },
-    { label: "Embodied carbon", value: fmtCarbon(mix.avg_carbon_kg_co2e_m2), tip: "Floor-area-weighted embodied carbon of the optimized assemblies." },
+    { label: "Avg EUI", value: u.eui(mix.avg_eui_kwh_m2_yr), tip: "Floor-area-weighted energy use intensity across the homes." },
+    { label: "Embodied carbon", value: u.carbon(mix.avg_carbon_kg_co2e_m2), tip: "Floor-area-weighted embodied carbon of the optimized assemblies." },
     {
       label: "30-yr lifecycle carbon",
-      value: fmtCarbon(mix.lifecycle_carbon_30yr_kg_co2e_m2),
+      value: u.carbon(mix.lifecycle_carbon_30yr_kg_co2e_m2),
       tip: "Embodied plus 30 years of operational carbon, floor-area weighted.",
     },
     { label: "30-yr lifecycle cost", value: fmtCad(mix.lifecycle_cost_30yr), tip: "Construction plus 30 years of discounted energy costs, all homes." },

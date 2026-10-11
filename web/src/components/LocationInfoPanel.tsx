@@ -8,6 +8,7 @@ import {
   ZoningLookup,
 } from "@/lib/api";
 import InfoTooltip from "@/components/InfoTooltip";
+import { useUnits } from "@/lib/units";
 
 export default function LocationInfoPanel({
   location,
@@ -21,6 +22,7 @@ export default function LocationInfoPanel({
   const [detail, setDetail] = useState<LocationDetail | null>(null);
   const [zoning, setZoning] = useState<ZoningLookup | null>(null);
   const [loading, setLoading] = useState(false);
+  const u = useUnits();
 
   useEffect(() => {
     if (!location) {
@@ -97,18 +99,18 @@ export default function LocationInfoPanel({
 
               <Stat
                 label="Ground snow load"
-                value={`${detail.ground_snow_load_kpa.toFixed(2)} kPa`}
+                value={u.pressure(detail.ground_snow_load_kpa)}
                 hint={
                   detail.over_snow_range
                     ? "Exceeds standard options — needs structural review"
                     : detail.snow_tier.name
                 }
                 warn={detail.over_snow_range}
-                tip="Ss from the NBCC 2015 snow load workbook. Determines which of the two preliminary roof-joist options applies (Option 1 ≤2.5 kPa, Option 2 2.5–3.0 kPa)."
+                tip={`Ss from the NBCC 2015 snow load workbook. Determines which of the two preliminary roof-joist options applies (Option 1 up to ${u.pressure(2.5, 1)}, Option 2 up to ${u.pressure(3, 1)}).`}
               />
               <Stat
                 label="Roof snow load (S)"
-                value={`${detail.roof_snow_load_kpa.toFixed(2)} kPa`}
+                value={u.pressure(detail.roof_snow_load_kpa)}
                 tip="The actual structural load on the roof, computed from ground snow load per NBCC 2015: S = Is×[Ss×(Cb·Cw·Cs·Ca) + Sr]."
               />
               <Stat
@@ -118,18 +120,18 @@ export default function LocationInfoPanel({
               />
               <Stat
                 label="Associated rain load"
-                value={`${detail.associated_rain_load_kpa.toFixed(2)} kPa`}
+                value={u.pressure(detail.associated_rain_load_kpa)}
                 tip="Sr — the rain component added to the snow load in the roof structural load formula."
               />
 
               <Stat
                 label="Soil bearing"
-                value={`${detail.allowable_bearing_kpa} kPa`}
+                value={u.pressure(detail.allowable_bearing_kpa, 0)}
                 tip="Conservative regional default for allowable soil bearing pressure, used to sanity-check foundation sizing. Not a substitute for a site geotechnical report."
               />
               <Stat
                 label="Frost depth"
-                value={`${detail.frost_depth_m} m`}
+                value={u.length(detail.frost_depth_m)}
                 tip="How deep the frost wall / footings must extend below grade in this region. Deeper frost lines mean more foundation concrete and higher cost."
               />
 
@@ -154,12 +156,16 @@ export default function LocationInfoPanel({
               <p className="mt-1 text-[11px] leading-4 text-sky-800">
                 2024 weather-normalized site EUI median:{" "}
                 <strong>
-                  {detail.multifamily_energy_benchmark.median_kwh_m2_yr}{" "}
-                  kWh/m²·yr
+                  {u.intensity(
+                    detail.multifamily_energy_benchmark.median_kwh_m2_yr,
+                  )}{" "}
+                  kWh/{u.areaUnit}·yr
                 </strong>
                 <br />
-                Middle 50%: {detail.multifamily_energy_benchmark.p25_kwh_m2_yr}–
-                {detail.multifamily_energy_benchmark.p75_kwh_m2_yr} kWh/m²·yr
+                Middle 50%:{" "}
+                {u.intensity(detail.multifamily_energy_benchmark.p25_kwh_m2_yr)}–
+                {u.intensity(detail.multifamily_energy_benchmark.p75_kwh_m2_yr)}{" "}
+                kWh/{u.areaUnit}·yr
               </p>
               <p className="mt-1 text-[10px] leading-4 text-sky-700">
                 Context only:{" "}

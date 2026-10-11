@@ -144,6 +144,35 @@ h2:focus {
   background: #9a89b0;
   border-radius: 50%;
 }
+.unit-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid #e4e0e7;
+  border-radius: 999px;
+  background: #ffffffb3;
+}
+.unit-toggle button {
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #76717d;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.unit-toggle button[aria-pressed="true"] {
+  background: #302b36;
+  color: #fff;
+}
+.unit-toggle button:disabled {
+  opacity: 0.6;
+}
+.unit-short {
+  display: none;
+}
 .quiet-button,
 .text-link {
   border: 0;
@@ -891,6 +920,12 @@ h2:focus {
   }
   .pilot-chip {
     display: none;
+  }
+  .unit-long {
+    display: none;
+  }
+  .unit-short {
+    display: inline;
   }
   .landing {
     padding: 0 24px;
