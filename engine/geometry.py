@@ -15,6 +15,9 @@ import math
 
 STOREY_HEIGHT_M = 2.7
 
+# Display only: the engine works in m2, reports and prompts show areas in sq ft.
+SQFT_PER_M2 = 10.7639
+
 # Envelope surface area ratios relative to floor area (typical residential forms).
 SURFACE_RATIOS = {
     1: {"wall": 1.8, "roof": 1.05, "floor": 1.0},   # single storey

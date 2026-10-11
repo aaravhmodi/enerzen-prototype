@@ -164,7 +164,7 @@ def next_steps(*, location, checks: list[Check], target_label: str, surrogate_ve
                      "simulation for Part 3); the engine's degree-day model is a screening estimate.")
     if part3:
         steps.append("Engage Part 3 consultants (architect, structural, mechanical, fire) for a building over "
-                     "3 storeys or 600 m2.")
+                     "3 storeys or about 6,460 sq ft (600 m2).")
     if dwellings > 10:
         steps.append("Prepare a site plan approval application (more than 10 dwellings are subject to site plan "
                      "control).")

@@ -251,7 +251,7 @@ export default function Home() {
           place: placeName(lastState?.spec.location),
           target: targetName(lastState?.spec.target_label),
           brief: lastState
-            ? `${lastState.spec.typology.replace("_", " ")}, ${lastState.spec.floor_area_m2} m² over ${lastState.spec.storeys} storeys`
+            ? `${lastState.spec.typology.replace("_", " ")}, ${fmtArea(lastState.spec.floor_area_m2)} over ${lastState.spec.storeys} storeys`
             : "Your home",
           site: lastState ? `a ${lastState.site.lot_width_m} × ${lastState.site.lot_depth_m} m lot` : "your lot",
         }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
+import { fmtArea, m2ToSqft, sqftToM2 } from "@/lib/units";
 
 export type FormState = {
   spec: ProjectSpecInput;
@@ -232,8 +233,8 @@ export default function ProjectForm({
           {
             label: "Home",
             value:
-              state.spec.floor_area_m2 +
-              " m² · " +
+              fmtArea(state.spec.floor_area_m2) +
+              " · " +
               state.spec.storeys +
               " storeys",
           },
@@ -382,14 +383,17 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Floor area (m²)">
+              <Field label="Floor area (sq ft)">
                 <input
                   type="number"
                   className="input"
                   min={1}
-                  value={state.spec.floor_area_m2}
+                  value={Math.round(m2ToSqft(state.spec.floor_area_m2))}
                   onChange={(event) =>
-                    updateSpec("floor_area_m2", Number(event.target.value))
+                    updateSpec(
+                      "floor_area_m2",
+                      sqftToM2(Number(event.target.value)),
+                    )
                   }
                 />
               </Field>
@@ -555,7 +559,7 @@ export default function ProjectForm({
                     )}
                   </div>
                   <p className="mt-1 text-[10px] leading-4 text-stone-500">
-                    {design.floor_area_m2} m² · {design.storeys} storey
+                    {fmtArea(design.floor_area_m2)} · {design.storeys} storey
                     {design.storeys === 1 ? "" : "s"} · {design.bedrooms}{" "}
                     bedroom{design.bedrooms === 1 ? "" : "s"}
                     {design.units_per_building > 1 ? " minimum per home" : ""}
@@ -809,7 +813,7 @@ export default function ProjectForm({
             <div className="grid gap-3 sm:grid-cols-2">
               <Summary
                 label="Project"
-                value={`${state.spec.typology.replace("_", " ")} · ${state.spec.floor_area_m2} m²`}
+                value={`${state.spec.typology.replace("_", " ")} · ${fmtArea(state.spec.floor_area_m2)}`}
               />
               <Summary
                 label="Site"

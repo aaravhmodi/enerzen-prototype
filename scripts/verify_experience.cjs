@@ -29,7 +29,7 @@ const os = require('node:os');
   await page.getByRole('button').filter({hasText:'Room for a community.'}).click();
   await page.getByRole('heading', {name:'Development',exact:true}).waitFor();
   await page.getByLabel('Lot width').fill('45');
-  assert.ok((await page.getByLabel('Live project brief').filter({visible:true}).innerText()).includes('2,250 m²'));
+  assert.ok((await page.getByLabel('Live project brief').filter({visible:true}).innerText()).includes('24,219 sq ft'));
   await page.getByLabel('Lot width').press('Enter');
   assert.equal(unexpectedSubmissions,0,'Enter must not submit an incomplete wizard');
   await page.getByRole('button',{name:'Continue',exact:false}).click();

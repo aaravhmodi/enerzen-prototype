@@ -18,6 +18,7 @@ from reportlab.platypus import (
     Table, TableStyle,
 )
 
+from engine.geometry import SQFT_PER_M2
 from engine.feasibility import FEASIBLE, FEASIBLE_WITH_MODIFICATIONS, FAIL, PASS, SECTIONS
 from engine.soft import SOFT_COST_FRACTION, soft_cost
 from engine import svg_kit
@@ -63,6 +64,10 @@ W = 7.2 * inch
 
 def _money(value):
     return f"-${-value:,.0f}" if value < 0 else f"${value:,.0f}"
+
+
+def _sqft(m2):
+    return f"{m2 * SQFT_PER_M2:,.0f} sq ft"
 
 
 def _t(kg):
@@ -209,8 +214,9 @@ def _timeline_rows(soft_timeline, build_weeks, build_basis):
 def _lifecycle_rows(b, area, capex, eui, utility, lcc):
     return [
         ["Measure", "Recommended", "Code-built benchmark", "Difference"],
-        ["Capital cost per m2", _money(b["cost_per_m2"]), _money(b["benchmark_cost_per_m2"]),
-         _money(b["cost_per_m2"] - b["benchmark_cost_per_m2"])],
+        ["Capital cost per sq ft", _money(b["cost_per_m2"] / SQFT_PER_M2),
+         _money(b["benchmark_cost_per_m2"] / SQFT_PER_M2),
+         _money((b["cost_per_m2"] - b["benchmark_cost_per_m2"]) / SQFT_PER_M2)],
         ["Capital cost (hard)", _money(capex), _money(b["benchmark_cost_per_m2"] * area),
          _money(capex - b["benchmark_cost_per_m2"] * area)],
         ["Site EUI (kWh/m2/yr)", f"{eui:g}", f"{b['benchmark_eui']:g}", f"{eui - b['benchmark_eui']:+.1f}"],
@@ -268,7 +274,7 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
         Paragraph(
             f"{location.name} &nbsp; | &nbsp; {spec.footprint_length_m:g} x "
             f"{spec.footprint_width_m:g} m footprint &nbsp; | &nbsp; {spec.storeys} storey"
-            f"{'s' if spec.storeys > 1 else ''} &nbsp; | &nbsp; {area:g} m2 conditioned",
+            f"{'s' if spec.storeys > 1 else ''} &nbsp; | &nbsp; {_sqft(area)} conditioned",
             styles["body"]),
         Paragraph(f"Prepared {date.today().strftime('%B %d, %Y')}", styles["small"]),
         Spacer(1, 14),
@@ -304,9 +310,9 @@ def generate_unit_report(*, spec, result, location, labels, soft_timeline, asses
         story += [Paragraph("Foundation quantities", styles["h3"]), _table([
             ["Quantity", "Result"],
             ["Footprint", f"{floor['footprint_length_m']:g} x {floor['footprint_width_m']:g} m = "
-                          f"{floor['footprint_area_m2']:g} m2"],
+                          f"{_sqft(floor['footprint_area_m2'])}"],
             ["EPS blanket", f"{floor['extended_length_m']:g} x {floor['extended_width_m']:g} m = "
-                            f"{floor['eps_area_m2']:g} m2; {floor['eps_volume_m3']:g} m3"],
+                            f"{_sqft(floor['eps_area_m2'])}; {floor['eps_volume_m3']:g} m3"],
             ["Slab concrete", f"{floor['slab_concrete_m3']:g} m3"],
             ["Frost-wall concrete", f"{floor['frost_wall_concrete_m3']:g} m3"],
         ], [2.2 * inch, 5 * inch])]
@@ -467,7 +473,7 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
         Paragraph("FEASIBILITY REPORT · COMMUNITY DEVELOPMENT", styles["eyebrow"]),
         Paragraph("Feasibility of the recommended mix", styles["title"]),
         Paragraph(f"{location.name} &nbsp; | &nbsp; {dev.lot_width_m:g} x {dev.lot_depth_m:g} m lot "
-                  f"({lot_area:,.0f} m2) &nbsp; | &nbsp; {mix.mix_label}", styles["body"]),
+                  f"({_sqft(lot_area)}) &nbsp; | &nbsp; {mix.mix_label}", styles["body"]),
         Paragraph(f"Prepared {date.today().strftime('%B %d, %Y')}", styles["small"]),
         Spacer(1, 14),
     ]
@@ -489,7 +495,7 @@ def generate_development_report(*, dev, mix, best, location, labels, placements,
     footprint = sum(p.w_m * p.h_m for p in placements)
     walkway = not geometry.pedestrian_spine.is_empty
     green_text = (
-        f"A shared rear green of {green_area:,.0f} m2 ({green_area / lot_area:.0%} of the lot) gives every home "
+        f"A shared rear green of {_sqft(green_area)} ({green_area / lot_area:.0%} of the lot) gives every home "
         "access to common open space"
         + (", reached by a shared walkway from the street. " if walkway else ". ")
         + (f"{len(geometry.parking)} concept parking stalls sit on the street side. " if geometry.parking else "")

@@ -21,6 +21,8 @@ from io import BytesIO
 
 from dotenv import load_dotenv
 
+from engine.geometry import SQFT_PER_M2
+
 load_dotenv()
 
 _client = None
@@ -204,7 +206,7 @@ def generate_design_rationale(spec, result, layout) -> str:
     `layout` a SiteLayout (see engine.site)."""
     client = _get_client()
     prompt = (
-        f"Building: {spec.typology}, {spec.floor_area_m2:.0f} m^2, {spec.storeys} storey(s), "
+        f"Building: {spec.typology}, {spec.floor_area_m2 * SQFT_PER_M2:,.0f} sq ft, {spec.storeys} storey(s), "
         f"orientation {spec.orientation}, target {spec.target_label}.\n"
         f"Result: EUI {result.eui_kwh_m2_yr:.0f} kWh/m2/yr, embodied carbon "
         f"{result.embodied_carbon_kg_co2e_m2:.0f} kgCO2e/m2, cost ${result.construction_cost:,.0f}.\n"

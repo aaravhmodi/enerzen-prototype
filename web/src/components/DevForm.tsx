@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
+import { fmtArea } from "@/lib/units";
 
 const DEFAULT: DevSpecInput = {
   lot_width_m: 30,
@@ -148,7 +149,7 @@ export default function DevForm({
           {
             label: "Site area",
             value: Number.isFinite(state.lot_width_m * state.lot_depth_m)
-              ? (state.lot_width_m * state.lot_depth_m).toLocaleString() + " m²"
+              ? fmtArea(state.lot_width_m * state.lot_depth_m)
               : "Add dimensions",
           },
           {
@@ -376,7 +377,7 @@ export default function DevForm({
                 const description =
                   (archetype.units_per_building > 1
                     ? `${archetype.units_per_building} units per building · ${archetype.storeys} storeys`
-                    : `${archetype.floor_area_m2} m² · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`) +
+                    : `${fmtArea(archetype.floor_area_m2)} · ${archetype.storeys} storey${archetype.storeys === 1 ? "" : "s"}`) +
                   ` · ${archetype.bedrooms} bedroom${archetype.bedrooms === 1 ? "" : "s"}` +
                   (archetype.units_per_building > 1 ? " minimum" : "");
                 return (
