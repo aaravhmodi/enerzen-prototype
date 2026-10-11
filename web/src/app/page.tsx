@@ -344,15 +344,15 @@ export default function Home() {
               <h1
                 ref={heading}
                 tabIndex={-1}
-                aria-label="Good places. Better possibilities."
+                aria-label="Better homes. Better lives."
               >
                 <span className="hero-title-line" aria-hidden="true">
-                  <span className="word-reveal">Good </span>
+                  <span className="word-reveal">Better </span>
                   <span
                     className="word-reveal"
                     style={{ animationDelay: "80ms" }}
                   >
-                    places.
+                    homes.
                   </span>
                 </span>
                 <span
@@ -369,7 +369,7 @@ export default function Home() {
                     className="word-reveal"
                     style={{ animationDelay: "240ms" }}
                   >
-                    possibilities.
+                    lives.
                   </span>
                 </span>
               </h1>
