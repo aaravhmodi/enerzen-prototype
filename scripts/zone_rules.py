@@ -43,6 +43,7 @@ ZONE_TOKEN = r'[A-Z]{1,5}(?:[0-9]{1,2}[A-Z]{0,2})?(?:-[A-Z0-9]{1,3})?'
 ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
 NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.',
              'FLOOR', 'LAND', 'OPEN', 'UNIT', 'AREA', 'LOT', 'USE', 'USES', 'SPACE', 'YARD', 'PART', 'MAP'}
+STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
 
@@ -191,7 +192,8 @@ def extract(documents: list[dict], store: Path) -> dict:
     except ImportError:
         pdfplumber = None
     zones, exceptions, unparsed, read = {}, {}, [], []
-    for doc in documents:
+    # The consolidated by-law is read first, so its tables win over an older by-law naming the same zone.
+    for doc in sorted(documents, key=lambda d: '8149' not in str(d.get('title'))):
         label = f"{doc.get('title', '')} {doc.get('url', '')}"
         if doc.get('kind') != 'pdf' or not re.search(r'zoning|by-?law|exception|8149', label, re.I):
             continue
@@ -203,8 +205,15 @@ def extract(documents: list[dict], store: Path) -> dict:
             try:
                 with pdfplumber.open(path) as pdf:
                     for number, page in enumerate(pdf.pages, 1):
-                        page_text = page.extract_text() or (pages[number - 1] if number <= len(pages) else '')
-                        for table in page.extract_tables():
+                        stored = pages[number - 1] if number <= len(pages) else None
+                        # Tables are read only where a page states a yard or lot standard. A zoning
+                        # schedule is a map, and searching its line work for tables takes gigabytes.
+                        if stored is not None and not STATES_A_STANDARD.search(stored):
+                            continue
+                        page_text = page.extract_text() or stored or ''
+                        tables = page.extract_tables()
+                        page.flush_cache()
+                        for table in tables:
                             found, missed = rules_from_table(table, page_text, {**source, 'page': number})
                             unparsed += missed
                             for zone, rules in found.items():

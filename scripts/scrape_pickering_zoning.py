@@ -591,22 +591,24 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
         log('council by-laws')
         documents += collect_council_bylaws(fetch, out, escribe, errors, ocr=ocr,
                                             docs_dir=out / snapshot / 'documents' / 'council')
-    log('zone standards')
-    rules = extract_zone_rules(documents, out)
-    _write_json(out / snapshot / 'zone_rules.json', rules)
-    report = completeness(out, catalog, downloaded, documents, errors, rules)
     manifest = {
         'municipality': 'Pickering',
         'retrieved_at': started.isoformat(timespec='seconds'),
-        'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'snapshot': str(snapshot), 'catalog_file': str(snapshot / 'catalog.json'),
         'zone_rules_file': str(snapshot / 'zone_rules.json'),
         'arcgis_roots': sources, 'document_pages': document_pages,
         'layers': downloaded, 'documents': documents, 'errors': errors,
-        'catalog_layers': len(catalog), 'completeness': report,
+        'catalog_layers': len(catalog),
         'licence': 'City of Pickering Open Data Licence; provincial documents under their own terms.',
         'note': 'Raw municipal data for preliminary review only; not a zoning determination.',
     }
+    # The download is on record before the by-laws are read, so a failure there does not cost the hour it took.
+    _write_json(out / snapshot / 'manifest.json', manifest)
+    log('zone standards')
+    rules = extract_zone_rules(documents, out)
+    _write_json(out / snapshot / 'zone_rules.json', rules)
+    manifest.update(finished_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                    completeness=completeness(out, catalog, downloaded, documents, errors, rules))
     _write_json(out / snapshot / 'manifest.json', manifest)
     if downloaded:  # never replace a working copy with an empty run (e.g. the city server was down)
         _write_json(out / 'manifest.json', manifest)
