@@ -14,6 +14,18 @@ const GROUP_LABELS: Record<string, string> = {
   other: "Other planning pages",
 };
 
+// Opens the design workspace on this lot: its point, measured sides and street side.
+function workspaceLink(lookup: Lookup) {
+  const dims = lookup.steps?.["1_property_identification"].from_city_data?.dimensions;
+  const params = new URLSearchParams({ lot: `${lookup.query!.latitude},${lookup.query!.longitude}` });
+  if (dims) {
+    params.set("w", String(dims.width_m));
+    params.set("d", String(dims.depth_m));
+    if (dims.street_side) params.set("street", dims.street_side);
+  }
+  return `/?${params}`;
+}
+
 function Attributes({ attributes, limit = 8 }: { attributes: Record<string, unknown>; limit?: number }) {
   const [open, setOpen] = useState(false);
   const entries = Object.entries(attributes).filter(([k]) => !k.startsWith("_"));
@@ -126,6 +138,11 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
           <p className="tile-value">{onLot.length ? onLot.map(([c]) => CATEGORY_LABELS[c] ?? c).join(", ") : "None found"}</p>
         </div>
       </div>
+      {lookup.query && (
+        <a className="quiet-button zr-use-lot" href={workspaceLink(lookup)}>
+          Use this lot in the workspace <span aria-hidden="true">↗</span>
+        </a>
+      )}
       <p className="zr-disclaimer">
         {lookup.detail} Data retrieved {lookup.retrieved_at?.slice(0, 10)}.
       </p>

@@ -56,6 +56,18 @@ const WEB = process.env.WEB_URL || 'http://localhost:3000';
     await page.getByRole('heading', {name: '3 Test St'}).waitFor();
     await page.getByText('names Lot 17, Concession 8').waitFor();
 
+    // The lot goes to the design workspace with its measured sides and street side.
+    await page.getByRole('link', {name: /Use this lot in the workspace/}).click();
+    await page.waitForURL(/\/\?lot=/);
+    const width = page.getByRole('spinbutton', {name: /Lot width/});
+    await width.waitFor();
+    assert.ok(Math.abs(Number(await width.inputValue()) - 48.2) < 0.6, 'lot width from the parcel');
+    await page.getByText(/is zoned|R4/).first().waitFor();
+    assert.ok(await page.getByRole('link', {name: 'Full zoning review and by-laws'}).isVisible());
+    await shot('workspace-lot');
+    await page.goBack();
+    await page.getByRole('heading', {name: '3 Test St'}).waitFor();
+
     // A shared link reopens the same lot.
     const shared = page.url();
     await page.goto(shared);

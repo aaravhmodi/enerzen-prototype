@@ -182,8 +182,9 @@ export default function LocationInfoPanel({
                 <span className="micro-label">City-wide</span>
               </div>
               <p className="mt-2 text-xs text-stone-500">
-                No site selected yet. Explore the city while your pilot location
-                takes shape.
+                {zoning?.status === "available"
+                  ? "Your lot is below. City-wide figures for context."
+                  : "No site selected yet. Explore the city while your pilot location takes shape."}
               </p>
               <div className="municipal-counts">
                 {detail.municipal_context.layers.map((layer) => (
@@ -253,6 +254,16 @@ export default function LocationInfoPanel({
                     </div>
                   ))}
               </div>
+            )}
+            {hasZoningCoordinates && location?.startsWith("Pickering") && (
+              <a
+                className="mt-1 mr-3 inline-block text-[10px] font-medium text-amber-700 underline"
+                href={`/zoning?lat=${latitude}&lng=${longitude}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Full zoning review and by-laws
+              </a>
             )}
             {(zoningSource ?? detail.regulatory_intelligence.source_url) && (
               <a

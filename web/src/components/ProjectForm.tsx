@@ -69,13 +69,18 @@ const STEPS: WizardStep[] = [
 export default function ProjectForm({
   onSubmit,
   submitting,
+  initialSite,
 }: {
   onSubmit: (state: FormState) => void;
   submitting: boolean;
+  // A lot chosen on the zoning map; the form opens on its Site step.
+  initialSite?: Partial<SiteSpecInput> | null;
 }) {
-  const [state, setState] = useState<FormState>(DEFAULT_STATE);
+  const [state, setState] = useState<FormState>(() =>
+    initialSite ? { ...DEFAULT_STATE, site: { ...DEFAULT_STATE.site, ...initialSite } } : DEFAULT_STATE,
+  );
   const u = useUnits();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialSite ? 1 : 0);
   const [locations, setLocations] = useState<string[]>([]);
   const [solarOptions, setSolarOptions] = useState<
     { id: string; name: string }[]
@@ -257,7 +262,9 @@ export default function ProjectForm({
           step === 0
             ? "Start with the space you need. You can explore different designs without losing the rest of your brief."
             : step === 1
-              ? "City-wide data gives you context. Lot dimensions and setbacks remain assumptions until you choose a property."
+              ? state.site.latitude != null && state.site.longitude != null
+                ? "Lot dimensions come from the parcel you chose. Setbacks are still assumptions; check them against the zone's standards on the zoning map."
+                : "City-wide data gives you context. Lot dimensions and setbacks remain assumptions until you choose a property."
               : step === 2
                 ? selectedDesign
                   ? "This design has updated your area, storeys and footprint. Check the live brief before continuing."
