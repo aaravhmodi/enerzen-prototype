@@ -183,7 +183,8 @@ def list_layers(fetch: Fetcher, service_url: str, bbox=None, source: str = 'City
         except Exception as exc:  # one broken layer must not stop the walk
             layers.append({'url': url, 'name': entry.get('name'), 'error': repr(exc)})
             continue
-        if detail.get('type') not in ('Feature Layer', 'Table'):
+        # A clipped source's tables have no geometry to clip, so they would bring the whole region.
+        if detail.get('type') not in ('Feature Layer', 'Table') or (bbox and detail.get('type') == 'Table'):
             continue
         try:
             count = fetch.json(f'{url}/query', where='1=1', returnCountOnly='true', **_bbox_params(bbox))['count']
