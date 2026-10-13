@@ -28,10 +28,14 @@ services:
 
   # One-off: downloads City of Pickering zoning, parcel and overlay layers and the
   # by-law documents. Re-run any time to refresh; the API picks up the new data.
+  # Exits 0 when everything the City publishes was stored, 2 when the report lists gaps.
+  # Check the stored copy later with: docker compose run --rm scrape-pickering \
+  #   python scripts/scrape_pickering_zoning.py --out /app/data/municipal/pickering --verify
   scrape-pickering:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.scrape
     profiles: [scrape]
-    command: ["python", "scripts/scrape_pickering_zoning.py", "--out", "/app/data/municipal/pickering"]
     volumes:
       - ./scripts:/app/scripts:ro
       - ${PICKERING_DATA_HOST_DIR:-./municipal-data/pickering}:/app/data/municipal/pickering

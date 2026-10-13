@@ -1,0 +1,11 @@
+# The Pickering zoning scraper: stdlib downloads, plus PDF text and Tesseract OCR for scanned by-laws.
+FROM python:3.11-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY scripts/requirements-scrape.txt .
+RUN pip install --no-cache-dir -r requirements-scrape.txt
+
+CMD ["python", "scripts/scrape_pickering_zoning.py", "--out", "/app/data/municipal/pickering"]

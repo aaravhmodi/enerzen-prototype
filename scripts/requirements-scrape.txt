@@ -1,0 +1,4 @@
+# The Pickering scraper (scripts/scrape_pickering_zoning.py): PDF text and OCR for scanned by-laws.
+pypdf>=4.0.0
+pypdfium2>=4.0.0
+pytesseract>=0.3.10

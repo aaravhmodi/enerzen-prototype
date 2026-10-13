@@ -25,7 +25,11 @@ def square(lon, lat, half):
 LAYERS = {
     0: ('Zoning', 'esriGeometryPolygon', [
         {'attributes': {'OBJECTID': 1, 'ZONE': 'R4', 'BYLAW': '3036', 'AREA_HA': 2018},
-         'geometry': {'rings': [square(LON, LAT, 0.002)]}}]),
+         'geometry': {'rings': [square(LON, LAT, 0.002)]}},
+        {'attributes': {'OBJECTID': 2, 'ZONE': 'A', 'BYLAW': '2511'},
+         'geometry': {'rings': [square(LON + 0.05, LAT, 0.002)]}},
+        {'attributes': {'OBJECTID': 3, 'ZONE': 'C1', 'BYLAW': 'By-law 9999/21'},
+         'geometry': {'rings': [square(LON - 0.05, LAT, 0.002)]}}]),
     1: ('Property Parcels', 'esriGeometryPolygon', [
         {'attributes': {'OBJECTID': 7, 'ADDRESS': '1 Test St', 'ROLL_NUM': '1801000000', 'LEGAL': 'LOT 5 PLAN 40M-1'},
          'geometry': {'rings': [square(LON, LAT, 0.0003)]}},
@@ -93,16 +97,21 @@ class FakeCity(BaseHTTPRequestHandler):
             if q.get('returnIdsOnly'):
                 return self.send({'objectIdFieldName': 'OBJECTID',
                                   'objectIds': [f['attributes']['OBJECTID'] for f in features]})
-            wanted = {int(i) for i in q['objectIds'].split(',')}
+            wanted = sorted(int(i) for i in q['objectIds'].split(','))
+            if parts[0] == '1' and len(wanted) > 1:
+                wanted = wanted[:-1]  # a server that silently caps pages
             return self.send({'features': [f for f in features if f['attributes']['OBJECTID'] in wanted]})
+        if path == '/site/zoning/' and q.get('page') == '2':
+            return self.send(b'<html><title>Zoning | Pickering</title><a href="/files/2511.pdf">2511</a>', 'text/html')
         if path == '/site/zoning/':
             return self.send(b'<html><title>Zoning | Pickering</title><a href="/files/by-law-3036.pdf">Zoning '
                              b'By-law 3036</a><a href="/files/menu.pdf">Recreation guide</a>'
-                             b'<a href="/site/official-plan/">Official Plan</a><a href="/site/parks/">Parks</a>',
-                             'text/html')
+                             b'<a href="/site/official-plan/">Official Plan</a><a href="/site/parks/">Parks</a>'
+                             b'<a href="/site/zoning/?page=2">Next</a>', 'text/html')
+
         if path == '/site/official-plan/':
             return self.send(b'<html><title>Official Plan</title></html>', 'text/html')
-        if path == '/files/by-law-3036.pdf':
+        if path in ('/files/by-law-3036.pdf', '/files/2511.pdf', '/files/menu.pdf'):
             return self.send(self.pdf, 'application/pdf')
         self.send_response(404)
         self.end_headers()
@@ -127,14 +136,40 @@ def use_store(store, monkeypatch):
     return store
 
 
-def test_scrape_downloads_matched_layers_and_relevant_documents(store):
+def test_scrape_downloads_every_layer_and_proves_it(store):
     out, manifest = store
-    assert {layer['category'] for layer in manifest['layers']} == {'zoning', 'parcels', 'rail'}
-    assert len(json.loads((out / 'catalog.json').read_text())) == 4  # footprints catalogued, not downloaded
-    docs = {d['url'].rsplit('/', 2)[-2] + '/' + d['url'].rsplit('/', 1)[-1]: d for d in manifest['documents']}
-    assert 'files/by-law-3036.pdf' in docs and docs['files/by-law-3036.pdf']['pages'] == 2
-    assert 'files/menu.pdf' not in docs and not any('parks' in u for u in docs)
+    assert {layer['category'] for layer in manifest['layers']} == {'zoning', 'parcels', 'rail', None}
+    assert len(json.loads((out / 'catalog.json').read_text())) == 4
+    parcels = next(l for l in manifest['layers'] if l['category'] == 'parcels')
+    assert parcels['features'] == parcels['expected'] == 2 and parcels['complete']  # the capped page was retried
+    report = manifest['completeness']
+    assert report['cited_bylaws'] == ['2511', '3036', '9999/21'] and report['missing_bylaws'] == ['9999/21']
+    assert not report['incomplete_layers'] and not report['not_downloaded']
+    assert report['complete'] is False  # the missing by-law and the dead page keep it honest
+
+
+def test_scrape_follows_listing_pages_and_takes_every_pdf_on_planning_pages(store):
+    _, manifest = store
+    docs = {d['url'].split('/', 3)[-1]: d for d in manifest['documents']}
+    assert docs['files/by-law-3036.pdf']['pages'] == 2
+    assert {'files/2511.pdf', 'files/menu.pdf', 'site/zoning/?page=2', 'site/official-plan/'} <= set(docs)
+    assert not any('parks' in u for u in docs)
     assert [e['url'].endswith('/site/missing/') for e in manifest['errors']] == [True]
+
+
+def test_verify_catches_damage_and_failed_runs_keep_the_good_copy(store, tmp_path):
+    import shutil
+    from scripts.scrape_pickering_zoning import verify
+    out = tmp_path / 'copy'
+    shutil.copytree(store[0], out)
+    assert verify(out)['damaged_files'] == []
+    layer = out / store[1]['layers'][0]['file']
+    layer.write_text('{}')
+    assert verify(out)['damaged_files'] == [store[1]['layers'][0]['file']]
+    before = (out / 'manifest.json').read_text()
+    scrape(out, arcgis_roots=['http://127.0.0.1:9/arcgis'], document_pages=[],
+           fetch=Fetcher(delay=0, retries=1, timeout=2), log=lambda *_: None)
+    assert (out / 'manifest.json').read_text() == before
 
 
 def test_lookup_answers_the_review_steps(use_store):
@@ -229,3 +264,23 @@ def test_lookup_quotes_the_zone_text(use_store):
     excerpt = refs['zoning_bylaw_references'][0]['excerpts'][0]
     assert excerpt['page'] == 2 and 'minimum lot frontage' in excerpt['text']
     assert 'zoning_bylaw' in refs['all_documents']
+
+
+@pytest.mark.skipif(__import__('shutil').which('tesseract') is None, reason='Tesseract not installed')
+def test_scanned_bylaw_pages_are_read_with_ocr(tmp_path):
+    from PIL import Image, ImageDraw, ImageFont
+    from reportlab.lib.utils import ImageReader
+    from scripts.scrape_pickering_zoning import pdf_pages
+    image = Image.new('RGB', (1700, 300), 'white')
+    try:
+        font = ImageFont.truetype('DejaVuSans.ttf', 64)
+    except OSError:
+        font = ImageFont.load_default(size=64)
+    ImageDraw.Draw(image).text((40, 100), 'R4 ZONE FRONTAGE 15 METRES', fill='black', font=font)
+    path = tmp_path / 'scanned.pdf'
+    pdf = canvas.Canvas(str(path))
+    pdf.drawImage(ImageReader(image), 20, 500, width=560, height=99)
+    pdf.save()
+    text, ocr_pages = pdf_pages(path)
+    assert ocr_pages == [0] and 'FRONTAGE' in text[0].upper()
+    assert pdf_pages(path, ocr=False) == ([''], [])
