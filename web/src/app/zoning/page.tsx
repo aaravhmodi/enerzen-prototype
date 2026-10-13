@@ -234,6 +234,15 @@ export default function ZoningPage() {
           <ZoningMap
             data={mapData}
             hidden={hidden}
+            onExplore={async (lat, lng) => {
+              try {
+                const around = await mapAround(lat, lng, 400);
+                // Keep the chosen lot outlined while showing the layers around the new view.
+                setMapData((current) => ({ ...around, parcel: current?.parcel ?? null, explored: true }));
+              } catch {
+                // Panning is a convenience; the chosen lot's layers stay on screen.
+              }
+            }}
             onPick={(lat, lng) => {
               const label = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
               setQuery(label);
