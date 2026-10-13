@@ -50,6 +50,20 @@ REGION_FEATURES = [  # one centre in Pickering, one in Oshawa (outside the clip)
 ]
 
 
+def text_pdf(*lines) -> bytes:
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer)
+    for i, line in enumerate(lines):
+        pdf.drawString(72, 720 - 20 * i, line)
+    pdf.save()
+    return buffer.getvalue()
+
+
+AMENDMENT = text_pdf('The Corporation of the City of Pickering By-law No. 8276/26',
+                     'Being a by-law to amend Zoning By-law 8149/24', 'Schedule 1 is amended from A to R4-X5')
+PARKING = text_pdf('The Corporation of the City of Pickering By-law No. 8300/26', 'Being a by-law respecting parking fines')
+
+
 def bylaw_pdf() -> bytes:
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer)
@@ -79,7 +93,12 @@ class FakeCity(BaseHTTPRequestHandler):
 
     def do_POST(self):
         length = int(self.headers['Content-Length'])
-        self.route(parse_qs(self.rfile.read(length).decode()))
+        body = self.rfile.read(length).decode()
+        if self.path.endswith('/GetCalendarMeetings'):
+            assert json.loads(body)['calendarStartDate'] == '2024-12-01'
+            return self.send({'d': [{'ID': 'm1', 'Url': 'Meeting.aspx?Id=m1&Agenda=Agenda&lang=English'},
+                                    {'ID': 'm1', 'Url': 'Meeting.aspx?Id=m1&Agenda=PostMinutes&lang=English'}]})
+        self.route(parse_qs(body))
 
     def do_GET(self):
         self.route(parse_qs(urlparse(self.path).query))
@@ -109,6 +128,13 @@ class FakeCity(BaseHTTPRequestHandler):
                 return self.send({'features': [f for f in REGION_FEATURES if f['attributes']['OBJECTID'] in wanted]})
             return self.send({'name': ['Map 1 - Regional Centres', 'Oak Ridges Moraine'][layer_id], 'type': 'Feature Layer',
                               'geometryType': 'esriGeometryPolygon', 'fields': []})
+        if path == '/escribe/Meeting.aspx':
+            return self.send(b'<a href="FileStream.ashx?DocumentId=1">By-law 8276/26</a>'
+                             b'<a href="FileStream.ashx?DocumentId=2">By-law 8300/26</a>'
+                             b'<a href="FileStream.ashx?DocumentId=3">Staff Report PLN 01-26</a>', 'text/html')
+        if path == '/escribe/FileStream.ashx':
+            assert q['DocumentId'] != '3', 'only by-laws are downloaded'
+            return self.send(AMENDMENT if q['DocumentId'] == '1' else PARKING, 'application/pdf')
         base = '/arcgis/rest/services'
         if path == base:
             return self.send({'folders': ['public'], 'services': []})
@@ -160,7 +186,7 @@ def store(tmp_path_factory):
     manifest = scrape(out, arcgis_roots=[f'{host}/arcgis/rest/services',
                                          {'url': f'{host}/region/rest/services/Open_Data', 'label': 'Region'}],
                       document_pages=[f'{host}/site/zoning/', f'{host}/site/missing/'],
-                      fetch=Fetcher(delay=0, retries=1), log=lambda *_: None)
+                      fetch=Fetcher(delay=0, retries=1), log=lambda *_: None, escribe=f'{host}/escribe')
     server.shutdown()
     return out, manifest
 
@@ -203,7 +229,7 @@ def test_verify_catches_damage_and_failed_runs_keep_the_good_copy(store, tmp_pat
     assert verify(out)['damaged_files'] == [store[1]['layers'][0]['file']]
     before = (out / 'manifest.json').read_text()
     scrape(out, arcgis_roots=['http://127.0.0.1:9/arcgis'], document_pages=[],
-           fetch=Fetcher(delay=0, retries=1, timeout=2), log=lambda *_: None)
+           fetch=Fetcher(delay=0, retries=1, timeout=2), log=lambda *_: None, escribe=None)
     assert (out / 'manifest.json').read_text() == before
 
 
@@ -336,6 +362,7 @@ def test_zone_standards_and_neighbours(use_store):
 def test_exception_zones_search_their_parent_zone():
     from engine.pickering_zoning import zone_variants
     assert zone_variants(['R4-12', 'MU(SA)', 'A']) == ['R4-12', 'R4', 'MU(SA)', 'MU', 'A']
+    assert zone_variants(['R4 (X12)', 'C1-X3(H)']) == ['R4 (X12)', 'R4', 'X12', 'C1-X3(H)', 'C1', 'X3']
 
 
 def test_regional_layers_are_clipped_to_pickering(store):
@@ -349,3 +376,16 @@ def test_regional_layers_are_clipped_to_pickering(store):
 def test_regional_plan_shows_in_the_lot_review(use_store):
     plan = zoning_lookup(CITY, LAT, LON)['steps']['2_existing_zoning_and_official_plan']['official_plan']
     assert plan[0]['attributes']['Name'] == 'Pickering City Centre'
+
+
+def test_council_zoning_amendments_are_kept_and_others_dropped(store):
+    out, manifest = store
+    council = [d for d in manifest['documents'] if d.get('source') == 'council']
+    assert [d['title'] for d in council] == ['Zoning amendment By-law 8276/26']
+    assert len(list((out / manifest['snapshot'] / 'documents' / 'council').glob('*.pdf'))) == 1
+
+
+def test_amendments_and_exception_zones_reach_the_lot_review(use_store):
+    from api.main import pickering_search
+    hits = pickering_search('R4-X5')['results']
+    assert hits[0]['title'] == 'Zoning amendment By-law 8276/26' and hits[0]['group'] == 'zoning_bylaw'

@@ -371,10 +371,12 @@ MEASURE = re.compile(r'\d+(?:[.,]\d+)?\s*(?:m2|m²|sq\.? ?m|square metres?|metre
 
 
 def zone_variants(codes: list[str]) -> list[str]:
-    """Each zone code and its base: "R4-12" and "R4(SA)" are exceptions to the R4 zone."""
+    """Each zone code, its base and its exception numbers: "R4-12" and "R4(X12)" fall under R4, and X12."""
     out = []
     for code in codes:
-        for variant in (code, re.split(r'[-(/\s]', code)[0]):
+        # Pickering numbers site-specific exceptions X1, X2, …; each has its own section.
+        exceptions = re.findall(r'\bX\d+\b', code.upper().replace('-', ' '))
+        for variant in (code, re.split(r'[-(/\s]', code)[0], *exceptions):
             if variant and variant not in out:
                 out.append(variant)
     return out

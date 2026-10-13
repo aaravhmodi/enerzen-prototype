@@ -57,11 +57,19 @@ EXTERNAL_SOURCES = [
 # them are followed one level within the same site when they look relevant.
 DOCUMENT_PAGES = [
     'https://www.pickering.ca/business-building-development/planning-and-development/zoning/',
+    # Comprehensive Zoning By-law 8149/24 (in force 16 Dec 2024; replaced 2511, 2520, 3036, 3037,
+    # 7364/14 Seaton and 7553/17 City Centre): the by-law, its schedules and the review record.
+    'https://www.pickering.ca/en/city-hall/comprehensive-zoning-by-law-review.aspx',
+    'https://letstalkpickering.ca/zonereview',
     'https://www.pickering.ca/business-building-development/planning-and-development/official-plan/',
     'https://www.pickering.ca/business-building-development/planning-and-development/sustainable-development/',
     'https://www.ontario.ca/page/provincial-planning-statement-2024',
     'https://www.ontario.ca/laws/regulation/060545',
 ]
+# Council meetings, where every amendment to the zoning by-law is passed as a by-law.
+ESCRIBE = 'https://pub-pickering.escribemeetings.com'
+ESCRIBE_SINCE = '2024-12-01'
+ZONING_BYLAW_TEXT = re.compile(r'8149/24|zoning by-?law|amend\w* (by-?law|schedule)|zone (category|symbol)', re.I)
 DOCUMENT_LINK = re.compile(r'zoning|by-?law|official[-_ ]?plan|planning[-_ ]statement|greenbelt|moraine|seaton'
                            r'|heritage|secondary[-_ ]plan|site[-_ ]plan|complete[-_ ]application|060545', re.I)
 
@@ -363,6 +371,85 @@ def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list,
     return documents
 
 
+def council_meetings(fetch: Fetcher, base: str, since: str) -> list[str]:
+    """Meeting page URLs on an eScribe site since a date, from its calendar service or its year pages."""
+    until = f'{datetime.now(timezone.utc).year + 1}-12-31'
+    urls = []
+    try:
+        body = json.dumps({'calendarStartDate': since, 'calendarEndDate': until}).encode()
+        request = Request(f'{base}/MeetingsCalendarView.aspx/GetCalendarMeetings', data=body,
+                          headers={'User-Agent': USER_AGENT, 'Content-Type': 'application/json; charset=utf-8'})
+        with urlopen(request, timeout=fetch.timeout) as response:
+            meetings = json.load(response).get('d') or []
+        for meeting in meetings:
+            url = meeting.get('Url') or meeting.get('url') or ''
+            if not url and meeting.get('ID'):
+                url = f"Meeting.aspx?Id={meeting['ID']}&Agenda=Agenda&lang=English"
+            if url:
+                urls.append(urljoin(base + '/', url))
+    except Exception:
+        pass
+    if not urls:  # older eScribe sites list meetings in plain HTML by year
+        for year in range(int(since[:4]), int(until[:4]) + 1):
+            try:
+                html_text = fetch.get(f'{base}/?Year={year}').decode('utf-8', 'replace')
+            except Exception:
+                continue
+            urls += [link for link, _ in page_links(f'{base}/', html_text) if 'Meeting.aspx' in link]
+    seen, unique = set(), []
+    for url in urls:
+        key = re.sub(r'&(Agenda|lang)=[^&]*', '', url)
+        if key not in seen:
+            seen.add(key)
+            unique.append(url)
+    return unique
+
+
+def collect_council_bylaws(fetch: Fetcher, out: Path, base: str, errors: list, since: str = ESCRIBE_SINCE,
+                           ocr: bool = True, docs_dir: Path | None = None) -> list[dict]:
+    """Every by-law attached to a council agenda since the zoning by-law came into force that amends zoning.
+
+    An attachment is downloaded when its link names a by-law, and kept only when its
+    own text speaks of the zoning by-law; everything else is deleted again.
+    """
+    docs_dir = docs_dir or out / 'documents' / 'council'
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    kept, seen = [], set()
+    for meeting in council_meetings(fetch, base, since):
+        try:
+            html_text = fetch.get(meeting).decode('utf-8', 'replace')
+        except Exception as exc:
+            errors.append({'url': meeting, 'error': repr(exc)})
+            continue
+        for link, text in page_links(meeting, html_text):
+            if 'FileStream.ashx' not in link or not re.search(r'by-?law', text, re.I) or link in seen:
+                continue
+            seen.add(link)
+            try:
+                body = fetch.get(link)
+            except Exception as exc:
+                errors.append({'url': link, 'error': repr(exc)})
+                continue
+            if body[:5] != b'%PDF-':
+                continue
+            document_id = re.search(r'DocumentId=(\d+)', link)
+            path = docs_dir / f"{slug(text)[:60]}-{document_id.group(1) if document_id else hashlib.sha256(link.encode()).hexdigest()[:8]}.pdf"
+            path.write_bytes(body)
+            pages, ocr_pages = pdf_pages(path, ocr)
+            if not pages or not ZONING_BYLAW_TEXT.search(' '.join(pages)):
+                path.unlink()
+                continue
+            number = re.search(r'By-?law (?:No\.? ?)?(\d{3,4}/\d{2})', ' '.join(pages[:2]), re.I)
+            text_path = path.with_suffix('.pages.json')
+            text_path.write_text(json.dumps(pages), encoding='utf-8')
+            kept.append({'url': link, 'title': f"Zoning amendment By-law {number.group(1)}" if number else text,
+                         'link_text': text, 'meeting': meeting, 'file': str(path.relative_to(out)), 'kind': 'pdf',
+                         'sha256': hashlib.sha256(body).hexdigest(), 'bytes': len(body), 'pages': len(pages),
+                         'text_file': str(text_path.relative_to(out)), 'ocr_pages': len(ocr_pages),
+                         'blank_pages': sum(1 for t in pages if len(t.strip()) < 20), 'source': 'council'})
+    return kept
+
+
 # ── Run ─────────────────────────────────────────────────────────────────────
 
 def bylaw_numbers_in(layer_path: Path) -> set[str]:
@@ -411,7 +498,7 @@ def _write_json(path: Path, value):
 
 
 def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, all_layers=True,
-           fetch: Fetcher | None = None, log=print, ocr: bool = True) -> dict:
+           fetch: Fetcher | None = None, log=print, ocr: bool = True, escribe: str | None = ESCRIBE) -> dict:
     """Download into a new snapshot folder, then point manifest.json at it.
 
     The API keeps serving the previous snapshot until the new manifest lands, and
@@ -458,6 +545,10 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
 
     log('documents')
     documents = collect_documents(fetch, out, document_pages, errors, ocr=ocr, docs_dir=out / snapshot / 'documents')
+    if escribe:
+        log('council by-laws')
+        documents += collect_council_bylaws(fetch, out, escribe, errors, ocr=ocr,
+                                            docs_dir=out / snapshot / 'documents' / 'council')
     report = completeness(out, catalog, downloaded, documents, errors)
     manifest = {
         'municipality': 'Pickering',
@@ -507,6 +598,7 @@ def main(argv=None):
                         help='skip the Durham Region, TRCA and provincial layers clipped to Pickering')
     parser.add_argument('--skip-documents', action='store_true')
     parser.add_argument('--no-ocr', action='store_true')
+    parser.add_argument('--skip-council', action='store_true', help='skip zoning amendments from council agendas')
     parser.add_argument('--verify', action='store_true', help='check the stored copy instead of downloading')
     args = parser.parse_args(argv)
     if args.verify:
@@ -516,7 +608,8 @@ def main(argv=None):
     roots = ARCGIS_ROOTS + ([] if args.city_only else EXTERNAL_SOURCES) + \
         [{'url': url, 'label': url.split('/rest/')[0]} for url in args.arcgis_root]
     manifest = scrape(args.out, arcgis_roots=roots, all_layers=not args.matched_only,
-                      document_pages=[] if args.skip_documents else DOCUMENT_PAGES + args.page, ocr=not args.no_ocr)
+                      document_pages=[] if args.skip_documents else DOCUMENT_PAGES + args.page, ocr=not args.no_ocr,
+                      escribe=None if args.skip_documents or args.skip_council else ESCRIBE)
     by_category = {}
     for layer in manifest['layers']:
         key = layer['category'] or 'other'
