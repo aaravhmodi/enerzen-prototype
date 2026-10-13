@@ -147,6 +147,19 @@ The run exits 0 only when nothing is missing. Re-check the stored copy any time 
 0 3 * * 1  cd /path/to/enerzen-prototype && docker compose run --rm scrape-pickering
 ```
 
+Each zone's setbacks and lot standards are read from the by-law's tables, and each exception's from its section, into `zone_rules.json`. Every lot then gets its own setbacks, side by side:
+
+1. the zone covering most of the lot
+2. its table's values
+3. its exception's changes
+4. front toward the nearest road, and the exterior side yard toward a second street on a corner lot
+
+Each value names its table or exception and page. A standard the by-law didn't yield is listed as missing, never filled with a default. The completeness report names any mapped zone without standards and any mapped exception without its section. To re-read the stored by-laws without re-downloading:
+
+```bash
+docker compose run --rm scrape-pickering python scripts/zone_rules.py --store /app/data/municipal/pickering
+```
+
 The API answers from that local copy only:
 
 - `GET /locations/Pickering%20(Dunbarton)/zoning?latitude=…&longitude=…` (or `?query=<address, roll number or PIN>`): the six review steps for the lot.
@@ -154,6 +167,7 @@ The API answers from that local copy only:
 - `GET /municipal/pickering/map?latitude=…&longitude=…`: GeoJSON of the lot and every layer around it.
 - `GET /municipal/pickering/search?q=…`: full-text search across every stored by-law page.
 - `GET /municipal/pickering/documents` and `…/documents/file?path=…`: the stored documents.
+- `GET /municipal/pickering/setbacks` and `…/setbacks.csv`: how many lots got every setback, and every lot's setbacks with their sources.
 - `GET /municipal/pickering/status`: what is stored, when, and what is missing.
 
 None of this is a zoning determination. Confirm with the City.
