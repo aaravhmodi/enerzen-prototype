@@ -54,6 +54,38 @@ export type DocRef = {
   excerpts: { zone: string; page: number; text: string }[];
 };
 
+export type Rule = {
+  value: number | null;
+  unit?: string | null;
+  bound?: string | null;
+  from?: string;
+  document?: string;
+  file?: string;
+  page?: number;
+  label?: string;
+  overrides?: number | null;
+  note?: string;
+};
+
+export type LotStandards = {
+  zone: string | null;
+  zone_code: string | null;
+  exceptions: string[];
+  exceptions_without_text: string[];
+  street_side: "N" | "E" | "S" | "W" | null;
+  flank_side: "N" | "E" | "S" | "W" | null;
+  corner_lot: boolean;
+  through_lot: boolean;
+  setbacks_by_side: Record<string, Rule & { applies: string }>;
+  standards: Record<string, Rule>;
+  missing: string[];
+  lot_checks: { standard: string; required: number; lot: number; ok: boolean; from: string; page?: number }[];
+  buildable_area_m2: number | null;
+  max_coverage_m2: number | null;
+  complete: boolean;
+  approximate: boolean;
+};
+
 export type Provision = {
   text: string;
   measures: string[];
@@ -72,6 +104,7 @@ export type Lookup = {
   retrieved_at?: string;
   matched_property?: { layer: string; field: string; value: unknown };
   query?: { latitude: number; longitude: number };
+  buildable_area?: import("geojson").Geometry | null;
   parcel?: Record<string, string>;
   steps?: {
     "1_property_identification": {
@@ -107,6 +140,7 @@ export type Lookup = {
       applicant_must_supply: string[];
     };
     "3_proposed_development": {
+      lot_standards: LotStandards;
       applicant_must_supply: string[];
       check_against: string;
       zone_standards_in_bylaw_text: Record<string, Provision[]>;
@@ -219,6 +253,18 @@ export const searchBylaws = (query: string) =>
   getJson<{ total: number; results: SearchResult[] }>(
     `/municipal/pickering/search?q=${encodeURIComponent(query)}&limit=100`,
   );
+
+export type SetbackCoverage = {
+  lots: number;
+  complete: number;
+  corner_lots: number;
+  without_zone: number;
+  without_street: number;
+  by_zone: Record<string, { lots: number; complete: number; missing: Record<string, number> }>;
+};
+
+export const setbackCoverage = () => getJson<SetbackCoverage>("/municipal/pickering/setbacks");
+export const SETBACKS_CSV = `${API_BASE}/municipal/pickering/setbacks.csv`;
 
 export const dataStatus = () =>
   getJson<{

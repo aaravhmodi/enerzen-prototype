@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CATEGORY_LABELS, docUrl, type Hit, type Lookup } from "@/lib/zoning";
 import { fmtArea } from "@/lib/units";
 import ZoneStandards from "./ZoneStandards";
+import LotSetbacks from "./LotSetbacks";
 
 const GROUP_LABELS: Record<string, string> = {
   zoning_bylaw: "Zoning by-laws",
@@ -22,6 +23,18 @@ function workspaceLink(lookup: Lookup) {
     params.set("w", String(dims.width_m));
     params.set("d", String(dims.depth_m));
     if (dims.street_side) params.set("street", dims.street_side);
+  }
+  const lot = lookup.steps?.["3_proposed_development"].lot_standards;
+  if (lot) {
+    const sides = Object.values(lot.setbacks_by_side);
+    const pick = (applies: string) => sides.find((v) => v.applies === applies)?.value;
+    const front = pick("front_yard");
+    const rear = pick("rear_yard");
+    // The site planner takes one side setback: the larger of the lot's two.
+    const side = Math.max(...sides.filter((v) => v.applies.endsWith("side_yard")).map((v) => v.value ?? 0));
+    if (front != null) params.set("front", String(front));
+    if (rear != null) params.set("rear", String(rear));
+    if (side > 0) params.set("side", String(side));
   }
   return `/?${params}`;
 }
@@ -201,6 +214,7 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
       </Step>
 
       <Step n={3} title="Proposed development">
+        <LotSetbacks lot={s["3_proposed_development"].lot_standards} />
         <ZoneStandards standards={s["3_proposed_development"].zone_standards_in_bylaw_text} />
         <Checklist label="You supply" items={s["3_proposed_development"].applicant_must_supply} />
         <p className="zr-muted">{s["3_proposed_development"].check_against}</p>
