@@ -51,6 +51,10 @@ function lotFromUrl(): Partial<SiteSpecInput> | null {
   const depth = Number(params.get("d"));
   if (width > 0) site.lot_width_m = width;
   if (depth > 0) site.lot_depth_m = depth;
+  for (const [param, key] of [["front", "front_setback_m"], ["side", "side_setback_m"], ["rear", "rear_setback_m"]] as const) {
+    const value = Number(params.get(param));
+    if (params.get(param) && Number.isFinite(value) && value >= 0) site[key] = value;
+  }
   const street = params.get("street");
   if (street === "N" || street === "S" || street === "E" || street === "W") site.street_side = street;
   return site;

@@ -12,6 +12,9 @@ import {
   mapAround,
   searchAddresses,
   searchBylaws,
+  setbackCoverage,
+  SETBACKS_CSV,
+  type SetbackCoverage,
   type Candidate,
   type Lookup,
   type MapData,
@@ -65,8 +68,10 @@ export default function ZoningPage() {
   const [bylawResults, setBylawResults] = useState<{ total: number; results: SearchResult[] } | null>(null);
   const abort = useRef<AbortController | null>(null);
 
+  const [coverage, setCoverage] = useState<SetbackCoverage | null>(null);
   useEffect(() => {
     dataStatus().then(setStatus).catch(() => setStatus(null));
+    setbackCoverage().then(setCoverage).catch(() => setCoverage(null));
   }, []);
 
   const review = useCallback(async (label: string, latitude: number, longitude: number) => {
@@ -227,12 +232,22 @@ export default function ZoningPage() {
                   {status.council_amendments ?? 0} council amendments
                 </p>
                 {status.completeness && <Completeness report={status.completeness} />}
+                {coverage && coverage.lots > 0 && (
+                  <p className="zr-muted">
+                    Setbacks from the by-law for {coverage.complete.toLocaleString()} of{" "}
+                    {coverage.lots.toLocaleString()} lots ·{" "}
+                    <a href={SETBACKS_CSV} download>
+                      Every lot as CSV
+                    </a>
+                  </p>
+                )}
               </>
             )}
           </div>
 
           <ZoningMap
             data={mapData}
+            envelope={lookup?.buildable_area ?? null}
             hidden={hidden}
             onExplore={async (lat, lng) => {
               try {

@@ -95,7 +95,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                    'exterior_side_yard' if side == flank else 'interior_side_yard')
             # Without an exterior side yard in the by-law, the flank falls back to the interior one, said so.
             rule = standards.get(key) or (standards.get('interior_side_yard') if key == 'exterior_side_yard' else None)
-            by_side[side] = {'applies': key, **({k: rule[k] for k in ('value', 'unit', 'from', 'document', 'page', 'label')
+            by_side[side] = {'applies': key, **({k: rule[k] for k in ('value', 'unit', 'from', 'document', 'file', 'page', 'label')
                                                  if k in rule} if rule else {'value': None})}
             if rule and key == 'exterior_side_yard' and 'exterior_side_yard' not in standards:
                 by_side[side]['note'] = 'No exterior side yard stated; the interior side yard is shown.'

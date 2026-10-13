@@ -27,6 +27,15 @@ const WEB = process.env.WEB_URL || 'http://localhost:3000';
     assert.ok(await excerpt.isVisible());
     assert.match(await excerpt.locator('a').getAttribute('href'), /documents\/file\?path=.*#page=2$/);
     assert.ok(await page.getByText(/Rail proximity/).isVisible());
+    // Step 3: this lot's own setbacks, side by side, each from its by-law page.
+    const setbacks = await page.locator('.zr-setbacks').innerText();
+    for (const expected of ['Every setback from the by-law', 'corner lot', 'Front yard', 'Exterior side yard',
+                            'Zone R4 table, p. 2', 'Buildable area inside setbacks']) {
+      assert.ok(setbacks.toLowerCase().includes(expected.toLowerCase()), `setbacks card shows "${expected}"`);
+    }
+    assert.match(setbacks, /South \(street\)\s+Front yard\s+6 m/);
+    assert.match(setbacks, /East \(flank street\)\s+Exterior side yard\s+4\.5 m/);
+    assert.match(await page.locator('.zoning-search').innerText(), /Setbacks from the by-law for \d+ of \d+ lots/);
     // Step 3: the zone's standards from the by-law text, and a preliminary check of a proposal.
     const height = page.locator('.zr-standard').filter({hasText: 'Building height'});
     await height.getByRole('textbox').fill('11');
@@ -56,12 +65,17 @@ const WEB = process.env.WEB_URL || 'http://localhost:3000';
     await page.getByRole('heading', {name: '3 Test St'}).waitFor();
     await page.getByText('names Lot 17, Concession 8').waitFor();
 
-    // The lot goes to the design workspace with its measured sides and street side.
+    // The lot goes to the design workspace with its measured sides, street side and setbacks.
+    const handoff = Object.fromEntries(new URL(await page.getByRole('link', {name: /Use this lot in the workspace/})
+      .getAttribute('href'), 'http://x').searchParams);
+    assert.ok(handoff.front && handoff.rear && handoff.side, 'setbacks travel to the workspace');
     await page.getByRole('link', {name: /Use this lot in the workspace/}).click();
     await page.waitForURL(/\/\?lot=/);
     const width = page.getByRole('spinbutton', {name: /Lot width/});
     await width.waitFor();
     assert.ok(Math.abs(Number(await width.inputValue()) - 48.2) < 0.6, 'lot width from the parcel');
+    assert.equal(await page.getByRole('spinbutton', {name: /front setback/i}).inputValue(),
+                 String(handoff.front), 'front setback from the by-law');
     await page.getByText(/is zoned|R4/).first().waitFor();
     assert.ok(await page.getByRole('link', {name: 'Full zoning review and by-laws'}).isVisible());
     await shot('workspace-lot');

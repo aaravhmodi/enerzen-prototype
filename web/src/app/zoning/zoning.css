@@ -359,3 +359,70 @@
 .zr-use-lot {
   width: fit-content;
 }
+.zr-setbacks {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #dcd6e8;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfaff;
+}
+.zr-setbacks-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.zr-setbacks-body {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+.zr-lot-diagram {
+  width: 100%;
+  font-size: 10px;
+  fill: #302936;
+}
+.zr-lot-diagram .zr-lot {
+  fill: #f4f2f8;
+  stroke: #211d27;
+  stroke-width: 2;
+}
+.zr-lot-diagram .zr-envelope {
+  fill: #e6f0e8;
+  stroke: #2f6b3a;
+  stroke-dasharray: 4 3;
+}
+.zr-lot-diagram .zr-road {
+  fill: #c9c4bf;
+}
+.zr-lot-diagram .zr-envelope-label {
+  fill: #2f6b3a;
+}
+.zr-table {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+}
+.zr-table th {
+  text-align: left;
+  color: #8a8590;
+  font-weight: 500;
+  padding: 4px 6px;
+  border-bottom: 1px solid #eeecef;
+}
+.zr-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid #f3f1f5;
+  vertical-align: top;
+}
+@media (max-width: 520px) {
+  .zr-setbacks-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zr-lot-diagram {
+    max-width: 220px;
+    justify-self: center;
+  }
+}
