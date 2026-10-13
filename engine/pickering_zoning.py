@@ -154,46 +154,61 @@ def _label(attrs: dict) -> str | None:
     return _pick(attrs, r'full_?addr', r'addr', r'civic', r'legal', r'roll|arn', r'\bpin\b|^pin')
 
 
+SEARCH_FIELD = re.compile(r'addr|civic|street|roll|arn|pin|legal|plan|lot|conc', re.I)
+
+
+@lru_cache(maxsize=1)
+def _property_index(store: str, stamp: str) -> list[tuple]:
+    """(normalized value, label, field, layer, category, lat, lon) for every searchable parcel and address field."""
+    _, layers = load_store()
+    index = []
+    for layer in layers:
+        if layer.meta['category'] not in ('parcels', 'addresses'):
+            continue
+        fields = None
+        for attrs, geom in layer.features:
+            if geom is None:
+                continue
+            if fields is None:
+                fields = [k for k in attrs if SEARCH_FIELD.search(k)]
+            point = None
+            for key in fields:
+                value = attrs.get(key)
+                norm = _norm(value) if value is not None else ''
+                if not norm:
+                    continue
+                if point is None:
+                    p = geom.representative_point()
+                    point = (round(p.y / M_PER_DEG_LAT, 7), round(p.x / M_PER_DEG_LON, 7))
+                index.append((norm, str(value).strip(), key, layer.meta['name'], layer.meta['category'], *point))
+    return index
+
+
 def search_properties(query: str, limit: int = 8) -> list[dict]:
     """Parcels and address points matching an address, roll number, PIN or legal description, best first.
 
     Exact matches rank before prefix matches, which rank before matches that only
     contain every word of the query (so "1 Test" finds "1 Test St").
     """
-    _, layers = load_store()
     wanted = _norm(query)
     words = [_norm(w) for w in query.split() if _norm(w)]
-    if not wanted:
+    if not wanted or load_store()[0] is None:
         return []
+    root = store_dir()
     found = {}
-    for layer in layers:
-        if layer.meta['category'] not in ('parcels', 'addresses'):
+    for norm, label, key, layer, category, lat, lon in _property_index(str(root), str((root / 'manifest.json').stat().st_mtime_ns)):
+        if norm == wanted:
+            rank = 0
+        elif norm.startswith(wanted):
+            rank = 1
+        elif words and all(w in norm for w in words):
+            rank = 2
+        else:
             continue
-        for attrs, geom in layer.features:
-            if geom is None:
-                continue
-            for key, value in attrs.items():
-                if value is None or not re.search(r'addr|civic|street|roll|arn|pin|legal|plan|lot|conc', key, re.I):
-                    continue
-                norm = _norm(value)
-                if not norm:
-                    continue
-                if norm == wanted:
-                    rank = 0
-                elif norm.startswith(wanted):
-                    rank = 1
-                elif words and all(w in norm for w in words):
-                    rank = 2
-                else:
-                    continue
-                p = geom.representative_point()
-                lat, lon = round(p.y / M_PER_DEG_LAT, 7), round(p.x / M_PER_DEG_LON, 7)
-                candidate = {'label': str(value).strip(), 'latitude': lat, 'longitude': lon, 'rank': rank,
-                             'matched': {'layer': layer.meta['name'], 'field': key, 'value': value},
-                             'kind': layer.meta['category']}
-                key_ = (candidate['label'].lower(), round(lat, 4), round(lon, 4))
-                if key_ not in found or found[key_]['rank'] > rank:
-                    found[key_] = candidate
+        dedupe = (label.lower(), round(lat, 4), round(lon, 4))
+        if dedupe not in found or found[dedupe]['rank'] > rank:
+            found[dedupe] = {'label': label, 'latitude': lat, 'longitude': lon, 'rank': rank, 'kind': category,
+                             'matched': {'layer': layer, 'field': key, 'value': label}}
     # Parcels before address points at equal rank: a parcel carries the lot boundary.
     return sorted(found.values(), key=lambda c: (c['rank'], c['kind'] != 'parcels', len(c['label'])))[:limit]
 
@@ -588,3 +603,12 @@ def lookup(latitude: float, longitude: float) -> dict:
             },
         },
     }
+
+
+def warm():
+    """Load the layers and the address index ahead of the first request; quiet if nothing is stored."""
+    try:
+        if load_store()[0] is not None:
+            search_properties('warm')
+    except Exception:
+        pass
