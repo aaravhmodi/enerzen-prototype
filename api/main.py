@@ -27,6 +27,7 @@ from engine.dev_optimizer import (DevSpec, best_configurations, evaluate_dev_mix
 from engine import feasibility as fz
 from engine.location import location_names, resolve as resolve_location
 from engine.municipal import is_pickering, pickering_context
+from engine import pickering_zoning
 from engine.multi_site import development_geometry, multi_site_plan_svg, place_units
 from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize_with_gate
 from engine.report import generate_development_report, generate_unit_report
@@ -265,17 +266,36 @@ def location_detail(name: str):
 
 
 @app.get("/locations/{name}/zoning")
-def zoning_lookup(name: str, latitude: float, longitude: float):
+def zoning_lookup(name: str, latitude: Optional[float] = None, longitude: Optional[float] = None,
+                  query: Optional[str] = None):
+    """Parcel zoning context from a point, or (Pickering) an address, roll number or PIN."""
     _validate_location(name)
+    if query and is_pickering(name) and (latitude is None or longitude is None):
+        found = pickering_zoning.find_property(query)
+        if found is None:
+            return {**pickering_zoning.status(), "status": "not_found", "label": "No matching property",
+                    "detail": "No parcel or address in the stored Pickering data matches; try coordinates."}
+        latitude, longitude = found["latitude"], found["longitude"]
+        return {**pickering_zoning.lookup(latitude, longitude), "matched_property": found["matched"]}
+    if latitude is None or longitude is None:
+        raise HTTPException(422, "Give latitude and longitude, or a Pickering address, roll number or PIN as query.")
     if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
         raise HTTPException(422, "Latitude must be between -90 and 90; longitude must be between -180 and 180.")
+    if is_pickering(name):
+        return pickering_zoning.lookup(latitude, longitude)
     if name != "Toronto":
         return {
             "status": "not_available",
             "label": "Municipal connector not configured",
-            "detail": "Parcel-level zoning lookup is currently available only for Toronto.",
+            "detail": "Parcel-level zoning lookup is currently available only for Toronto and Pickering.",
         }
     return toronto_zoning_lookup(latitude, longitude)
+
+
+@app.get("/municipal/pickering/status")
+def pickering_data_status():
+    """What the server's Pickering zoning store holds, and when it was scraped."""
+    return pickering_zoning.status()
 
 
 @app.get("/catalog")

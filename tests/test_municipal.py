@@ -3,13 +3,14 @@ from api.main import location_detail, zoning_lookup
 from engine.municipal import pickering_context
 
 
-def test_pickering_data_is_local_and_not_parcel_approval():
+def test_pickering_data_is_local_and_not_parcel_approval(tmp_path, monkeypatch):
+    monkeypatch.setenv('PICKERING_DATA_DIR', str(tmp_path))  # before any zoning scrape
     detail = location_detail('Pickering (Dunbarton)')
     assert detail['municipal_context']['scope'] == 'citywide'
     assert detail['municipal_context']['parcel_selected'] is False
     assert detail['regulatory_intelligence']['status'] == 'not_checked'
     assert detail['multifamily_energy_benchmark']['municipality'] == 'Pickering'
-    assert zoning_lookup('Pickering (Dunbarton)', 43.84, -79.09)['status'] == 'not_available'
+    assert zoning_lookup('Pickering (Dunbarton)', 43.84, -79.09)['status'] == 'not_scraped'
 
 
 def test_energy_units_and_sample_are_traceable():

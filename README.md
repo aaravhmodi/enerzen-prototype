@@ -106,6 +106,23 @@ docker compose up -d --build
 
 The web app is at `http://<TAILSCALE_IP>:3000` and the API at `http://<TAILSCALE_IP>:8001`. The web app is built against that API address, and the API allows it through `CORS_ORIGINS`.
 
+### Pickering zoning data
+
+The server keeps its own copy of the City of Pickering's zoning data. To download or refresh it:
+
+```bash
+docker compose run --rm scrape-pickering
+```
+
+This walks the City's ArcGIS server and saves every zoning, parcel, Official Plan and overlay layer (floodplain, natural heritage, heritage, easements, rail, Greenbelt and Oak Ridges Moraine, servicing, topography) as GeoJSON. It also saves the zoning by-law and Official Plan PDFs, with their text, plus the Provincial Planning Statement and O. Reg. 545/06 pages. Everything goes into `./municipal-data/pickering` on the server (set `PICKERING_DATA_HOST_DIR` to put it elsewhere). `manifest.json` records the source URL, retrieval time and checksum of every file. `catalog.json` lists every layer the City publishes, including ones that were not downloaded.
+
+The API then answers the review steps for a parcel, using only that local data:
+
+- `GET /locations/Pickering%20(Dunbarton)/zoning?latitude=43.84&longitude=-79.09` (or `?query=<address, roll number or PIN>`) returns the parcel, its zone and by-law, the Official Plan designation and nearby overlays. It also lists the by-law pages that mention the zone, the studies the overlays trigger, and what the applicant still has to supply.
+- `GET /municipal/pickering/status` shows what has been downloaded and when.
+
+None of this is a zoning determination. Confirm with the City.
+
 ## Structure
 
 ```

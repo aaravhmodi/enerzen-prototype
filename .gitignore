@@ -16,3 +16,7 @@ data/hot2000/surrogate_models/
 data/hot2000/surrogate_search_*.csv
 .vercel
 .env*
+
+# Scraped municipal data lives on the server, not in git (see compose.yaml)
+municipal-data/
+data/municipal/
