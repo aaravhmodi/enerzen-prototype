@@ -226,8 +226,8 @@ export default function ZoningMap({ data, hidden, onPick }: Props) {
     }
 
     const box = bounds(data.parcel);
-    if (box) instance.fitBounds(box, { padding: 120, maxZoom: 19, duration: 900 });
-    else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17, duration: 900 });
+    if (box) instance.fitBounds(box, { padding: 160, maxZoom: 17.5, duration: 900 });
+    else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17.5, duration: 900 });
   }, [data, ready]);
 
   useEffect(() => {
