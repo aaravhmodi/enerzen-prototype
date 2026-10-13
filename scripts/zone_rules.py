@@ -46,6 +46,14 @@ NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'N
 # What may stand between a provision's name and its number: "DEPTH (minimum):", "width of", "shall be".
 DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max|of|shall|be|is|a)\b\.?)*\d',
                              re.I)
+# A standard names a depth, a width or a minimum. "1) front yard: 0.6 metres" under "bay windows may
+# encroach as follows" is how far a window may reach into the yard.
+STATES_ITS_OWN = re.compile(r'\b(?:depth|width|setback|minimum|maximum|min|max)\b', re.I)
+NOT_A_STANDARD = re.compile(r'encroach|project|shall mean', re.I)
+# What may come before a provision's name in its clause: an article, "minimum", a list mark.
+OPENS_THE_CLAUSE = re.compile(r'''(?:[\s,()\-–"'“”‘’•.]|\b(?:the|a|an|minimum|maximum|min|max|required)\b'''
+                              r'''|\(?\b(?:[ivxlc]{1,4}|\d{1,2}|[a-z])[.)])*''', re.I)
+LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max)\b\.?)*', re.I)
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
@@ -163,16 +171,45 @@ def rules_from_text(text: str, source: dict) -> dict:
     """
     rules = {}
     text = re.sub(r'(?<=\d)\.\s(?=\d\s*(?:m\b|metres?))', '.', text)  # scanned by-laws: "2. 7 metres"
-    for line in re.split(r'\n|;|(?<=\.)\s+(?=[A-Z(])', text):
+    lines, leads, previous = [], [], ''
+    for row in text.split('\n'):
+        # A row that carries on the sentence above it is judged with that row's words in front of it.
+        carries_on = row.lstrip()[:1].islower() and previous.strip()[-1:] not in ('', '.', ':', ';')
+        clauses = re.split(r';|(?<=\.)\s+(?=[A-Z(])', row)
+        lines += clauses
+        leads += [previous if carries_on else ''] + [''] * (len(clauses) - 1)
+        previous = row
+    for i, line in enumerate(lines):
         key = provision_key(line)
-        if not key:
+        if not key or not STATES_ITS_OWN.search(line) or NOT_A_STANDARD.search(line):
             continue
-        after = re.split(PROVISIONS[[p[0] for p in PROVISIONS].index(key[0])][1], line, maxsplit=1, flags=re.I)[-1]
+        before, *_, after = re.split(PROVISIONS[[p[0] for p in PROVISIONS].index(key[0])][1], line, maxsplit=1,
+                                     flags=re.I)
+        # The standard opens its clause and is written as a heading: "REAR YARD DEPTH (minimum): 7.5
+        # metres", "Minimum rear yard 7.5 metres". Mid-sentence ("units attached above grade may have a
+        # minimum side yard width of 0.0 metres") or as a lower-case list item ("minimum rear yard depth
+        # of 0.6 metres" under "Detached Garage Requirements:") it is some other clause's special case.
+        opening = re.split(r'[:;]', f'{leads[i]} {before}')[-1]
+        first = re.search(r'[A-Za-z]', opening + line[len(before):])
+        if not OPENS_THE_CLAUSE.fullmatch(opening) or not (first and first.group().isupper()):
+            continue
+        named = None
+        if LABEL_ONLY.fullmatch(after) and i + 1 < len(lines):
+            # The label ends its line and the value opens the next: "INTERIOR SIDE YARD WIDTH:" then
+            # "minimum 1.2 metres each side", or 'on lands designated "S1" and "S2": 4.5 metres', in
+            # which case the value is kept for the zones named and no others.
+            after = lines[i + 1]
+            named = re.match(r'\s*on lands designated\s+(.+?):', after, re.I)
+            line, after = f'{line} {after}', after[named.end():] if named else after
         if not DIRECTLY_STATED.match(after):
             continue
         value = parse_value(after)
+        if value and value['value'] > 60 and value['unit'] != 'm':
+            continue  # a page or section number, not a yard: "FRONT YARD DEPTH (minimum): 164"
         if value and key[0] not in rules:
             rules[key[0]] = {**value, 'bound': key[1], 'label': ' '.join(line.split())[:200], **source}
+            if named:
+                rules[key[0]]['applies_to'] = re.findall(ZONE_TOKEN, named.group(1).upper())
     return rules
 
 

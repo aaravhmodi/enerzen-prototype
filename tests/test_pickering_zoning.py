@@ -67,7 +67,7 @@ def text_pdf(*lines) -> bytes:
 AMENDMENT = text_pdf('The Corporation of the City of Pickering By-law No. 8276/26',
                      'Being a by-law to amend Zoning By-law 8149/24', 'Schedule 1 is amended from A to R4-X5',
                      'for lands in Part of Lot 5, Plan 40M-1 and Lots 17 and 18, Concession 8',
-                     'X 5', 'the minimum front yard shall be 4.5 metres')
+                     'X 5', 'The minimum front yard shall be 4.5 metres')
 PARKING = text_pdf('The Corporation of the City of Pickering By-law No. 8300/26', 'Being a by-law respecting parking fines')
 
 

@@ -67,7 +67,10 @@ def resolve(code: str | None, rules: dict) -> dict:
     for exception in exceptions:
         section = rules.get('exceptions', {}).get(exception)
         for key, rule in ((section or {}).get('provisions') or {}).items():
-            resolved[key] = {**rule, 'from': f'Exception {exception}', 'overrides': resolved.get(key, {}).get('value')}
+            # 'on lands designated "S1" and "S2": 4.5 metres' is not this lot's standard in an S4 zone.
+            if rule.get('applies_to') and base not in rule['applies_to']:
+                continue
+            resolved[key] ={**rule, 'from': f'Exception {exception}', 'overrides': resolved.get(key, {}).get('value')}
     return resolved
 
 

@@ -41,8 +41,9 @@ def bylaw_pdf(path):
         PageBreak(),
         Paragraph('Section 17 Exceptions', STYLE['Heading2']),
         Paragraph('X 12', STYLE['Normal']),
-        Paragraph('Notwithstanding Table 7, for lands zoned R4-X12: the minimum front yard shall be 4.5 metres; '
-                  'the maximum lot coverage shall be 45%.', STYLE['Normal']),
+        Paragraph('Notwithstanding Table 7, for lands zoned R4-X12:', STYLE['Normal']),
+        Paragraph('Minimum front yard: 4.5 metres.', STYLE['Normal']),
+        Paragraph('Maximum lot coverage: 45%.', STYLE['Normal']),
         Spacer(1, 12),
         Paragraph('X 446', STYLE['Normal']),
         Paragraph('Minimum rear yard: 370 metres.', STYLE['Normal']),
@@ -93,7 +94,7 @@ def test_labels_and_values():
     assert provision_key('Parking spaces') is None
     assert parse_value('N/A') is None and parse_value('–') is None
     assert parse_value('7,5 m')['value'] == 7.5
-    assert rules_from_text('the minimum rear yard shall be 7.5 metres', {})['rear_yard']['value'] == 7.5
+    assert rules_from_text('The minimum rear yard shall be 7.5 metres', {})['rear_yard']['value'] == 7.5
 
 
 def test_real_bylaw_symbols_and_thousands():
@@ -129,7 +130,36 @@ def test_prose_takes_only_a_number_that_follows_the_provision_name():
     text = ('"Front Yard Depth" shall mean the shortest horizontal di1nension of a front yard\n'
             'no accessory building shall be erected in the rear yard and shall not be less than 1.0 metres from\n'
             'FRONT YARD DEPTH (minimum): 4.5 metres\nREAR YARD DEPTH (minimum): 7.5 metres\n'
-            'FLANKAGE SIDE YARD WIDTH (minimum): 2. 7 metres\nthe minimum interior side yard shall be 1.2 metres')
+            'FLANKAGE SIDE YARD WIDTH (minimum): 2. 7 metres\nThe minimum interior side yard shall be 1.2 metres')
     rules = rules_from_text(text, {})
     assert {k: v['value'] for k, v in rules.items()} == {
         'front_yard': 4.5, 'rear_yard': 7.5, 'exterior_side_yard': 2.7, 'interior_side_yard': 1.2}
+
+
+def test_a_value_on_the_line_after_its_label_and_the_zones_it_names():
+    text = ('FRONT YARD DEPTH (minimum):\non lands designated "S1", \'\'S1-2\'\' and "S3":4.5 metres\n'
+            'INTERIOR SIDE YARD WIDTH:\nminimum 1.2 metres each side, or\n'
+            'REAR YARD DEPTH (minimum):\nas shown on the site plan attached as Figure 1')
+    rules = rules_from_text(text, {})
+    assert rules['front_yard']['value'] == 4.5 and rules['front_yard']['applies_to'] == ['S1', 'S1-2', 'AND', 'S3']
+    assert rules['interior_side_yard']['value'] == 1.2 and 'applies_to' not in rules['interior_side_yard']
+    assert 'rear_yard' not in rules
+    from engine.lot_rules import resolve
+    section = {'exceptions': {'X238': {'provisions': rules}}}
+    assert 'front_yard' in resolve('S1-X238', section) and 'front_yard' not in resolve('S4-X238', section)
+
+
+def test_encroachments_wrapped_clauses_and_page_numbers_are_not_standards():
+    # Exception X332: the only bare "front yard: 0.6 metres" is how far a bay window may reach.
+    text = ('bay, bow or box windows may encroach a maximum into required\nyards as follows:\n'
+            '1) front yard: 0.6 metres;\n2) flankage yard: 0.6 metres;\n'
+            'dwellings attached above grade may have a\nminimum side yard width of 0.0 metres\n'
+            'FRONT YARD DEPTH (minimum): 164\nREAR YARD DEPTH (minimum): 7.5 metres')
+    assert {k: v['value'] for k, v in rules_from_text(text, {}).items()} == {'rear_yard': 7.5}
+
+
+def test_a_lower_case_list_item_under_another_heading_is_not_the_zone_standard():
+    # Exception X332: "Detached Garage Requirements:" then bulleted yards for the garage.
+    text = ('Detached Garage Requirements:\n\uf0b7 minimum side yard width of 0.0 metres;\n'
+            '\uf0b7 minimum rear yard depth of 0.6 metres;')
+    assert rules_from_text(text, {}) == {}
