@@ -40,6 +40,18 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = ROOT / 'data' / 'municipal' / 'pickering'
 
 ARCGIS_ROOTS = ['https://maps.pickering.ca/arcgisinter/rest/services']
+# West, south, east, north in WGS84: the City with a margin. Sources beyond the
+# City's own server are clipped to it, so a provincial layer brings only Pickering.
+PICKERING_BBOX = (-79.23, 43.79, -78.95, 44.04)
+# Regional, conservation-authority and provincial layers the City server may not carry.
+EXTERNAL_SOURCES = [
+    {'label': 'Durham Region Official Plan and open data',  # incl. Oak Ridges Moraine, railways, MTSAs
+     'url': 'https://maps.durham.ca/arcgis/rest/services/Open_Data'},
+    {'label': 'TRCA regulation limit (O. Reg. 41/24)',
+     'url': 'https://services1.arcgis.com/d0ZCwU7eGKVeNiEE/ArcGIS/rest/services/TRCA_Regulation_Limit2/FeatureServer'},
+    {'label': 'Ontario Greenbelt (Land Information Ontario)',
+     'url': 'https://ws.lioservices.lrc.gov.on.ca/arcgis2/rest/services/LIO_OPEN_DATA/LIO_Open06/MapServer'},
+]
 
 # Pages crawled for by-law, Official Plan and provincial documents. Links on
 # them are followed one level within the same site when they look relevant.
@@ -79,6 +91,8 @@ KEEP_SNAPSHOTS = 2
 
 
 def classify(name: str) -> str | None:
+    # Service names come as OfficialPlanConsolidation2024_Map1 or TRCA_Regulation_Limit2.
+    name = re.sub(r'(?<=[a-z])(?=[A-Z])|_', ' ', name)
     for category, pattern in CATEGORIES:
         if re.search(pattern, name, re.I):
             return category
@@ -124,19 +138,31 @@ class Fetcher:
 # ── ArcGIS ──────────────────────────────────────────────────────────────────
 
 def walk_services(fetch: Fetcher, root: str) -> list[str]:
-    """Every MapServer/FeatureServer URL under an ArcGIS REST root."""
-    found, folders = [], ['']
+    """Every MapServer/FeatureServer URL under an ArcGIS REST root, folder, or a service itself."""
+    if re.search(r'/(MapServer|FeatureServer)/?$', root):
+        return [root.rstrip('/')]
+    marker = re.search(r'/rest/services', root, re.I)
+    base = root[:marker.end()] if marker else root
+    found, folders = [], [root[len(base):].strip('/')]
     while folders:
         folder = folders.pop()
-        listing = fetch.json(f'{root}/{folder}'.rstrip('/'))
-        folders += [f'{folder}/{f}'.strip('/') if folder else f for f in listing.get('folders', [])]
+        listing = fetch.json(f'{base}/{folder}'.rstrip('/'))
+        # Folder names are listed in full from the root, and relative to the folder elsewhere.
+        folders += [f if '/' in f or not folder else f'{folder}/{f}' for f in listing.get('folders', [])]
         for service in listing.get('services', []):
             if service.get('type') in ('MapServer', 'FeatureServer'):
-                found.append(f"{root}/{service['name']}/{service['type']}")
+                found.append(f"{base}/{service['name']}/{service['type']}")
     return sorted(set(found))
 
 
-def list_layers(fetch: Fetcher, service_url: str) -> list[dict]:
+def _bbox_params(bbox) -> dict:
+    if not bbox:
+        return {}
+    return {'geometry': ','.join(map(str, bbox)), 'geometryType': 'esriGeometryEnvelope', 'inSR': '4326',
+            'spatialRel': 'esriSpatialRelIntersects'}
+
+
+def list_layers(fetch: Fetcher, service_url: str, bbox=None, source: str = 'City of Pickering') -> list[dict]:
     info = fetch.json(service_url)
     layers = []
     for entry in info.get('layers', []) + info.get('tables', []):
@@ -151,7 +177,7 @@ def list_layers(fetch: Fetcher, service_url: str) -> list[dict]:
         if detail.get('type') not in ('Feature Layer', 'Table'):
             continue
         try:
-            count = fetch.json(f'{url}/query', where='1=1', returnCountOnly='true')['count']
+            count = fetch.json(f'{url}/query', where='1=1', returnCountOnly='true', **_bbox_params(bbox))['count']
         except Exception:
             count = None
         layers.append({
@@ -160,7 +186,8 @@ def list_layers(fetch: Fetcher, service_url: str) -> list[dict]:
             'description': (detail.get('description') or '')[:1000], 'copyright': detail.get('copyrightText'),
             'fields': [{'name': f['name'], 'alias': f.get('alias'), 'type': f.get('type')}
                        for f in detail.get('fields') or []],
-            'feature_count': count, 'category': classify(detail.get('name', entry.get('name', ''))),
+            'feature_count': count, 'source': source, 'bbox': bbox,
+            'category': classify(detail.get('name', entry.get('name', ''))) or classify(service_url.split('/rest/services/')[-1]),
         })
     return layers
 
@@ -205,7 +232,7 @@ def download_layer(fetch: Fetcher, layer: dict, path: Path) -> dict:
     server's or the shortfall is reported, never silently lost.
     """
     url = f"{layer['url']}/query"
-    ids = fetch.json(url, where='1=1', returnIdsOnly='true')
+    ids = fetch.json(url, where='1=1', returnIdsOnly='true', **_bbox_params(layer.get('bbox')))
     id_field, object_ids = ids.get('objectIdFieldName', 'OBJECTID'), sorted(ids.get('objectIds') or [])
     features, got = [], set()
 
@@ -361,7 +388,7 @@ def completeness(out: Path, catalog: list, layers: list, documents: list, errors
     report = {
         'catalog_layers': len(catalog),
         'not_downloaded': [{'name': l.get('name'), 'url': l['url'], 'reason': l.get('error', 'skipped')}
-                           for l in catalog if l['url'] not in downloaded],
+                           for l in catalog if l['url'] not in downloaded and l.get('feature_count') != 0],
         'incomplete_layers': [{'name': l['name'], 'url': l['url'], 'features': l['features'],
                                'expected': l['expected'], 'server_count': l['server_count']}
                               for l in layers if not l['complete']],
@@ -395,23 +422,25 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
     snapshot = Path('snapshots') / started.strftime('%Y%m%dT%H%M%SZ')
     (out / snapshot / 'layers').mkdir(parents=True, exist_ok=True)
     errors, catalog = [], []
-    for root in arcgis_roots:
+    sources = [{'url': r, 'label': 'City of Pickering', 'bbox': None} if isinstance(r, str) else
+               {'bbox': PICKERING_BBOX, **r} for r in arcgis_roots]
+    for source in sources:
         try:
-            services = walk_services(fetch, root)
+            services = walk_services(fetch, source['url'])
         except Exception as exc:
-            errors.append({'url': root, 'error': repr(exc)})
+            errors.append({'url': source['url'], 'error': repr(exc)})
             continue
         for service in services:
             log(f'service {service}')
             try:
-                catalog += list_layers(fetch, service)
+                catalog += list_layers(fetch, service, bbox=source['bbox'], source=source['label'])
             except Exception as exc:
                 errors.append({'url': service, 'error': repr(exc)})
     _write_json(out / snapshot / 'catalog.json', catalog)
 
     downloaded = []
     for layer in catalog:
-        if 'error' in layer or not (all_layers or layer['category']):
+        if 'error' in layer or not (all_layers or layer['category']) or layer['feature_count'] == 0:
             continue
         name = f"{layer['category'] or 'other'}--{slug(layer['name'])}-{slug(urlparse(layer['url']).path)[-24:]}"
         file = str(snapshot / 'layers' / f'{name}.geojson')
@@ -423,7 +452,7 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
             continue
         if not result['complete']:
             log(f"  incomplete: {result['features']} of {result['expected']}")
-        downloaded.append({**{k: layer[k] for k in ('url', 'name', 'category', 'geometry_type', 'type')},
+        downloaded.append({**{k: layer[k] for k in ('url', 'name', 'category', 'geometry_type', 'type', 'source')},
                            'file': file, **result,
                            'sha256': hashlib.sha256((out / file).read_bytes()).hexdigest()})
 
@@ -435,7 +464,7 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
         'retrieved_at': started.isoformat(timespec='seconds'),
         'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'snapshot': str(snapshot), 'catalog_file': str(snapshot / 'catalog.json'),
-        'arcgis_roots': arcgis_roots, 'document_pages': document_pages,
+        'arcgis_roots': sources, 'document_pages': document_pages,
         'layers': downloaded, 'documents': documents, 'errors': errors,
         'catalog_layers': len(catalog), 'completeness': report,
         'licence': 'City of Pickering Open Data Licence; provincial documents under their own terms.',
@@ -472,8 +501,10 @@ def main(argv=None):
     parser.add_argument('--matched-only', action='store_true',
                         help='download only layers matched to a review category (default: every layer)')
     parser.add_argument('--arcgis-root', action='append', default=[],
-                        help='another ArcGIS REST services root to include (repeatable)')
+                        help='another ArcGIS REST root, folder or service, clipped to Pickering (repeatable)')
     parser.add_argument('--page', action='append', default=[], help='another document page to crawl (repeatable)')
+    parser.add_argument('--city-only', action='store_true',
+                        help='skip the Durham Region, TRCA and provincial layers clipped to Pickering')
     parser.add_argument('--skip-documents', action='store_true')
     parser.add_argument('--no-ocr', action='store_true')
     parser.add_argument('--verify', action='store_true', help='check the stored copy instead of downloading')
@@ -482,7 +513,9 @@ def main(argv=None):
         report = verify(args.out)
         print(json.dumps(report, indent=1))
         return 0 if report['complete'] else 2
-    manifest = scrape(args.out, arcgis_roots=ARCGIS_ROOTS + args.arcgis_root, all_layers=not args.matched_only,
+    roots = ARCGIS_ROOTS + ([] if args.city_only else EXTERNAL_SOURCES) + \
+        [{'url': url, 'label': url.split('/rest/')[0]} for url in args.arcgis_root]
+    manifest = scrape(args.out, arcgis_roots=roots, all_layers=not args.matched_only,
                       document_pages=[] if args.skip_documents else DOCUMENT_PAGES + args.page, ocr=not args.no_ocr)
     by_category = {}
     for layer in manifest['layers']:
