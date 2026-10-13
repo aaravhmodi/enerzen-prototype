@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CATEGORY_LABELS, docUrl, type Hit, type Lookup } from "@/lib/zoning";
-import { fmtArea } from "@/lib/units";
+import { useUnits } from "@/lib/units";
 import ZoneStandards from "./ZoneStandards";
 import LotSetbacks from "./LotSetbacks";
 
@@ -114,6 +114,7 @@ function Checklist({ items, label }: { items: string[]; label: string }) {
 }
 
 export default function ZoningReview({ lookup }: { lookup: Lookup }) {
+  const u = useUnits();
   if (!lookup.steps) {
     return (
       <div className="section-card">
@@ -144,7 +145,7 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
         </div>
         <div className="tile">
           <p className="tile-label">Lot area</p>
-          <p className="tile-value">{property?.area_m2 ? fmtArea(property.area_m2) : "No parcel"}</p>
+          <p className="tile-value">{property?.area_m2 ? u.area(property.area_m2) : "No parcel"}</p>
         </div>
         <div className="tile">
           <p className="tile-label">Overlays nearby</p>
