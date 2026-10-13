@@ -83,7 +83,7 @@ class Layer:
                 self.features.append((feature['properties'], None))
                 continue
             if not geom.is_valid:
-                geom = geom.buffer(0)
+                geom = shapely.make_valid(geom)  # buffer(0) took minutes on the regional stream polygons
             self.features.append((feature['properties'], geom))
             geoms.append(len(self.features) - 1)
         self._indexed = geoms
@@ -138,6 +138,13 @@ ZONE_CODE_FIELD = (r'^zone$', r'^zon(e|ing)_?(code|cat|category|class|symbol)$')
 
 
 _LOAD_LOCK = threading.Lock()
+
+
+def _street_layers(layers) -> list:
+    """Road centrelines, which say where a street runs. The City's other "road" layers are curbs,
+    labels and streetlights, and a curb near a side lot line made most lots look like corner lots."""
+    roads = [l for l in layers if l.meta['category'] == 'roads' and l.tree is not None]
+    return [l for l in roads if re.search(r'cent(re|er) ?line', l.meta['name'], re.I)] or roads
 
 
 def load_store():
@@ -623,8 +630,7 @@ def lookup(latitude: float, longitude: float) -> dict:
     adjacent_zones = sorted({z for h in adjacent if (z := _pick(h['attributes'], r'^zone$', r'zone_?(code|cat|class)?$',
                                                                 r'zon', r'symbol'))} - set(zone_codes))
 
-    roads = [geom for layer in layers if layer.meta['category'] == 'roads'
-             for _, geom, _ in layer.near(point, 120)]
+    roads = [geom for layer in _street_layers(layers) for _, geom, _ in layer.near(point, 120)]
     dimensions = lot_dimensions(parcel['_geom'] if parcel else None, roads)
     # The zone covering most of the lot governs it; its standards come from the by-law's tables.
     primary_zone = next((code for h in zoning if (code := _zone_code(h['attributes']))), None)
@@ -744,7 +750,7 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
     _, layers = load_store()
     rules = zone_rules()
     zoning_layers = [l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None]
-    road_layers = [l for l in layers if l.meta['category'] == 'roads' and l.tree is not None]
+    road_layers = _street_layers(layers)
     rows = []
     for layer in layers:
         if layer.meta['category'] != 'parcels':
