@@ -69,6 +69,8 @@ export type Lookup = {
   detail: string;
   retrieved_at?: string;
   matched_property?: { layer: string; field: string; value: unknown };
+  query?: { latitude: number; longitude: number };
+  parcel?: Record<string, string>;
   steps?: {
     "1_property_identification": {
       from_city_data: {
@@ -78,6 +80,14 @@ export type Lookup = {
         legal_description?: string | null;
         area_m2?: number;
         perimeter_m?: number;
+        dimensions?: {
+          width_m: number;
+          depth_m: number;
+          rotation_deg: number;
+          rectangularity: number;
+          street_side: "N" | "S" | "E" | "W" | null;
+          street_distance_m?: number;
+        } | null;
         layer?: string;
         source_url?: string;
         attributes?: Record<string, unknown>;

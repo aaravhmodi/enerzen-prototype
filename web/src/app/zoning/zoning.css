@@ -356,3 +356,6 @@
   cursor: pointer;
   font-weight: 600;
 }
+.zr-use-lot {
+  width: fit-content;
+}

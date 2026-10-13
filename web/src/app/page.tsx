@@ -13,6 +13,7 @@ import DevRecommendation from "@/components/DevRecommendation";
 import Architecture from "@/components/Architecture";
 import { fmtArea, fmtCad, fmtEui } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
+import type { SiteSpecInput } from "@/lib/api";
 import {
   ConfigResult,
   ExcludedType,
@@ -40,8 +41,33 @@ const pause = (ms: number) => new Promise((resolve) => window.setTimeout(resolve
 // Delay for one step of the staged results reveal.
 const at = (seconds: number) => ({ "--d": `${seconds}s` }) as CSSProperties;
 
+// The zoning map hands a real Pickering lot to the workspace as /?lot=lat,lng&w=&d=&street=.
+function lotFromUrl(): Partial<SiteSpecInput> | null {
+  const params = new URLSearchParams(window.location.search);
+  const [lat, lng] = (params.get("lot") ?? "").split(",").map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !params.get("lot")) return null;
+  const site: Partial<SiteSpecInput> = { latitude: lat, longitude: lng };
+  const width = Number(params.get("w"));
+  const depth = Number(params.get("d"));
+  if (width > 0) site.lot_width_m = width;
+  if (depth > 0) site.lot_depth_m = depth;
+  const street = params.get("street");
+  if (street === "N" || street === "S" || street === "E" || street === "W") site.street_side = street;
+  return site;
+}
+
 export default function Home() {
   const [screen, setScreen] = useState<Screen>("welcome");
+  const [lot, setLot] = useState<Partial<SiteSpecInput> | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const fromMap = lotFromUrl();
+      if (!fromMap) return;
+      setLot(fromMap);
+      setScreen("single");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const [viewResults, setViewResults] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -508,7 +534,12 @@ export default function Home() {
           <span className="micro-label">Ontario, Canada</span>
         </div>
         <div hidden={screen !== "single" || viewResults || exploring}>
-          <ProjectForm onSubmit={handleSingleSubmit} submitting={submitting} />
+          <ProjectForm
+            key={lot ? `${lot.latitude},${lot.longitude}` : "blank"}
+            initialSite={lot}
+            onSubmit={handleSingleSubmit}
+            submitting={submitting}
+          />
         </div>
         <div hidden={screen !== "development" || viewResults || exploring}>
           <DevForm
