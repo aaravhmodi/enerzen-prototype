@@ -29,7 +29,9 @@ LAYERS = {
         {'attributes': {'OBJECTID': 2, 'ZONE': 'A', 'BYLAW': '2511'},
          'geometry': {'rings': [square(LON + 0.05, LAT, 0.002)]}},
         {'attributes': {'OBJECTID': 3, 'ZONE': 'C1', 'BYLAW': 'By-law 9999/21'},
-         'geometry': {'rings': [square(LON - 0.05, LAT, 0.002)]}}]),
+         'geometry': {'rings': [square(LON - 0.05, LAT, 0.002)]}},
+        {'attributes': {'OBJECTID': 4, 'ZONE': 'R3-7', 'BYLAW': '3036'},
+         'geometry': {'rings': [square(LON + 0.0012, LAT, 0.0006)]}}]),
     1: ('Property Parcels', 'esriGeometryPolygon', [
         {'attributes': {'OBJECTID': 7, 'ADDRESS': '1 Test St', 'ROLL_NUM': '1801000000', 'LEGAL': 'LOT 5 PLAN 40M-1'},
          'geometry': {'rings': [square(LON, LAT, 0.0003)]}},
@@ -48,6 +50,10 @@ def bylaw_pdf() -> bytes:
     pdf.drawString(72, 720, 'Zoning By-law 3036 general provisions')
     pdf.showPage()
     pdf.drawString(72, 720, 'Section 5: R4 zone - minimum lot frontage 15 m')
+    pdf.drawString(72, 700, 'Maximum building height 9.0 m')
+    pdf.drawString(72, 680, 'Minimum rear yard depth 7.5 metres')
+    pdf.drawString(72, 660, 'Permitted uses: detached dwelling, home occupation')
+    pdf.drawString(72, 640, 'Parking is regulated elsewhere')
     pdf.save()
     return buffer.getvalue()
 
@@ -239,7 +245,7 @@ def test_map_returns_the_lot_and_layers_in_wgs84(use_store):
     assert all(abs(x - LON) < 0.001 and abs(y - LAT) < 0.001 for x, y in ring)
     layers = {l['category']: l for l in result['layers']}
     assert set(layers) == {'parcels', 'zoning', 'rail'}
-    assert layers['zoning']['features']['features'][0]['properties']['_zone'] == 'R4'
+    assert {f['properties']['_zone'] for f in layers['zoning']['features']['features']} == {'R4', 'R3-7'}
     assert pickering_map(LAT, LON, radius_m=25)['layers'][-1]['category'] != 'rail'  # rail is ~190 m away
     json.dumps(result)
 
@@ -284,3 +290,20 @@ def test_scanned_bylaw_pages_are_read_with_ocr(tmp_path):
     text, ocr_pages = pdf_pages(path)
     assert ocr_pages == [0] and 'FRONTAGE' in text[0].upper()
     assert pdf_pages(path, ocr=False) == ([''], [])
+
+
+def test_zone_standards_and_neighbours(use_store):
+    steps = zoning_lookup(CITY, LAT, LON)['steps']
+    assert steps['2_existing_zoning_and_official_plan']['zone_codes'] == ['R4']
+    assert steps['4_site_characteristics']['adjacent_zone_codes'] == ['R3-7']
+    standards = steps['3_proposed_development']['zone_standards_in_bylaw_text']
+    assert standards['lot_frontage'][0]['bound'] == 'minimum' and standards['lot_frontage'][0]['measures'] == ['15 m']
+    assert standards['building_height'][0]['bound'] == 'maximum' and standards['building_height'][0]['page'] == 2
+    assert standards['rear_yard'][0]['measures'] == ['7.5 metres']
+    assert 'detached dwelling' in standards['permitted_uses'][0]['text']
+    assert standards['parking'] == []  # mentioned without a measure, so not a standard
+
+
+def test_exception_zones_search_their_parent_zone():
+    from engine.pickering_zoning import zone_variants
+    assert zone_variants(['R4-12', 'MU(SA)', 'A']) == ['R4-12', 'R4', 'MU(SA)', 'MU', 'A']

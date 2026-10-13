@@ -352,6 +352,68 @@ def _document_refs(manifest: dict, zone_codes: list[str], bylaw_numbers: list[st
     return sorted(refs, key=lambda r: (not r['names_parcel_bylaw'], -sum(map(len, r['zone_pages'].values()))))
 
 
+# Zone standards a by-law states as numbers, and the words that name them.
+PROVISIONS = [
+    ('permitted_uses', r'permitted uses?|uses? permitted'),
+    ('lot_frontage', r'lot frontage|frontage'),
+    ('lot_area', r'lot area'),
+    ('front_yard', r'front yard|front setback'),
+    ('side_yard', r'side yard|interior side|exterior side|flankage'),
+    ('rear_yard', r'rear yard|rear setback'),
+    ('building_height', r'height|storeys?'),
+    ('lot_coverage', r'lot coverage|coverage'),
+    ('floor_area', r'floor (space|area) (index|ratio)|gross floor area|\bfsi\b|\bgfa\b'),
+    ('landscaping', r'landscap|open space'),
+    ('parking', r'parking|loading'),
+    ('dwelling_units', r'dwelling units?|units? per|density|accessory dwelling|second(ary)? (suite|unit)|garden suite'),
+]
+MEASURE = re.compile(r'\d+(?:[.,]\d+)?\s*(?:m2|m²|sq\.? ?m|square metres?|metres?|m\b|%|per ?cent|storeys?|spaces?|units?|ha|hectares?)', re.I)
+
+
+def zone_variants(codes: list[str]) -> list[str]:
+    """Each zone code and its base: "R4-12" and "R4(SA)" are exceptions to the R4 zone."""
+    out = []
+    for code in codes:
+        for variant in (code, re.split(r'[-(/\s]', code)[0]):
+            if variant and variant not in out:
+                out.append(variant)
+    return out
+
+
+def zone_provisions(manifest: dict, zone_codes: list[str], per_kind: int = 6) -> dict:
+    """Lines of the stored by-laws that state a measured standard on a page naming this zone.
+
+    Text extraction, not interpretation: each line comes with its document and page
+    so it can be read in context, and "minimum" / "maximum" is reported only when
+    the line says so.
+    """
+    found = {kind: [] for kind, _ in PROVISIONS}
+    if not zone_codes:
+        return found
+    zone_pattern = re.compile('|'.join(rf'(?<![A-Za-z0-9-]){re.escape(c)}(?![A-Za-z0-9])' for c in zone_codes))
+    for doc in manifest['documents']:
+        if not doc.get('text_file') or document_group(doc) != 'zoning_bylaw':
+            continue
+        for number, text in enumerate(_pages(doc['text_file'], manifest['retrieved_at']), 1):
+            if not zone_pattern.search(text):
+                continue
+            for line in (' '.join(l.split()) for l in text.splitlines()):
+                if len(line) < 6 or len(line) > 400:
+                    continue
+                for kind, pattern in PROVISIONS:
+                    if len(found[kind]) >= per_kind or not re.search(pattern, line, re.I):
+                        continue
+                    measures = MEASURE.findall(line)
+                    if kind != 'permitted_uses' and not measures:
+                        continue
+                    bound = ('minimum' if re.search(r'\bmin(imum)?\b', line, re.I) else
+                             'maximum' if re.search(r'\bmax(imum)?\b', line, re.I) else None)
+                    found[kind].append({'text': line, 'measures': measures, 'bound': bound, 'page': number,
+                                        'file': doc['file'], 'title': doc['title']})
+                    break
+    return found
+
+
 def lookup(latitude: float, longitude: float) -> dict:
     manifest, layers = load_store()
     if manifest is None:
@@ -389,7 +451,10 @@ def lookup(latitude: float, longitude: float) -> dict:
                               'parcel_share_pct': share, 'attributes': _clean(attrs)})
         return sorted(found, key=lambda h: (h['distance_m'], -(h['parcel_share_pct'] or 0)))
 
-    zoning = against('zoning')
+    # A zone only touching the lot boundary is a neighbour, not the lot's zone.
+    near_zones = against('zoning', 30)
+    zoning = [h for h in near_zones if h['distance_m'] == 0 and (h['parcel_share_pct'] is None or h['parcel_share_pct'] >= 1)]
+    adjacent = [h for h in near_zones if h not in zoning]
     official_plan = against('official_plan')
     overlays = {c: against(c, NEARBY_M[c]) for c in OVERLAYS}
     servicing = against('servicing', NEARBY_M['servicing'])
@@ -403,6 +468,9 @@ def lookup(latitude: float, longitude: float) -> dict:
                             if re.search(r'law|amend|^bl|_bl', k, re.I)
                             for n in re.findall(r'\b\d{3,4}/\d{2,4}\b|\b\d{4}\b', str(v))})
     triggered = [c for c in OVERLAYS if overlays[c]]
+    searched_codes = zone_variants(zone_codes)
+    adjacent_zones = sorted({z for h in adjacent if (z := _pick(h['attributes'], r'^zone$', r'zone_?(code|cat|class)?$',
+                                                                r'zon', r'symbol'))} - set(zone_codes))
 
     property_id = None
     if parcel:
@@ -444,12 +512,14 @@ def lookup(latitude: float, longitude: float) -> dict:
                                           'Lot layout: setbacks, parking, access/driveways, landscaped and '
                                           'loading areas'],
                 'check_against': 'The zone standards on the by-law pages listed under step 6.',
+                'zone_standards_in_bylaw_text': zone_provisions(manifest, searched_codes),
             },
             '4_site_characteristics': {
                 'servicing_nearby': servicing, 'topography': topography,
                 'natural_heritage': overlays['natural_heritage'],
+                'adjacent_zoning': adjacent, 'adjacent_zone_codes': adjacent_zones,
                 'applicant_must_supply': ['Topographic survey (grades, slopes)', 'Servicing confirmation',
-                                          'Adjacent land uses'],
+                                          'Adjacent land uses (adjacent zoning from City data is listed here)'],
             },
             '5_supporting_documents': {
                 'always': ['Planning justification report', 'Concept site plan', 'Survey or reference plan'],
@@ -459,7 +529,7 @@ def lookup(latitude: float, longitude: float) -> dict:
                 'reference': 'O. Reg. 545/06 (complete application) and the City pre-consultation checklist',
             },
             '6_planning_frameworks': {
-                'zoning_bylaw_references': _document_refs(manifest, zone_codes, bylaw_numbers),
+                'zoning_bylaw_references': _document_refs(manifest, searched_codes, bylaw_numbers),
                 'official_plan_designation': [_pick(h['attributes'], r'desig', r'land_?use', r'name')
                                               for h in official_plan],
                 'provincial': ['Provincial Planning Statement (2024)'] +

@@ -26,6 +26,14 @@ const WEB = process.env.WEB_URL || 'http://localhost:3000';
     assert.ok(await excerpt.isVisible());
     assert.match(await excerpt.locator('a').getAttribute('href'), /documents\/file\?path=.*#page=2$/);
     assert.ok(await page.getByText(/Rail proximity/).isVisible());
+    // Step 3: the zone's standards from the by-law text, and a preliminary check of a proposal.
+    const height = page.locator('.zr-standard').filter({hasText: 'Building height'});
+    await height.getByRole('textbox').fill('11');
+    assert.match(await height.innerText(), /Above the maximum/);
+    await height.getByRole('textbox').fill('8.5');
+    assert.match(await height.innerText(), /Appears to meet/);
+    assert.ok(await page.getByText('Adjacent zoning (within 30 m)').isVisible());
+    assert.ok(await page.locator('.zr-hits').filter({hasText: 'R3-7'}).first().isVisible());
     assert.ok(page.url().includes('lat=') && page.url().includes('q=1+Test+St'));
     const noHorizontalScroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     assert.ok(noHorizontalScroll, 'page scrolls sideways');

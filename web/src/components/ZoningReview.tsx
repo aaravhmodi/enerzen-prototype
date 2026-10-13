@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CATEGORY_LABELS, docUrl, type Hit, type Lookup } from "@/lib/zoning";
 import { fmtArea } from "@/lib/units";
+import ZoneStandards from "./ZoneStandards";
 
 const GROUP_LABELS: Record<string, string> = {
   zoning_bylaw: "Zoning by-laws",
@@ -183,6 +184,7 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
       </Step>
 
       <Step n={3} title="Proposed development">
+        <ZoneStandards standards={s["3_proposed_development"].zone_standards_in_bylaw_text} />
         <Checklist label="You supply" items={s["3_proposed_development"].applicant_must_supply} />
         <p className="zr-muted">{s["3_proposed_development"].check_against}</p>
       </Step>
@@ -190,6 +192,8 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
       <Step n={4} title="Site characteristics">
         <h4>Servicing within 60 m</h4>
         <Hits hits={site.servicing_nearby} empty="No servicing layer features nearby in the City data." />
+        <h4>Adjacent zoning (within 30 m)</h4>
+        <Hits hits={site.adjacent_zoning} empty="No other zone within 30 m in the City data." />
         <h4>Topography</h4>
         <Hits hits={site.topography} empty="No topography layer in the City data here." />
         <Checklist label="You supply" items={site.applicant_must_supply} />
