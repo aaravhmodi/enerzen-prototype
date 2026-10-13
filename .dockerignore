@@ -16,3 +16,5 @@ scripts/
 # Training inputs; the API only loads the fitted models.
 data/hot2000/variants/
 data/hot2000/verify_variants/
+municipal-data/
+data/municipal/

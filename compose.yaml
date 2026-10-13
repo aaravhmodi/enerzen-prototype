@@ -1,5 +1,9 @@
 # Runs the API and the web app on a home server, published on its Tailscale address
 # only. Set TAILSCALE_IP (e.g. TAILSCALE_IP=100.76.57.23) and OPENAI_KEY in .env.
+#
+# Pickering zoning data is scraped onto this server, into ./municipal-data/pickering
+# (override with PICKERING_DATA_HOST_DIR), and survives rebuilds:
+#   docker compose run --rm scrape-pickering
 services:
   api:
     build: .
@@ -10,6 +14,8 @@ services:
       CORS_ORIGINS: http://${TAILSCALE_IP}:3000
     ports:
       - "${TAILSCALE_IP}:8001:8001"
+    volumes:
+      - ${PICKERING_DATA_HOST_DIR:-./municipal-data/pickering}:/app/data/municipal/pickering:ro
 
   web:
     build:
@@ -19,3 +25,13 @@ services:
     restart: unless-stopped
     ports:
       - "${TAILSCALE_IP}:3000:3000"
+
+  # One-off: downloads City of Pickering zoning, parcel and overlay layers and the
+  # by-law documents. Re-run any time to refresh; the API picks up the new data.
+  scrape-pickering:
+    build: .
+    profiles: [scrape]
+    command: ["python", "scripts/scrape_pickering_zoning.py", "--out", "/app/data/municipal/pickering"]
+    volumes:
+      - ./scripts:/app/scripts:ro
+      - ${PICKERING_DATA_HOST_DIR:-./municipal-data/pickering}:/app/data/municipal/pickering
