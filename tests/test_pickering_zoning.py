@@ -502,3 +502,21 @@ def test_zone_code_joins_the_exception_field_and_ignores_overlays():
     assert pickering_zoning._zone_code({'ZONING_CODE': 'R1G', 'EXCEPTION_NUM': '146'}) == 'R1G-X146'
     assert pickering_zoning._zone_code({'ZONING_CODE': 'A', 'EXCEPTION_NUM': None}) == 'A'
     assert pickering_zoning._zone_code({'IPZ_ID': 3, 'IPZType': 'IPZ-1'}) is None  # Intake Protection Zones
+
+
+def test_lookup_takes_the_lot_not_a_larger_parcel_around_it(use_store):
+    # The City publishes its own outline as a one-feature "parcel" layer that contains every lot.
+    manifest, layers = pickering_zoning.load_store()
+    lots = next(l for l in layers if l.meta['category'] == 'parcels')
+    attrs, geom = next(f for f in lots.features if f[1] is not None)
+    outline = pickering_zoning.Layer.__new__(pickering_zoning.Layer)
+    outline.meta = {**lots.meta, 'name': 'City outline'}
+    outline.features, outline._indexed = [({'NAME': 'Pickering'}, geom.buffer(5000))], [0]
+    outline.tree = pickering_zoning.STRtree([outline.features[0][1]])
+    layers.insert(0, outline)
+    try:
+        point = geom.representative_point()
+        found = pickering_zoning.lookup(point.y / pickering_zoning.M_PER_DEG_LAT, point.x / pickering_zoning.M_PER_DEG_LON)
+        assert found['steps']['1_property_identification']['from_city_data']['area_m2'] == round(geom.area, 1)
+    finally:
+        layers.remove(outline)

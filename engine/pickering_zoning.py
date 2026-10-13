@@ -587,7 +587,9 @@ def lookup(latitude: float, longitude: float) -> dict:
                                   'distance_m': d, 'attributes': _clean(attrs), '_geom': geom})
         return found
 
-    parcels = hits('parcels')
+    # The smallest parcel at the point is the lot: the City also publishes its own outline and the
+    # township survey grid as parcel layers, and both contain every lot.
+    parcels = sorted(hits('parcels'), key=lambda h: h['_geom'].area)
     parcel = parcels[0] if parcels else None
     # Overlays and zoning are tested against the parcel boundary when there is one.
     subject = parcel['_geom'] if parcel and parcel['_geom'].area > 0 else point
@@ -752,9 +754,9 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
     zoning_layers = [l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None]
     road_layers = _street_layers(layers)
     rows = []
-    for layer in layers:
-        if layer.meta['category'] != 'parcels':
-            continue
+    # The parcel layer with the most features is the lot fabric (see lookup for the others).
+    fabric = max((l for l in layers if l.meta['category'] == 'parcels'), key=lambda l: len(l.features), default=None)
+    for layer in [fabric] if fabric else []:
         for attrs, geom in layer.features:
             if geom is None or geom.area <= 0:
                 continue
