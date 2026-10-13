@@ -93,7 +93,13 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     street = streets[0] if streets else (dimensions or {}).get('street_side')
     # A corner lot has a second street on a side next to (not opposite) the front.
     flank = next((s for s in streets[1:] if s not in (street, OPPOSITE.get(street))), None)
-    through = bool(street and OPPOSITE[street] in streets[1:])
+    if flank and dimensions:
+        # By-law 8149/24, "Lot Line, Front": where more than one lot line is on a street, the shorter
+        # one is the front. The nearest road is not always that one.
+        on_street = lambda side: dimensions['width_m' if side in 'NS' else 'depth_m']
+        if on_street(flank) < on_street(street):
+            street, flank = flank, street
+    through = bool(street and OPPOSITE[street] in streets)
 
     by_side, missing = {}, []
     if street:

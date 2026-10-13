@@ -538,3 +538,19 @@ def test_a_lot_at_an_angle_fronts_on_its_street_side():
     found = lot_rules.apply_to_lot(lot, 'R1G', rules, [street], dims)
     assert found['setbacks_by_side']['S']['applies'] == 'front_yard' and not found['corner_lot']
     assert found['buildable_area_m2'] == pytest.approx((16.5 - 2.4) * (33 - 12), abs=0.5)
+
+
+def test_a_corner_lot_fronts_on_its_shorter_street_line():
+    # By-law 8149/24, "Lot Line, Front". 1154 Meadowlane Cres got its front yard along its 33.6 m side.
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot = box(0, 0, 36, 18)
+    long_street, short_street = LineString([(-40, -8), (80, -8)]), LineString([(-9, -40), (-9, 60)])
+    dims = pickering_zoning.lot_dimensions(lot, [long_street, short_street])
+    yard = lambda value: {'value': value, 'unit': 'm'}
+    rules = {'zones': {'R1F': {'front_yard': yard(4.5), 'rear_yard': yard(7.5), 'interior_side_yard': yard(1.2),
+                               'exterior_side_yard': yard(2.7)}}, 'exceptions': {}}
+    found = lot_rules.apply_to_lot(lot, 'R1F', rules, [long_street, short_street], dims)
+    assert {side: v['applies'] for side, v in found['setbacks_by_side'].items()} == {
+        'W': 'front_yard', 'E': 'rear_yard', 'S': 'exterior_side_yard', 'N': 'interior_side_yard'}
+    assert found['corner_lot'] and found['buildable_area_m2'] == pytest.approx((36 - 12) * (18 - 3.9), abs=0.5)
