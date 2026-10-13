@@ -52,6 +52,15 @@ export type DocRef = {
   excerpts: { zone: string; page: number; text: string }[];
 };
 
+export type Provision = {
+  text: string;
+  measures: string[];
+  bound: "minimum" | "maximum" | null;
+  page: number;
+  file: string;
+  title: string;
+};
+
 export type StoredDoc = { title: string; url: string; file: string; pages?: number | null; kind?: string };
 
 export type Lookup = {
@@ -85,11 +94,17 @@ export type Lookup = {
       neighbourhood: Record<string, unknown>[];
       applicant_must_supply: string[];
     };
-    "3_proposed_development": { applicant_must_supply: string[]; check_against: string };
+    "3_proposed_development": {
+      applicant_must_supply: string[];
+      check_against: string;
+      zone_standards_in_bylaw_text: Record<string, Provision[]>;
+    };
     "4_site_characteristics": {
       servicing_nearby: Hit[];
       topography: Hit[];
       natural_heritage: Hit[];
+      adjacent_zoning: Hit[];
+      adjacent_zone_codes: string[];
       applicant_must_supply: string[];
     };
     "5_supporting_documents": {
