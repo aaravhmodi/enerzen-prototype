@@ -123,7 +123,7 @@ class Fetcher:
                 with urlopen(Request(url, data=body, headers={'User-Agent': USER_AGENT}), timeout=self.timeout) as r:
                     return r.read()
             except HTTPError as exc:
-                if exc.code < 500 or attempt == self.retries - 1:
+                if (exc.code < 500 and exc.code != 429) or attempt == self.retries - 1:
                     raise
             except (URLError, TimeoutError):
                 if attempt == self.retries - 1:
