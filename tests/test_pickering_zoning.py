@@ -44,6 +44,12 @@ LAYERS = {
 }
 
 
+REGION_FEATURES = [  # one centre in Pickering, one in Oshawa (outside the clip)
+    {'attributes': {'OBJECTID': 1, 'Name': 'Pickering City Centre'}, 'geometry': {'rings': [square(LON, LAT, 0.004)]}},
+    {'attributes': {'OBJECTID': 2, 'Name': 'Oshawa Centre'}, 'geometry': {'rings': [square(-78.86, 43.90, 0.004)]}},
+]
+
+
 def bylaw_pdf() -> bytes:
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer)
@@ -81,6 +87,28 @@ class FakeCity(BaseHTTPRequestHandler):
     def route(self, q):
         path = urlparse(self.path).path
         q = {k: v[0] for k, v in q.items()}
+        if path == '/region/rest/services/Open_Data':
+            return self.send({'services': [{'name': 'Open_Data/OfficialPlan_Map1', 'type': 'MapServer'}]})
+        region = '/region/rest/services/Open_Data/OfficialPlan_Map1/MapServer'
+        if path == region:
+            return self.send({'layers': [{'id': 0, 'name': 'Map 1 - Regional Centres'},
+                                         {'id': 1, 'name': 'Oak Ridges Moraine'}]})
+        if path.startswith(region + '/'):
+            layer_id = int(path[len(region) + 1:].split('/')[0])
+            features = [] if layer_id == 1 else REGION_FEATURES
+            if 'geometry' in q:  # honour the envelope: first vertex inside it
+                w, s_, e, n = map(float, q['geometry'].split(','))
+                features = [f for f in features if w <= f['geometry']['rings'][0][0][0] <= e
+                            and s_ <= f['geometry']['rings'][0][0][1] <= n]
+            if path.endswith('/query'):
+                if q.get('returnCountOnly'):
+                    return self.send({'count': len(features)})
+                if q.get('returnIdsOnly'):
+                    return self.send({'objectIdFieldName': 'OBJECTID', 'objectIds': [f['attributes']['OBJECTID'] for f in features]})
+                wanted = {int(i) for i in q['objectIds'].split(',')}
+                return self.send({'features': [f for f in REGION_FEATURES if f['attributes']['OBJECTID'] in wanted]})
+            return self.send({'name': ['Map 1 - Regional Centres', 'Oak Ridges Moraine'][layer_id], 'type': 'Feature Layer',
+                              'geometryType': 'esriGeometryPolygon', 'fields': []})
         base = '/arcgis/rest/services'
         if path == base:
             return self.send({'folders': ['public'], 'services': []})
@@ -129,7 +157,8 @@ def store(tmp_path_factory):
     threading.Thread(target=server.serve_forever, daemon=True).start()
     host = f'http://127.0.0.1:{server.server_port}'
     out = tmp_path_factory.mktemp('pickering')
-    manifest = scrape(out, arcgis_roots=[f'{host}/arcgis/rest/services'],
+    manifest = scrape(out, arcgis_roots=[f'{host}/arcgis/rest/services',
+                                         {'url': f'{host}/region/rest/services/Open_Data', 'label': 'Region'}],
                       document_pages=[f'{host}/site/zoning/', f'{host}/site/missing/'],
                       fetch=Fetcher(delay=0, retries=1), log=lambda *_: None)
     server.shutdown()
@@ -144,8 +173,8 @@ def use_store(store, monkeypatch):
 
 def test_scrape_downloads_every_layer_and_proves_it(store):
     out, manifest = store
-    assert {layer['category'] for layer in manifest['layers']} == {'zoning', 'parcels', 'rail', None}
-    assert len(json.loads((out / 'catalog.json').read_text())) == 4
+    assert {layer['category'] for layer in manifest['layers']} == {'zoning', 'parcels', 'rail', 'official_plan'}  # empty footprints skipped
+    assert len(json.loads((out / 'catalog.json').read_text())) == 6
     parcels = next(l for l in manifest['layers'] if l['category'] == 'parcels')
     assert parcels['features'] == parcels['expected'] == 2 and parcels['complete']  # the capped page was retried
     report = manifest['completeness']
@@ -244,7 +273,7 @@ def test_map_returns_the_lot_and_layers_in_wgs84(use_store):
     ring = result['parcel']['geometry']['coordinates'][0][0]
     assert all(abs(x - LON) < 0.001 and abs(y - LAT) < 0.001 for x, y in ring)
     layers = {l['category']: l for l in result['layers']}
-    assert set(layers) == {'parcels', 'zoning', 'rail'}
+    assert set(layers) == {'parcels', 'zoning', 'rail', 'official_plan'}
     assert {f['properties']['_zone'] for f in layers['zoning']['features']['features']} == {'R4', 'R3-7'}
     assert pickering_map(LAT, LON, radius_m=25)['layers'][-1]['category'] != 'rail'  # rail is ~190 m away
     json.dumps(result)
@@ -307,3 +336,16 @@ def test_zone_standards_and_neighbours(use_store):
 def test_exception_zones_search_their_parent_zone():
     from engine.pickering_zoning import zone_variants
     assert zone_variants(['R4-12', 'MU(SA)', 'A']) == ['R4-12', 'R4', 'MU(SA)', 'MU', 'A']
+
+
+def test_regional_layers_are_clipped_to_pickering(store):
+    out, manifest = store
+    regional = [l for l in manifest['layers'] if l['source'] == 'Region']
+    assert [(l['name'], l['category'], l['features']) for l in regional] == \
+        [('Map 1 - Regional Centres', 'official_plan', 1)]  # Oshawa left out; the empty Moraine layer skipped
+    assert not manifest['completeness']['not_downloaded']
+
+
+def test_regional_plan_shows_in_the_lot_review(use_store):
+    plan = zoning_lookup(CITY, LAT, LON)['steps']['2_existing_zoning_and_official_plan']['official_plan']
+    assert plan[0]['attributes']['Name'] == 'Pickering City Centre'
