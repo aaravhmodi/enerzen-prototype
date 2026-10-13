@@ -19,6 +19,7 @@ import shapely.ops
 from shapely import affinity
 from shapely.geometry import box
 
+LANE_KIND = re.compile(r'lane|garage at the rear', re.I)
 SETBACKS = ('front_yard', 'rear_yard', 'interior_side_yard', 'exterior_side_yard')
 LOT_STANDARDS = ('lot_frontage', 'lot_area', 'lot_coverage', 'building_height', 'landscaped_area')
 OPPOSITE = {'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E'}
@@ -56,7 +57,7 @@ def street_sides(parcel, roads: list, rotation_deg: float = 0.0) -> list[str]:
     return sides
 
 
-def resolve(code: str | None, rules: dict, frontage_m: float | None = None) -> dict:
+def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane_lot: bool = False) -> dict:
     """Each standard for a zone code: the zone table's value, replaced by any exception's."""
     if not code:
         return {}
@@ -76,6 +77,10 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None) -> d
         # single dwelling", "semi-detached dwelling"). The lot takes the widest kind its own frontage
         # reaches, measured with half a metre's grace, and the column is named beside each value.
         kinds = [k for k in (section.get('by_lot_type') or {}).get(designation, []) if 'lot_frontage' in k['provisions']]
+        # Kinds reached from a rear lane ("Lane single attached dwelling", "Integrated garage at the
+        # rear") are for lots with a lane behind them, and the others for lots without.
+        by_lane = [k for k in kinds if bool(LANE_KIND.search(k['type'])) == lane_lot]
+        kinds = by_lane or kinds
         fits = [k for k in kinds if frontage_m is not None and k['provisions']['lot_frontage']['value'] <= frontage_m + 0.5]
         if fits:
             kind = max(fits, key=lambda k: k['provisions']['lot_frontage']['value'])
@@ -99,10 +104,38 @@ def _envelope(parcel, rotation_deg: float, sides: dict):
     return affinity.rotate(upright.intersection(inner), rotation_deg, origin=centre)
 
 
-def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions: dict | None) -> dict:
-    """The lot's setbacks by side, the lot standards, checks of the lot itself, and the buildable area."""
+def attached_sides(parcel, rotation_deg: float, footprints: list) -> list[str]:
+    """Sides of the lot, in its own frame, where its building carries on across the lot line: the
+    common wall of a semi-detached or townhouse dwelling.
+
+    The building has to stand just beyond the line along it, not merely touch it: the City's footprints
+    and its parcel fabric sit up to a metre apart, so a detached house can appear to touch its lot line.
+    """
+    centre = parcel.centroid
+    minx, miny, maxx, maxy = affinity.rotate(parcel, -rotation_deg, origin=centre).bounds
+    beyond = {'W': box(minx - 2.5, miny, minx - 0.5, maxy), 'E': box(maxx + 0.5, miny, maxx + 2.5, maxy),
+              'S': box(minx, miny - 2.5, maxx, miny - 0.5), 'N': box(minx, maxy + 0.5, maxx, maxy + 2.5)}
+    sides = set()
+    for footprint in footprints:
+        if footprint.intersection(parcel).area >= 10:
+            upright = affinity.rotate(footprint, -rotation_deg, origin=centre)
+            sides |= {side for side, strip in beyond.items() if upright.intersection(strip).area >= 2}
+    return sorted(sides)
+
+
+def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions: dict | None,
+                 lanes: list | None = None, attached: list | None = None) -> dict:
+    """The lot's setbacks by side, the lot standards, checks of the lot itself, and the buildable area.
+
+    `lanes` are the centrelines of rear lanes, kept apart from `roads`: a lot fronts on its street,
+    and a lane behind it marks a lane-based lot. `attached` is attached_sides() for the lot.
+    """
     base, exceptions = split_zone(code) if code else (None, [])
-    streets = street_sides(parcel, roads, (dimensions or {}).get('rotation_deg', 0.0)) if parcel is not None else []
+    rotation = (dimensions or {}).get('rotation_deg', 0.0)
+    streets = street_sides(parcel, roads, rotation) if parcel is not None else []
+    behind = [s for s in street_sides(parcel, lanes, rotation) if s not in streets] if parcel is not None and lanes else []
+    if not streets:  # its only road is a street that happens to be called a lane
+        streets, behind = behind, []
     street = streets[0] if streets else (dimensions or {}).get('street_side')
     # A corner lot has a second street on a side next to (not opposite) the front.
     flank = next((s for s in streets[1:] if s not in (street, OPPOSITE.get(street))), None)
@@ -113,8 +146,9 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         if on_street(flank) < on_street(street):
             street, flank = flank, street
     through = bool(street and OPPOSITE[street] in streets)
+    lane_lot = bool(street and OPPOSITE[street] in behind)
     frontage = dimensions['width_m' if street in 'NS' else 'depth_m'] if dimensions and street else None
-    standards = resolve(code, rules, frontage)
+    standards = resolve(code, rules, frontage, lane_lot)
 
     by_side, missing = {}, []
     if street:
@@ -128,6 +162,11 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                                                  if k in rule} if rule else {'value': None})}
             if rule and key == 'exterior_side_yard' and 'exterior_side_yard' not in standards:
                 by_side[side]['note'] = 'No exterior side yard stated; the interior side yard is shown.'
+            if rule and key == 'interior_side_yard' and rule.get('common_wall') and side in (attached or ()):
+                # The by-law asks for no side yard along a common wall, and the City's building
+                # footprint shows this dwelling joined to its neighbour on this side.
+                by_side[side].update(value=0.0, stated=rule['value'],
+                                     note=f"Joined to the neighbouring dwelling on this side. {rule['common_wall']}")
     for key in SETBACKS + LOT_STANDARDS:
         if key not in standards and not (key == 'exterior_side_yard' and not flank):
             missing.append(key)
@@ -155,6 +194,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         'zone': base, 'zone_code': code, 'exceptions': exceptions,
         'exceptions_without_text': [x for x in exceptions if x not in rules.get('exceptions', {})],
         'street_side': street, 'flank_side': flank, 'corner_lot': bool(flank), 'through_lot': through,
+        'lane_lot': lane_lot, 'attached_sides': list(attached or ()),
         'setbacks_by_side': by_side,
         'standards': {k: {kk: v.get(kk) for kk in ('value', 'unit', 'bound', 'from', 'document', 'page', 'label',
                                                    'overrides', 'file')}

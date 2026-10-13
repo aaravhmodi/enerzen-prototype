@@ -219,3 +219,27 @@ def test_a_newer_exception_table_with_a_column_per_kind_of_lot_runs_over_the_pag
     assert wide['lot_area']['value'] == 300 and wide['rear_yard']['from'] == 'Exception X332, "12.0 m single dwelling" column'
     assert narrow['rear_yard']['value'] == 12.0  # 5.8 m measured reaches the 6.0 m lane lot with the half metre's grace
     assert resolve('S-SD-SA-3-X332', rules, 4.0) == {} and resolve('S-SD-SA-3-X332', rules) == {}
+
+
+def test_a_row_whose_label_the_table_lost_is_read_from_the_page_text():
+    # Table 12.3 at the foot of page 130: the reader returns the rear yard's rows without their label.
+    table = [['Requirement', 'A', 'Q'], ['Minimum Side Yard (m)\nResidential Uses', '-', '-'], ['', '3.0', '3.0'],
+             ['', '-', '-'], ['', '12.0', '12.0']]
+    text = 'Requirement A Q\nMinimum Side Yard (m) - -\nResidential Uses 3.0 3.0\nMinimum Rear Yard (m) - -\nResidential Uses 12.0 12.0'
+    found, _ = rules_from_table(table, text, {'page': 130})
+    assert found['A']['interior_side_yard']['value'] == 3.0 and found['Q']['rear_yard']['value'] == 12.0
+    assert found['A']['rear_yard']['label'] == 'Minimum Rear Yard (m) – Residential Uses'
+
+
+def test_the_common_wall_and_a_side_yard_on_a_street():
+    from scripts.zone_rules import rules_by_lot_type, rules_by_zone_row
+    kinds, _ = rules_by_lot_type([['', '', 'semi-\ndetached\ndwelling', 'Street\nsingle\nattached\ndwelling'],
+                                  ['', 'Lot Frontage\n(Minimum)', '7.5 m', '6.0 m'],
+                                  ['', 'Interior Side\nyard Width\n(Minimum)', '1.2 m, except where dwellings on abutting lots share a common wall', '1.2 m']], {})
+    side = [k['provisions']['interior_side_yard'] for k in kinds]
+    assert 'common wall' in side[0]['common_wall'] and 'common_wall' not in side[1]
+    table = [['Zone', 'Symbol', 'Minimum Lot\nFrontage', 'Minimum Yards', '', ''], ['', '', '', 'Front', 'Side', 'Rear'],
+             ['Detached', 'S1', '15 metres', '4.5 metres', '1.2 metres unless side yard abuts street then minimum shall be 2.7 metres', '7.5 metres'],
+             ['Detached', 'S2', '13.4 metres', '', '', '']]
+    s2 = rules_by_zone_row(table, {})['S2']  # Exception 215
+    assert (s2['interior_side_yard']['value'], s2['exterior_side_yard']['value']) == (1.2, 2.7)

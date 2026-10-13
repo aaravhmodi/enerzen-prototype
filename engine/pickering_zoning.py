@@ -146,6 +146,38 @@ def _lot_fabric(layers):
     return max((l for l in layers if l.meta['category'] == 'parcels'), key=lambda l: len(l.features), default=None)
 
 
+def _is_lane(attrs: dict) -> bool:
+    """A road the City names a lane ("Four Seasons Lane"): behind a lot, it is the lot's rear lane."""
+    # Its suffix is "Lane", or its full name ends in one; a street named "Lane Road" is not a lane.
+    return any(re.fullmatch(r'lane|laneway|ln', str(value).strip(), re.I) if re.search(r'suffix|sfx', key, re.I)
+               else re.search(r'\s(lane|laneway|ln)$', str(value).strip(), re.I)
+               for key, value in attrs.items() if value and re.search(r'name|suffix|sfx|street|label', key, re.I))
+
+
+def _streets_and_lanes(layers, geom, reach: float) -> tuple[list, list]:
+    """Road centrelines within reach of a lot, the lanes apart from the streets."""
+    streets, lanes = [], []
+    for layer in _street_layers(layers):
+        for i in layer.tree.query(geom.buffer(reach)):
+            attrs, road = layer.features[layer._indexed[int(i)]]
+            (lanes if _is_lane(attrs) else streets).append(road)
+    return streets, lanes
+
+
+def _footprints(layers, geom) -> list:
+    """The City's building footprints on a lot (it publishes the same layer under several services)."""
+    layer = next((l for l in layers if l.tree is not None and re.fullmatch(r'buildings?', l.meta['name'], re.I)), None)
+    return [layer.features[layer._indexed[int(i)]][1] for i in layer.tree.query(geom)] if layer else []
+
+
+def _apply_rules(layers, geom, code, rules) -> tuple[dict, dict | None]:
+    """A lot's standards and dimensions, using its streets, any rear lane and its building's footprint."""
+    streets, lanes = _streets_and_lanes(layers, geom, lot_rules.FRONTING_M + 100) if geom is not None else ([], [])
+    dims = lot_dimensions(geom, streets or lanes)
+    attached = lot_rules.attached_sides(geom, dims['rotation_deg'], _footprints(layers, geom)) if dims else []
+    return lot_rules.apply_to_lot(geom, code, rules, streets, dims, lanes, attached), dims
+
+
 def _street_layers(layers) -> list:
     """Road centrelines, which say where a street runs. The City's other "road" layers are curbs,
     labels and streetlights, and a curb near a side lot line made most lots look like corner lots."""
@@ -648,11 +680,9 @@ def lookup(latitude: float, longitude: float) -> dict:
     adjacent_zones = sorted({z for h in adjacent if (z := _pick(h['attributes'], r'^zone$', r'zone_?(code|cat|class)?$',
                                                                 r'zon', r'symbol'))} - set(zone_codes))
 
-    roads = [geom for layer in _street_layers(layers) for _, geom, _ in layer.near(point, 120)]
-    dimensions = lot_dimensions(parcel['_geom'] if parcel else None, roads)
     # The zone covering most of the lot governs it; its standards come from the by-law's tables.
     primary_zone = next((code for h in zoning if (code := _zone_code(h['attributes']))), None)
-    standards = lot_rules.apply_to_lot(parcel['_geom'] if parcel else None, primary_zone, zone_rules(), roads, dimensions)
+    standards, dimensions = _apply_rules(layers, parcel['_geom'] if parcel else None, primary_zone, zone_rules())
     envelope = standards.pop('_envelope')
 
     property_id = None
@@ -747,7 +777,7 @@ ALL_LOTS_COLUMNS = ['address', 'roll_number', 'pin', 'legal_description', 'zone_
                     'street_side', 'corner_lot', 'front_yard_m', 'rear_yard_m', 'interior_side_yard_m',
                     'exterior_side_yard_m', 'lot_frontage_min_m', 'lot_area_min_m2', 'max_height', 'max_coverage_pct',
                     'lot_width_m', 'lot_depth_m', 'lot_area_m2', 'buildable_area_m2', 'complete', 'missing',
-                    'sources', 'latitude', 'longitude']
+                    'lane_lot', 'attached_sides', 'sources', 'latitude', 'longitude']
 
 
 def _primary_zone(zoning_layers, geom):
@@ -768,20 +798,17 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
     _, layers = load_store()
     rules = zone_rules()
     zoning_layers = [l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None]
-    road_layers = _street_layers(layers)
     rows = []
     fabric = _lot_fabric(layers)
     for layer in [fabric] if fabric else []:
         for attrs, geom in layer.features:
             if geom is None or geom.area <= 0:
                 continue
-            roads = [r.features[r._indexed[int(i)]][1] for r in road_layers
-                     for i in r.tree.query(geom.buffer(lot_rules.FRONTING_M + 100))]
-            dims = lot_dimensions(geom, roads)
             code = _primary_zone(zoning_layers, geom)
-            lot = lot_rules.apply_to_lot(geom, code, rules, roads, dims)
+            lot, dims = _apply_rules(layers, geom, code, rules)
             std = lot['standards']
-            side = {v['applies']: v['value'] for v in lot['setbacks_by_side'].values()}
+            # The by-law's figure, also where a common wall takes the side yard to nothing on that side.
+            side = {v['applies']: v.get('stated', v['value']) for v in lot['setbacks_by_side'].values()}
             value = lambda key: (std.get(key) or {}).get('value')
             point = geom.representative_point()
             rows.append({
@@ -797,6 +824,7 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
                 'lot_width_m': (dims or {}).get('width_m'), 'lot_depth_m': (dims or {}).get('depth_m'),
                 'lot_area_m2': round(geom.area, 1), 'buildable_area_m2': lot['buildable_area_m2'],
                 'complete': lot['complete'], 'missing': ' '.join(lot['missing']),
+                'lane_lot': lot['lane_lot'], 'attached_sides': ' '.join(lot['attached_sides']),
                 'sources': '; '.join(sorted({f"{v.get('from')} p.{v.get('page')}" for v in std.values()
                                              if v.get('from')})),
                 'latitude': round(point.y / M_PER_DEG_LAT, 7), 'longitude': round(point.x / M_PER_DEG_LON, 7),

@@ -53,6 +53,10 @@ NOT_A_STANDARD = re.compile(r'encroach|project|shall mean', re.I)
 # What may come before a provision's name in its clause: an article, "minimum", a list mark.
 OPENS_THE_CLAUSE = re.compile(r'''(?:[\s,()\-–"'“”‘’•.]|\b(?:the|a|an|minimum|maximum|min|max|required)\b'''
                               r'''|\(?\b(?:[ivxlc]{1,4}|\d{1,2}|[a-z])[.)])*''', re.I)
+ABUTS_STREET = re.compile(r'abuts?\s+(?:a\s+)?street\D{0,40}?(\d+(?:\.\d+)?)\s*metres', re.I)
+# A table's footnote: "The minimum interior side yard shall be 0.0 m where the common wall of a
+# semi-detached dwelling abuts an interior side lot line being the adjoining wall of another..."
+COMMON_WALL_NOTE = re.compile(r'[^.]*interior side yard shall be 0(?:\.0)?\s*m\s+where the common wall[^.]*\.', re.I)
 LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
 LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max)\b\.?)*', re.I)
@@ -134,6 +138,21 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
             for zone, cell in zip(header[1:], row[1:]):
                 if zone:
                     put(zone.strip('()'), label, cell)
+        # A requirement the table reader lost the name of (the rural zones' rear yard, at the foot of
+        # its page) is read from the page's text instead: "Minimum Rear Yard (m) - -" and under it
+        # "Residential Uses 12.0 12.0", the first case stated.
+        named = [z.strip('()') for z in header[1:] if z]
+        lines = [' '.join(line.split()) for line in page_text.splitlines()]
+        for i, line in enumerate(lines):
+            key = provision_key(line)
+            if (key and len(named) == len(header) - 1 and re.search(r'(?:\s[-–])+$', line)
+                    and not any(key[0] in out.get(zone, {}) for zone in named)):
+                for below in lines[i + 1:i + 3]:
+                    cells = below.split()[-len(named):]
+                    if len(cells) == len(named) and any(parse_value(c) for c in cells) and                             all(parse_value(c) or c in '-–' for c in cells):
+                        for zone, cell in zip(named, cells):
+                            put(zone, f"{line.rstrip('-– ')} – {' '.join(below.split()[:-len(named)])}", cell)
+                        break
         return out, unparsed
     first_col = _zone_cells([r[0] for r in rows[1:]])
     if sum(1 for z in first_col if z) >= 1 and any(provision_key(c or '') for c in rows[0][1:]):
@@ -223,6 +242,10 @@ def rules_by_zone_row(table, source: dict) -> dict:
                 value = {**value, 'value': float(length.group(1)), 'unit': 'm'} if length else None
             if key and value:
                 rules.setdefault(key[0], {**value, 'bound': key[1], 'label': label, **source})
+            on_street = ABUTS_STREET.search(cell) if key and key[0] == 'interior_side_yard' else None
+            if on_street:  # "1.2 metres unless side yard abuts street then minimum shall be 2.7 metres"
+                rules.setdefault('exterior_side_yard', {'value': float(on_street.group(1)), 'unit': 'm', 'raw': cell,
+                                                        'bound': 'minimum', 'label': label, **source})
     return {zone: rules for zone, rules in out.items() if rules}
 
 
@@ -257,6 +280,8 @@ def rules_by_lot_type(table, source: dict, carried: list | None = None) -> tuple
             if value and (key[0].endswith('yard') or key[0] == 'lot_frontage'):
                 length = LENGTH.search(cell)
                 value = {**value, 'value': float(length.group(1)), 'unit': 'm'} if length else None
+            if value and key[0] == 'interior_side_yard' and re.search(r'common wall', cell, re.I):
+                value['common_wall'] = cell  # "...share a common wall, no interior side yard shall be required"
             if value:
                 kind['provisions'].setdefault(key[0], {**value, 'bound': key[1], 'label': row[label], **source})
     return kinds, types
@@ -408,6 +433,13 @@ def extract(documents: list[dict], store: Path) -> dict:
                                     for key, rule in theirs['provisions'].items():
                                         mine['provisions'].setdefault(key, rule)
                                 running = (code, named, number, types)
+                        # A footnote under a zone table, on its page or the one after: "The minimum
+                        # interior side yard shall be 0.0 m where the common wall of a semi-detached..."
+                        note = COMMON_WALL_NOTE.search(' '.join(page_text.split()))
+                        for rules in zones.values() if note else ():
+                            rule = rules.get('interior_side_yard') or {}
+                            if rule.get('file') == doc['file'] and rule.get('page') in (number, number - 1):
+                                rule['common_wall'] = note.group(0).strip()
                         page.flush_cache()
             except Exception as exc:
                 unparsed.append({'file': doc['file'], 'error': repr(exc)})

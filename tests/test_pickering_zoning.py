@@ -554,3 +554,28 @@ def test_a_corner_lot_fronts_on_its_shorter_street_line():
     assert {side: v['applies'] for side, v in found['setbacks_by_side'].items()} == {
         'W': 'front_yard', 'E': 'rear_yard', 'S': 'exterior_side_yard', 'N': 'interior_side_yard'}
     assert found['corner_lot'] and found['buildable_area_m2'] == pytest.approx((36 - 12) * (18 - 3.9), abs=0.5)
+
+
+def test_a_townhouse_on_a_rear_lane_fronts_its_street_and_has_no_yard_at_its_common_walls():
+    # 2670 Castlegate Crossing: 4.5 m wide, a street in front, Four Seasons Lane behind, and the City's
+    # footprint of the whole townhouse block running across both side lot lines.
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot, block = box(0, 0, 4.5, 26), box(-9, 6, 13.5, 18)
+    street, lane = LineString([(-40, -9), (40, -9)]), LineString([(-40, 30), (40, 30)])  # the lane is the nearer
+    dims = pickering_zoning.lot_dimensions(lot, [street])
+    attached = lot_rules.attached_sides(lot, dims['rotation_deg'], [block])
+    assert attached == ['E', 'W'] and lot_rules.attached_sides(lot, 0, [box(0.2, 6, 4.5, 18)]) == []  # touching is not joined
+    yard = lambda value, **more: {'value': value, 'unit': 'm', **more}
+    kinds = [{'type': kind, 'provisions': {'lot_frontage': yard(4.5), 'front_yard': yard(3.0), 'rear_yard': yard(rear),
+                                           'interior_side_yard': yard(1.5, common_wall='No side yard at a common wall.')}}
+             for kind, rear in (('Street townhouse dwelling', 7.0), ('Integrated garage at the rear of the dwelling', 6.0))]
+    rules = {'zones': {}, 'exceptions': {'X321': {'provisions': {}, 'by_lot_type': {'MU-MD-3': kinds}}}}
+    found = lot_rules.apply_to_lot(lot, 'MU-MD-3-X321', rules, [street], dims, [lane], attached)
+    sides = found['setbacks_by_side']
+    assert found['street_side'] == 'S' and found['lane_lot'] and sides['N']['value'] == 6.0  # the lane kind's rear yard
+    assert (sides['E']['value'], sides['E']['stated'], sides['W']['value']) == (0.0, 1.5, 0.0)
+    assert found['buildable_area_m2'] == pytest.approx(4.5 * (26 - 3 - 6), abs=0.5)
+    alone = lot_rules.apply_to_lot(lot, 'MU-MD-3-X321', rules, [street], dims, [], [])
+    assert alone['setbacks_by_side']['N']['value'] == 7.0 and alone['setbacks_by_side']['E']['value'] == 1.5
+    assert pickering_zoning._is_lane({'NAME': 'Four Seasons', 'SUFFIX': 'Lane'}) and not pickering_zoning._is_lane({'NAME': 'Lane', 'SUFFIX': 'Road'})
