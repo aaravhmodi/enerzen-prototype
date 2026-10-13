@@ -127,13 +127,19 @@ ZONE_FIELD = (r'^zone$', r'zone_?(code|cat|class)?$', r'zon', r'symbol')
 ZONE_CODE_FIELD = (r'^zone$', r'^zon(e|ing)_?(code|cat|category|class|symbol)$')
 
 
+_LOAD_LOCK = threading.Lock()
+
+
 def load_store():
     """(manifest, layers), or (None, []) before the first scrape. Reloads after a re-scrape."""
     root = store_dir()
     manifest = root / 'manifest.json'
     if not manifest.exists():
         return None, []
-    return _load(str(root), str(manifest.stat().st_mtime_ns))
+    # One load at a time: lru_cache lets every request that arrives during the first load start its
+    # own, and a few copies of the City's layers at once is more memory than the server has.
+    with _LOAD_LOCK:
+        return _load(str(root), str(manifest.stat().st_mtime_ns))
 
 
 def status() -> dict:
