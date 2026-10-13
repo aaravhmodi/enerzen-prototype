@@ -401,7 +401,7 @@ def zone_variants(codes: list[str]) -> list[str]:
     out = []
     for code in codes:
         # Pickering numbers site-specific exceptions X1, X2, …; each has its own section.
-        exceptions = re.findall(r'\bX\d+\b', code.upper().replace('-', ' '))
+        exceptions = [f'X{int(n)}' for n in re.findall(r'\bX\s?(\d+)\b', code.upper().replace('-', ' '))]
         for variant in (code, re.split(r'[-(/\s]', code)[0], *exceptions):
             if variant and variant not in out:
                 out.append(variant)

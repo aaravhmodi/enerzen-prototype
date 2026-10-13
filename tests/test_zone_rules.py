@@ -1,0 +1,96 @@
+"""Reading zone standards and exceptions out of by-law PDFs laid out the ways Pickering's are."""
+import json
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+
+from scripts.zone_rules import extract, parse_value, provision_key, rules_from_text
+
+STYLE = getSampleStyleSheet()
+
+
+def ruled(rows):
+    table = Table(rows)
+    table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.black)]))
+    return table
+
+
+def bylaw_pdf(path):
+    story = [
+        Paragraph('Table 7: Lot and Building Requirements - Low Density Residential Zones', STYLE['Heading2']),
+        ruled([['Requirement', 'R3', 'R4', 'R5'],
+               ['Minimum Lot Frontage', '18.0 m', '15.0 m', '12.0 m'],
+               ['Minimum Lot Area', '550 m2', '460 m2', '370 m2'],
+               ['Minimum Front Yard', '7.5 m', '6.0 m', '4.5 m'],
+               ['Minimum Interior Side Yard', '1.5 m', '1.2 m', '1.2 m'],
+               ['Minimum Exterior Side Yard', '4.5 m', '4.5 m', '2.7 m'],
+               ['Minimum Rear Yard', '7.5 m', '7.5 m', '7.0 m'],
+               ['Maximum Lot Coverage', '33%', '38%', '40%'],
+               ['Maximum Building Height', '9.0 m', '9.0 m', '12.0 m']]),
+        PageBreak(),
+        Paragraph('Table 9: Lot and Building Requirements', STYLE['Heading2']),
+        ruled([['Zone', 'Minimum Front Yard', 'Minimum Rear Yard', 'Maximum Height'],
+               ['RM1', '4.5 m', '6.0 m', '12.5 m'],
+               ['RM2', '3.0 m', '6.0 m', 'N/A']]),
+        PageBreak(),
+        Paragraph('Table 12: MU1 Zone Requirements', STYLE['Heading2']),
+        ruled([['Minimum Front Yard', '0.0 m'], ['Minimum Rear Yard', '7.5 m'], ['Maximum Building Height', '25 m'],
+               ['Bicycle parking ratio', '0.5 per unit']]),
+        PageBreak(),
+        Paragraph('Section 17 Exceptions', STYLE['Heading2']),
+        Paragraph('X 12', STYLE['Normal']),
+        Paragraph('Notwithstanding Table 7, for lands zoned R4-X12: the minimum front yard shall be 4.5 metres; '
+                  'the maximum lot coverage shall be 45%.', STYLE['Normal']),
+        Spacer(1, 12),
+        Paragraph('X 446', STYLE['Normal']),
+        Paragraph('Minimum rear yard: 370 metres.', STYLE['Normal']),
+    ]
+    SimpleDocTemplate(str(path), pagesize=letter).build(story)
+
+
+def pages_of(path):
+    from pypdf import PdfReader
+    return [p.extract_text() or '' for p in PdfReader(path).pages]
+
+
+def test_tables_in_every_orientation_and_exceptions(tmp_path):
+    pdf = tmp_path / 'docs' / 'bylaw-8149-24.pdf'
+    pdf.parent.mkdir()
+    bylaw_pdf(pdf)
+    (tmp_path / 'docs' / 'bylaw.pages.json').write_text(json.dumps(pages_of(pdf)))
+    rules = extract([{'kind': 'pdf', 'title': 'Zoning By-law 8149/24', 'url': 'u', 'file': 'docs/bylaw-8149-24.pdf',
+                      'text_file': 'docs/bylaw.pages.json'}], tmp_path)
+    r4 = rules['zones']['R4']
+    assert {k: (v['value'], v['unit'], v['bound']) for k, v in r4.items()} == {
+        'lot_frontage': (15.0, 'm', 'minimum'), 'lot_area': (460.0, 'm2', 'minimum'),
+        'front_yard': (6.0, 'm', 'minimum'), 'interior_side_yard': (1.2, 'm', 'minimum'),
+        'exterior_side_yard': (4.5, 'm', 'minimum'), 'rear_yard': (7.5, 'm', 'minimum'),
+        'lot_coverage': (38.0, '%', 'maximum'), 'building_height': (9.0, 'm', 'maximum')}
+    assert r4['front_yard']['page'] == 1 and r4['front_yard']['document'] == 'Zoning By-law 8149/24'
+    assert rules['zones']['RM2']['front_yard']['value'] == 3.0 and 'building_height' not in rules['zones']['RM2']
+    assert rules['zones']['MU1']['building_height']['value'] == 25 and rules['zones']['MU1']['front_yard']['page'] == 3
+    assert any(u['label'] == 'Bicycle parking ratio' for u in rules['unparsed'])  # numeric, unplaced, reported
+    x12 = rules['exceptions']['X12']
+    assert x12['provisions']['front_yard']['value'] == 4.5 and x12['provisions']['lot_coverage']['value'] == 45
+    assert x12['page'] == 4
+    assert rules['exceptions']['X446']['provisions']['rear_yard']['value'] == 370
+
+
+def test_older_exception_headings_and_prose():
+    from scripts.zone_rules import exceptions_from_pages
+    found = exceptions_from_pages(['Exception Zone 1 (By-law 300-75)\nMinimum side yard 1.8 metres\n'
+                                   'Exception Zone 2\nMaximum height of 2 storeys'], {'file': 'f'})
+    assert found['X1']['provisions']['interior_side_yard']['value'] == 1.8
+    assert found['X2']['provisions']['building_height'] == {**found['X2']['provisions']['building_height'],
+                                                            'value': 2.0, 'unit': 'storeys', 'bound': 'maximum'}
+
+
+def test_labels_and_values():
+    assert provision_key('Min. Exterior Side Yard (corner lot)') == ('exterior_side_yard', 'minimum')
+    assert provision_key('Minimum Interior Side Yard') == ('interior_side_yard', 'minimum')
+    assert provision_key('Parking spaces') is None
+    assert parse_value('N/A') is None and parse_value('–') is None
+    assert parse_value('7,5 m')['value'] == 7.5
+    assert rules_from_text('the minimum rear yard shall be 7.5 metres', {})['rear_yard']['value'] == 7.5

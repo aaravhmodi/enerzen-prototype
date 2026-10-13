@@ -36,6 +36,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin, urlparse
 from urllib.request import Request, urlopen
 
+try:  # run as scripts/scrape_pickering_zoning.py, or imported as scripts.scrape_pickering_zoning
+    from zone_rules import extract as extract_zone_rules
+except ImportError:
+    from scripts.zone_rules import extract as extract_zone_rules
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = ROOT / 'data' / 'municipal' / 'pickering'
 
@@ -464,13 +469,29 @@ def bylaw_numbers_in(layer_path: Path) -> set[str]:
     return numbers
 
 
-def completeness(out: Path, catalog: list, layers: list, documents: list, errors: list) -> dict:
+def zone_codes_in(layer_path: Path) -> set[str]:
+    """Every zone symbol on the City's zoning layer, as written there (R4, R4-X12, MU1(H))."""
+    codes = set()
+    for feature in json.loads(layer_path.read_text(encoding='utf-8'))['features']:
+        props = feature.get('properties') or {}
+        key = next((k for k in props if re.fullmatch(r'zone|zone_?(code|cat|class|symbol)?|zoning', k, re.I)), None) \
+            or next((k for k in props if re.search(r'zon|symbol', k, re.I)), None)
+        if key and props[key]:
+            codes.add(str(props[key]).strip())
+    return codes
+
+
+def completeness(out: Path, catalog: list, layers: list, documents: list, errors: list, rules: dict | None = None) -> dict:
     """Everything that would make this copy less than all of the City's published data."""
     downloaded = {l['url'] for l in layers}
-    cited = set()
+    cited, mapped_zones = set(), set()
     for layer in layers:
         if layer['category'] == 'zoning':
             cited |= bylaw_numbers_in(out / layer['file'])
+            mapped_zones |= zone_codes_in(out / layer['file'])
+    rules = rules or {'zones': {}, 'exceptions': {}}
+    bases = {re.split(r'[-(/\s]', code)[0].upper() for code in mapped_zones} - {''}
+    mapped_exceptions = {f'X{int(n)}' for code in mapped_zones for n in re.findall(r'\bX\s?(\d+)\b', code.upper())}
     labels = ' '.join(f"{d['title']} {d['url']}" for d in documents)
     texts = ' '.join(Path(d['file']).name for d in documents)
     missing_bylaws = sorted(n for n in cited if not re.search(rf'(?<!\d){re.escape(n)}(?!\d)', f'{labels} {texts}'))
@@ -482,12 +503,17 @@ def completeness(out: Path, catalog: list, layers: list, documents: list, errors
                                'expected': l['expected'], 'server_count': l['server_count']}
                               for l in layers if not l['complete']],
         'cited_bylaws': sorted(cited), 'missing_bylaws': missing_bylaws,
+        'mapped_zones': len(bases), 'zones_with_standards': len(bases & set(rules['zones'])),
+        'zones_without_standards': sorted(bases - set(rules['zones'])),
+        'exceptions_without_text': sorted(mapped_exceptions - set(rules['exceptions']),
+                                          key=lambda c: int(c[1:])),
         'pdfs_without_text': [d['url'] for d in documents if d['kind'] == 'pdf' and 'text_file' not in d],
         'pdfs_with_blank_pages': [{'url': d['url'], 'blank_pages': d['blank_pages']}
                                   for d in documents if d.get('blank_pages')],
         'errors': len(errors),
     }
     report['complete'] = not (report['not_downloaded'] or report['incomplete_layers'] or missing_bylaws
+                              or report['zones_without_standards'] or report['exceptions_without_text']
                               or report['pdfs_without_text'] or report['pdfs_with_blank_pages'] or errors)
     return report
 
@@ -551,12 +577,16 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
         log('council by-laws')
         documents += collect_council_bylaws(fetch, out, escribe, errors, ocr=ocr,
                                             docs_dir=out / snapshot / 'documents' / 'council')
-    report = completeness(out, catalog, downloaded, documents, errors)
+    log('zone standards')
+    rules = extract_zone_rules(documents, out)
+    _write_json(out / snapshot / 'zone_rules.json', rules)
+    report = completeness(out, catalog, downloaded, documents, errors, rules)
     manifest = {
         'municipality': 'Pickering',
         'retrieved_at': started.isoformat(timespec='seconds'),
         'finished_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'snapshot': str(snapshot), 'catalog_file': str(snapshot / 'catalog.json'),
+        'zone_rules_file': str(snapshot / 'zone_rules.json'),
         'arcgis_roots': sources, 'document_pages': document_pages,
         'layers': downloaded, 'documents': documents, 'errors': errors,
         'catalog_layers': len(catalog), 'completeness': report,
@@ -623,6 +653,9 @@ def main(argv=None):
                       'complete': report['complete'],
                       'incomplete_layers': report['incomplete_layers'],
                       'missing_bylaws': report['missing_bylaws'],
+                      'zones_with_standards': f"{report['zones_with_standards']} of {report['mapped_zones']}",
+                      'zones_without_standards': report['zones_without_standards'],
+                      'exceptions_without_text': report['exceptions_without_text'][:50],
                       'pdfs_with_blank_pages': len(report['pdfs_with_blank_pages'])}, indent=1))
     if not manifest['layers']:
         return 1
