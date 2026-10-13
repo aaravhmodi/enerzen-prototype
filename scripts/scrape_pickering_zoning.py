@@ -44,7 +44,13 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = ROOT / 'data' / 'municipal' / 'pickering'
 
-ARCGIS_ROOTS = ['https://maps.pickering.ca/arcgisinter/rest/services']
+ARCGIS_ROOTS = [
+    'https://maps.pickering.ca/arcgisinter/rest/services',
+    # The zoning polygons and the parcel fabric are only here, behind the City's interactive zoning
+    # map. The ArcGIS Online account is shared with other organizations, hence the name filter.
+    {'label': 'City of Pickering zoning map (ArcGIS Online)', 'only': r'/Pickering_', 'bbox': None,
+     'url': 'https://services7.arcgis.com/TuQ8KXxdnKZCJwrs/arcgis/rest/services'},
+]
 # West, south, east, north in WGS84: the City with a margin. Sources beyond the
 # City's own server are clipped to it, so a provincial layer brings only Pickering.
 PICKERING_BBOX = (-79.23, 43.79, -78.95, 44.04)
@@ -75,6 +81,8 @@ DOCUMENT_PAGES = [
 ]
 # Council meetings, where every amendment to the zoning by-law is passed as a by-law.
 ESCRIBE = 'https://pub-pickering.escribemeetings.com'
+# The City files its by-laws in Laserfiche: a link opens a viewer page, and this address returns the PDF behind it.
+WEBLINK = re.compile(r'(https://corporate\.pickering\.ca/WebLink)/DocView\.aspx\?id=(\d+)', re.I)
 ESCRIBE_SINCE = '2024-12-01'
 ZONING_BYLAW_TEXT = re.compile(r'8149/24|zoning by-?law|amend\w* (by-?law|schedule)|zone (category|symbol)', re.I)
 DOCUMENT_LINK = re.compile(r'zoning|by-?law|official[-_ ]?plan|planning[-_ ]statement|greenbelt|moraine|seaton'
@@ -164,8 +172,8 @@ def walk_services(fetch: Fetcher, root: str) -> list[str]:
         folder = folders.pop()
         listing = fetch.json(f'{base}/{folder}'.rstrip('/'))
         # Folder names are listed in full from the root, and relative to the folder elsewhere.
-        folders += [f if '/' in f or not folder else f'{folder}/{f}' for f in listing.get('folders', [])]
-        for service in listing.get('services', []):
+        folders += [f if '/' in f or not folder else f'{folder}/{f}' for f in listing.get('folders') or []]
+        for service in listing.get('services') or []:
             if service.get('type') in ('MapServer', 'FeatureServer'):
                 found.append(f"{base}/{service['name']}/{service['type']}")
     return sorted(set(found))
@@ -369,7 +377,11 @@ def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list,
             for link, text in page_links(url, html_text):
                 same_site = urlparse(link).netloc == urlparse(url).netloc
                 described = DOCUMENT_LINK.search(f'{link} {text}')
-                if link.lower().split('?')[0].endswith('.pdf') and (planning_page or described):
+                filed = WEBLINK.match(link)
+                if filed and (planning_page or described):
+                    queue.append((f'{filed.group(1)}/ElectronicFile.aspx?docid={filed.group(2)}&dbid=1&repo=PICKERING',
+                                  text or f'By-law document {filed.group(2)}', depth + 1))
+                elif link.lower().split('?')[0].endswith('.pdf') and (planning_page or described):
                     queue.append((link, text or Path(urlparse(link).path).name, depth + 1))
                 elif same_site and planning_page and PAGINATION.search(f'{text} {urlparse(link).query}') \
                         and link.split('?')[0] == url.split('?')[0]:

@@ -38,8 +38,9 @@ UNITS = {'m': 'm', 'metre': 'm', 'metres': 'm', 'meter': 'm', 'meters': 'm', 'm2
          'ha': 'ha', 'hectares': 'ha'}
 VALUE = re.compile(r'(\d+(?:[.,]\d+)?)\s*(square metres|sq\.? ?m|m2|m²|metres?|meters?|m\b|%|per ?cent|storeys?|ha\b|hectares)?',
                    re.I)
-# Zone symbols: R4, RM2, C1, MU1, SA, A, OS-HL, (H)… but not ordinary words or units.
-ZONE = re.compile(r'^\(?[A-Z]{1,4}[0-9]{0,2}(?:-[A-Z0-9]{1,3})?\)?$')
+# Zone symbols: R4, R1A, RM2, C1, MU1, SLD2M, SA, A, OS-HL, (H)… but not ordinary words or units.
+ZONE_TOKEN = r'[A-Z]{1,5}(?:[0-9]{1,2}[A-Z]{0,2})?(?:-[A-Z0-9]{1,3})?'
+ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
 NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.'}
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
@@ -63,7 +64,10 @@ def parse_value(cell):
     if not match:
         return None
     unit = (match.group(2) or '').lower().replace('.', '')
-    return {'value': float(match.group(1).replace(',', '.')), 'unit': UNITS.get(unit, unit or None), 'raw': text}
+    number = match.group(1)
+    # "3,000" is three thousand; "7,5" is a decimal comma.
+    number = number.replace(',', '' if re.fullmatch(r'\d{1,3},\d{3}', number) else '.')
+    return {'value': float(number), 'unit': UNITS.get(unit, unit or None), 'raw': text}
 
 
 def _zone_cells(row):
@@ -79,7 +83,7 @@ def _title_zones(text: str) -> list[str]:
     found = []
     for line in text.splitlines()[:12]:
         if re.search(r'zone|table|requirement', line, re.I):
-            for token in re.findall(r'\b[A-Z]{1,4}\d{0,2}(?:-[A-Z0-9]{1,3})?\b', line):
+            for token in re.findall(rf'\b{ZONE_TOKEN}\b', line):
                 if token not in NOT_ZONES and token not in found and not token.isdigit():
                     found.append(token)
     return found

@@ -495,3 +495,10 @@ def test_every_stored_lot_gets_its_setbacks(use_store):
     assert coverage['lots'] == 2 and coverage['complete'] == 2 and coverage['corner_lots'] == 1
     csv_text = pickering_setbacks_csv().body.decode()
     assert csv_text.splitlines()[0].startswith('address,roll_number,pin') and '1 Test St' in csv_text
+
+
+def test_zone_code_joins_the_exception_field_and_ignores_overlays():
+    # The City's zoning layer keeps the exception number in its own field.
+    assert pickering_zoning._zone_code({'ZONING_CODE': 'R1G', 'EXCEPTION_NUM': '146'}) == 'R1G-X146'
+    assert pickering_zoning._zone_code({'ZONING_CODE': 'A', 'EXCEPTION_NUM': None}) == 'A'
+    assert pickering_zoning._zone_code({'IPZ_ID': 3, 'IPZType': 'IPZ-1'}) is None  # Intake Protection Zones

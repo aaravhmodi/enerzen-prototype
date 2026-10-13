@@ -6,7 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 
-from scripts.zone_rules import extract, parse_value, provision_key, rules_from_text
+from scripts.zone_rules import extract, parse_value, provision_key, rules_from_table, rules_from_text
 
 STYLE = getSampleStyleSheet()
 
@@ -94,3 +94,13 @@ def test_labels_and_values():
     assert parse_value('N/A') is None and parse_value('–') is None
     assert parse_value('7,5 m')['value'] == 7.5
     assert rules_from_text('the minimum rear yard shall be 7.5 metres', {})['rear_yard']['value'] == 7.5
+
+
+def test_real_bylaw_symbols_and_thousands():
+    # By-law 8149/24: zones named R1A to R1I across the top, and "3,000" m2 lot areas.
+    table = [['Requirement', 'R1A', 'R1G'],
+             ['Minimum Lot Area (m2)', '3,000', '400.0'],
+             ['Minimum Front Yard (m)', '9.0', '4.5(1)']]
+    found, _ = rules_from_table(table, '', {'page': 99})
+    assert found['R1A']['lot_area']['value'] == 3000 and found['R1G']['front_yard']['value'] == 4.5
+    assert parse_value('7,5 m')['value'] == 7.5

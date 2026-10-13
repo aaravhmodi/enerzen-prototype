@@ -122,6 +122,9 @@ def zone_rules() -> dict:
 
 
 ZONE_FIELD = (r'^zone$', r'zone_?(code|cat|class)?$', r'zon', r'symbol')
+# Fields that hold a zone symbol, strictly: an overlay such as "Intake Protection Zones" has none,
+# so it never governs a lot.
+ZONE_CODE_FIELD = (r'^zone$', r'^zon(e|ing)_?(code|cat|category|class|symbol)$')
 
 
 def load_store():
@@ -310,6 +313,15 @@ def document_group(doc: dict) -> str:
         if re.search(pattern, label, re.I):
             return group
     return 'other'
+
+
+def _zone_code(attrs: dict) -> str | None:
+    """A zoning polygon's symbol with its exception numbers appended ("R4-X12"), as lot_rules reads it."""
+    code = _pick(attrs, *ZONE_CODE_FIELD)
+    if not code:
+        return None
+    numbers = re.findall(r'\d+', _pick(attrs, r'^exception') or '')
+    return '-'.join([code] + [f'X{int(n)}' for n in numbers])
 
 
 def _grouped_documents(manifest: dict) -> dict:
@@ -599,7 +611,7 @@ def lookup(latitude: float, longitude: float) -> dict:
              for _, geom, _ in layer.near(point, 120)]
     dimensions = lot_dimensions(parcel['_geom'] if parcel else None, roads)
     # The zone covering most of the lot governs it; its standards come from the by-law's tables.
-    primary_zone = _pick(zoning[0]['attributes'], *ZONE_FIELD) if zoning else None
+    primary_zone = next((code for h in zoning if (code := _zone_code(h['attributes']))), None)
     standards = lot_rules.apply_to_lot(parcel['_geom'] if parcel else None, primary_zone, zone_rules(), roads, dimensions)
     envelope = standards.pop('_envelope')
 
@@ -705,8 +717,9 @@ def _primary_zone(zoning_layers, geom):
         for i in layer.tree.query(geom):
             attrs, zone_geom = layer.features[layer._indexed[int(i)]]
             overlap = zone_geom.intersection(geom).area if geom.area > 0 else float(zone_geom.contains(geom))
-            if overlap > share:
-                best, share = _pick(attrs, *ZONE_FIELD), overlap
+            code = _zone_code(attrs)
+            if code and overlap > share:
+                best, share = code, overlap
     return best
 
 
