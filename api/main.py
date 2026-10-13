@@ -8,6 +8,8 @@ Run: uvicorn api.main:app --reload
 import base64
 import dataclasses
 import os
+import threading
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -36,7 +38,14 @@ from engine.soft import SOFT_COST_FRACTION, permit_class, soft_cost, soft_timeli
 from engine.regulatory import toronto_zoning_lookup
 from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
 
-app = FastAPI(title="EnerZen API")
+@asynccontextmanager
+async def lifespan(_app):
+    # Load the stored Pickering layers in the background so the first lot lookup is quick.
+    threading.Thread(target=pickering_zoning.warm, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="EnerZen API", lifespan=lifespan)
 
 # A self-hosted web app (see compose.yaml) names its own address here, comma-separated.
 EXTRA_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
