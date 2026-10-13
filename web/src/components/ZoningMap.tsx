@@ -1,0 +1,253 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import type { Feature, Geometry, Position } from "geojson";
+import { CATEGORY_LABELS, MAPBOX_TOKEN, type MapData, type MapLayer } from "@/lib/zoning";
+
+type Props = {
+  data: MapData | null;
+  hidden: Set<string>;
+  onPick: (latitude: number, longitude: number) => void;
+};
+
+const PICKERING_CENTER: [number, number] = [-79.09, 43.87];
+
+function kind(layer: MapLayer): "fill" | "line" | "circle" {
+  const declared = layer.geometry_type ?? "";
+  const first = layer.features.features[0]?.geometry?.type ?? "";
+  const type = `${declared} ${first}`;
+  if (/Polygon/i.test(type)) return "fill";
+  if (/Polyline|LineString/i.test(type)) return "line";
+  return "circle";
+}
+
+function positions(geometry: Geometry | null | undefined): Position[] {
+  if (!geometry) return [];
+  switch (geometry.type) {
+    case "Point":
+      return [geometry.coordinates];
+    case "MultiPoint":
+    case "LineString":
+      return geometry.coordinates;
+    case "MultiLineString":
+    case "Polygon":
+      return geometry.coordinates.flat();
+    case "MultiPolygon":
+      return geometry.coordinates.flat(2);
+    case "GeometryCollection":
+      return geometry.geometries.flatMap(positions);
+  }
+}
+
+function bounds(feature: Feature | null): mapboxgl.LngLatBoundsLike | null {
+  const points = positions(feature?.geometry);
+  if (!points.length) return null;
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
+  return [
+    [Math.min(...xs), Math.min(...ys)],
+    [Math.max(...xs), Math.max(...ys)],
+  ];
+}
+
+function popupContent(
+  hits: mapboxgl.GeoJSONFeature[],
+  names: Map<string, string>,
+  lngLat: mapboxgl.LngLat,
+  onPick: Props["onPick"],
+) {
+  const root = document.createElement("div");
+  root.className = "zoning-popup";
+  const seen = new Set<string>();
+  for (const hit of hits) {
+    const source = String(hit.source);
+    const key = `${source}:${hit.id ?? JSON.stringify(hit.properties)}`;
+    if (seen.has(key) || !names.has(source)) continue;
+    seen.add(key);
+    const block = document.createElement("section");
+    const title = document.createElement("strong");
+    title.textContent = names.get(source) ?? source;
+    block.append(title);
+    const list = document.createElement("dl");
+    const entries = Object.entries(hit.properties ?? {}).filter(([k]) => !k.startsWith("_"));
+    for (const [k, v] of entries.slice(0, 10)) {
+      const dt = document.createElement("dt");
+      dt.textContent = k;
+      const dd = document.createElement("dd");
+      dd.textContent = String(v);
+      list.append(dt, dd);
+    }
+    block.append(list);
+    root.append(block);
+    if (seen.size >= 4) break;
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Review this lot";
+  button.onclick = () => onPick(lngLat.lat, lngLat.lng);
+  root.append(button);
+  return root;
+}
+
+export default function ZoningMap({ data, hidden, onPick }: Props) {
+  const container = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const added = useRef<{ layers: string[]; sources: string[]; byCategory: Map<string, string[]> }>({
+    layers: [],
+    sources: [],
+    byCategory: new Map(),
+  });
+  const names = useRef(new Map<string, string>());
+  const pick = useRef(onPick);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    pick.current = onPick;
+  }, [onPick]);
+
+  useEffect(() => {
+    if (!MAPBOX_TOKEN || !container.current || map.current) return;
+    mapboxgl.accessToken = MAPBOX_TOKEN;
+    const instance = new mapboxgl.Map({
+      container: container.current,
+      style: "mapbox://styles/mapbox/light-v11",
+      center: PICKERING_CENTER,
+      zoom: 11.5,
+    });
+    instance.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
+    instance.addControl(new mapboxgl.ScaleControl({ unit: "metric" }), "bottom-left");
+    instance.on("load", () => setReady(true));
+    instance.on("click", (event) => {
+      const hits = instance.queryRenderedFeatures(event.point);
+      new mapboxgl.Popup({ maxWidth: "320px" })
+        .setLngLat(event.lngLat)
+        .setDOMContent(popupContent(hits, names.current, event.lngLat, (lat, lng) => pick.current(lat, lng)))
+        .addTo(instance);
+    });
+    map.current = instance;
+    return () => {
+      instance.remove();
+      map.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !ready) return;
+    const state = added.current;
+    for (const id of state.layers) if (instance.getLayer(id)) instance.removeLayer(id);
+    for (const id of state.sources) if (instance.getSource(id)) instance.removeSource(id);
+    state.layers = [];
+    state.sources = [];
+    state.byCategory = new Map();
+    names.current = new Map();
+    if (!data || data.status !== "available") return;
+
+    const track = (category: string, id: string) => {
+      state.layers.push(id);
+      state.byCategory.set(category, [...(state.byCategory.get(category) ?? []), id]);
+    };
+
+    data.layers.forEach((layer, i) => {
+      const source = `zn-src-${i}`;
+      const color = layer.color ?? "#64748b";
+      instance.addSource(source, { type: "geojson", data: layer.features });
+      state.sources.push(source);
+      names.current.set(source, `${CATEGORY_LABELS[layer.category] ?? layer.category} · ${layer.name}`);
+      const shape = kind(layer);
+      if (shape === "fill") {
+        const base = layer.category === "zoning" || layer.category === "official_plan" ? 0.16 : 0.22;
+        instance.addLayer({
+          id: `${source}-fill`,
+          type: "fill",
+          source,
+          paint: { "fill-color": color, "fill-opacity": layer.category === "parcels" ? 0.02 : base },
+        });
+        instance.addLayer({
+          id: `${source}-line`,
+          type: "line",
+          source,
+          paint: { "line-color": color, "line-width": layer.category === "parcels" ? 0.6 : 1.2 },
+        });
+        track(layer.category, `${source}-fill`);
+        track(layer.category, `${source}-line`);
+        if (layer.category === "zoning") {
+          instance.addLayer({
+            id: `${source}-label`,
+            type: "symbol",
+            source,
+            layout: { "text-field": ["coalesce", ["get", "_zone"], ""], "text-size": 12 },
+            paint: { "text-color": "#302936", "text-halo-color": "#ffffff", "text-halo-width": 1.4 },
+          });
+          track(layer.category, `${source}-label`);
+        }
+      } else if (shape === "line") {
+        instance.addLayer({
+          id: `${source}-line`,
+          type: "line",
+          source,
+          paint: {
+            "line-color": color,
+            "line-width": layer.category === "rail" ? 3 : 1.6,
+            ...(layer.category === "rail" ? { "line-dasharray": [2, 1] } : {}),
+          },
+        });
+        track(layer.category, `${source}-line`);
+      } else {
+        instance.addLayer({
+          id: `${source}-circle`,
+          type: "circle",
+          source,
+          paint: { "circle-color": color, "circle-radius": 3.5, "circle-stroke-color": "#fff", "circle-stroke-width": 1 },
+        });
+        track(layer.category, `${source}-circle`);
+      }
+    });
+
+    if (data.parcel) {
+      instance.addSource("zn-parcel", { type: "geojson", data: data.parcel });
+      state.sources.push("zn-parcel");
+      names.current.set("zn-parcel", "Selected lot");
+      instance.addLayer({
+        id: "zn-parcel-fill",
+        type: "fill",
+        source: "zn-parcel",
+        paint: { "fill-color": "#4c405b", "fill-opacity": 0.18 },
+      });
+      instance.addLayer({
+        id: "zn-parcel-line",
+        type: "line",
+        source: "zn-parcel",
+        paint: { "line-color": "#211d27", "line-width": 3 },
+      });
+      state.layers.push("zn-parcel-fill", "zn-parcel-line");
+    }
+
+    const box = bounds(data.parcel);
+    if (box) instance.fitBounds(box, { padding: 120, maxZoom: 19, duration: 900 });
+    else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17, duration: 900 });
+  }, [data, ready]);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !ready) return;
+    for (const [category, ids] of added.current.byCategory) {
+      for (const id of ids) {
+        if (instance.getLayer(id)) instance.setLayoutProperty(id, "visibility", hidden.has(category) ? "none" : "visible");
+      }
+    }
+  }, [hidden, data, ready]);
+
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div className="zoning-map zoning-map--empty" role="note">
+        <p>
+          Add <code>NEXT_PUBLIC_MAPBOX_TOKEN</code> to show the map. The lot review beside it works without one.
+        </p>
+      </div>
+    );
+  }
+  return <div ref={container} className="zoning-map" aria-label="Map of the selected lot and its zoning layers" />;
+}

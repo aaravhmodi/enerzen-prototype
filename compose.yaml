@@ -1,5 +1,6 @@
 # Runs the API and the web app on a home server, published on its Tailscale address
-# only. Set TAILSCALE_IP (e.g. TAILSCALE_IP=100.76.57.23) and OPENAI_KEY in .env.
+# only. Set TAILSCALE_IP (e.g. TAILSCALE_IP=100.76.57.23) and OPENAI_KEY in .env, and
+# MAPBOX_TOKEN (a public pk.… token) for the zoning map at /zoning.
 #
 # Pickering zoning data is scraped onto this server, into ./municipal-data/pickering
 # (override with PICKERING_DATA_HOST_DIR), and survives rebuilds:
@@ -22,6 +23,7 @@ services:
       context: web
       args:
         NEXT_PUBLIC_API_URL: http://${TAILSCALE_IP}:8001
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${MAPBOX_TOKEN:-}
     restart: unless-stopped
     ports:
       - "${TAILSCALE_IP}:3000:3000"

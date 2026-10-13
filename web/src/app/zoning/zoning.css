@@ -1,0 +1,305 @@
+/* Pickering zoning map: map and layers on the left, the lot review on the right. */
+.zoning-layout {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 4% 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.zoning-left {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 14px;
+}
+.zoning-search {
+  position: relative;
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+.zoning-candidates {
+  position: absolute;
+  z-index: 20;
+  left: 18px;
+  right: 18px;
+  top: calc(100% - 8px);
+  background: #fff;
+  border: 1px solid #e7e5e4;
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(35, 30, 45, 0.12);
+  overflow: hidden;
+}
+.zoning-candidates li > button,
+.zoning-candidates li.zr-muted {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 14px;
+}
+.zoning-candidates li > button:hover,
+.zoning-candidates li > button:focus-visible {
+  background: #f4f2f8;
+}
+.zoning-candidates small {
+  color: #8a8590;
+  white-space: nowrap;
+}
+.zoning-map {
+  height: min(68vh, 680px);
+  min-height: 360px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #e7e5e4;
+  background: #efedf1;
+}
+.zoning-map--empty {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: #6b6672;
+  font-size: 14px;
+}
+.zoning-legend {
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13px;
+}
+.zoning-legend label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+}
+.zoning-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.zoning-legend small {
+  color: #9a95a0;
+}
+.zoning-right {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.zoning-title {
+  font-size: 26px;
+  letter-spacing: -0.8px;
+  font-weight: 600;
+}
+.zoning-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: #f1eff3;
+  border-radius: 12px;
+  width: fit-content;
+}
+.zoning-tabs button {
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: #6b6672;
+}
+.zoning-tabs button[aria-selected="true"] {
+  background: #fff;
+  color: #211d27;
+  box-shadow: 0 1px 4px rgba(35, 30, 45, 0.08);
+}
+.zoning-bylaw-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.zoning-bylaw-form > div {
+  display: flex;
+  gap: 8px;
+}
+.zr {
+  display: grid;
+  gap: 14px;
+}
+.zr-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.zr-step h3 {
+  font-weight: 600;
+  font-size: 16px;
+}
+.zr-step-body {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+.zr-step h4 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #69597f;
+  margin-top: 6px;
+}
+.zr-muted {
+  color: #7b7682;
+  font-size: 13px;
+}
+.zr-disclaimer {
+  font-size: 12px;
+  color: #7b7682;
+}
+.zr-warning {
+  font-size: 13px;
+  color: #8a3b2b;
+  background: #fbefe9;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.zr-facts,
+.zr-attrs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+}
+.zr-attrs {
+  font-size: 12px;
+}
+.zr-facts dt,
+.zr-attrs dt {
+  color: #8a8590;
+  font-size: 11px;
+}
+.zr-facts dd,
+.zr-attrs dd {
+  overflow-wrap: anywhere;
+}
+.zr-more {
+  font-size: 12px;
+  color: #69597f;
+  text-decoration: underline;
+  width: fit-content;
+}
+.zr-hits,
+.zr-refs {
+  display: grid;
+  gap: 10px;
+}
+.zr-hits > li,
+.zr-refs > li {
+  border: 1px solid #eeecef;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+.zr-hit-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-weight: 550;
+}
+.zr-hit-head span,
+.zr-source {
+  font-weight: 400;
+  color: #8a8590;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.zr-step a,
+.zoning-right a {
+  color: #4c405b;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.zr-overlay summary {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+.zr-overlay summary span {
+  color: #8a8590;
+  font-size: 12px;
+}
+.zr-overlay[open] summary {
+  margin-bottom: 6px;
+}
+.zr-checklist ul,
+.zr-plain {
+  list-style: disc;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+}
+.zr-tag {
+  font-size: 12px;
+  color: #69597f;
+}
+.zr-pages {
+  font-size: 13px;
+}
+.zoning-right blockquote {
+  border-left: 3px solid #dcd6e8;
+  padding: 2px 0 2px 10px;
+  font-size: 13px;
+  color: #4a4650;
+}
+.zoning-popup {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  max-height: 280px;
+  overflow: auto;
+}
+.zoning-popup dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 8px;
+}
+.zoning-popup dt {
+  color: #8a8590;
+}
+.zoning-popup dd {
+  overflow-wrap: anywhere;
+}
+.zoning-popup button {
+  background: #302936;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+@media (max-width: 960px) {
+  .zoning-layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 16px 48px;
+  }
+  .zoning-left {
+    position: static;
+  }
+  .zoning-map {
+    height: 55vh;
+  }
+}
+@media (max-width: 520px) {
+  .zr-summary,
+  .zr-facts,
+  .zr-attrs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .zoning-bylaw-form > div {
+    flex-direction: column;
+  }
+}
