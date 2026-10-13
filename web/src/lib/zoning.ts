@@ -115,6 +115,13 @@ export type Lookup = {
     };
     "6_planning_frameworks": {
       zoning_bylaw_references: DocRef[];
+      council_amendments_naming_this_lot: {
+        title: string;
+        url: string;
+        file: string;
+        meeting: string | null;
+        reasons: string[];
+      }[];
       official_plan_designation: (string | null)[];
       provincial: string[];
       all_documents: Record<string, StoredDoc[]>;
@@ -207,7 +214,16 @@ export const dataStatus = () =>
     retrieved_at?: string;
     layers?: Record<string, { name: string; features: number; source_url: string }[]>;
     documents?: number;
+    council_amendments?: number;
     detail?: string;
+    completeness?: {
+      complete: boolean | null;
+      incomplete_layers: { name: string; url: string; features: number; expected: number }[];
+      not_downloaded: { name: string; url: string; reason: string }[];
+      missing_bylaws: string[];
+      pdfs_with_blank_pages: number;
+      errors: number;
+    };
   }>("/municipal/pickering/status");
 
 export const CATEGORY_LABELS: Record<string, string> = {

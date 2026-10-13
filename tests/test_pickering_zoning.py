@@ -35,7 +35,7 @@ LAYERS = {
     1: ('Property Parcels', 'esriGeometryPolygon', [
         {'attributes': {'OBJECTID': 7, 'ADDRESS': '1 Test St', 'ROLL_NUM': '1801000000', 'LEGAL': 'LOT 5 PLAN 40M-1'},
          'geometry': {'rings': [square(LON, LAT, 0.0003)]}},
-        {'attributes': {'OBJECTID': 8, 'ADDRESS': '3 Test St', 'ROLL_NUM': '1801000002'},
+        {'attributes': {'OBJECTID': 8, 'ADDRESS': '3 Test St', 'ROLL_NUM': '1801000002', 'LEGAL': 'PART LOT 17 CONCESSION 8'},
          'geometry': {'rings': [square(LON + 0.001, LAT, 0.0003)]}}]),
     2: ('CN Railway', 'esriGeometryPolyline', [
         {'attributes': {'OBJECTID': 1, 'OWNER': 'CN'},
@@ -60,7 +60,8 @@ def text_pdf(*lines) -> bytes:
 
 
 AMENDMENT = text_pdf('The Corporation of the City of Pickering By-law No. 8276/26',
-                     'Being a by-law to amend Zoning By-law 8149/24', 'Schedule 1 is amended from A to R4-X5')
+                     'Being a by-law to amend Zoning By-law 8149/24', 'Schedule 1 is amended from A to R4-X5',
+                     'for lands in Part of Lot 5, Plan 40M-1 and Lots 17 and 18, Concession 8')
 PARKING = text_pdf('The Corporation of the City of Pickering By-law No. 8300/26', 'Being a by-law respecting parking fines')
 
 
@@ -389,3 +390,16 @@ def test_amendments_and_exception_zones_reach_the_lot_review(use_store):
     from api.main import pickering_search
     hits = pickering_search('R4-X5')['results']
     assert hits[0]['title'] == 'Zoning amendment By-law 8276/26' and hits[0]['group'] == 'zoning_bylaw'
+
+
+def test_lot_review_lists_amendments_naming_the_lot(use_store):
+    from engine.pickering_zoning import _lot_concession
+    assert _lot_concession('Part of Lots 17 and 18, Concession 8') == {('17', '8'), ('18', '8')}
+    assert _lot_concession('PT LT 22 CON 4') == set()  # abbreviations without "Lot" are not guessed
+    amendments = zoning_lookup(CITY, LAT, LON)['steps']['6_planning_frameworks']['council_amendments_naming_this_lot']
+    assert amendments == []  # the lot is "LOT 5 PLAN 40M-1", not a lot and concession
+    neighbour = zoning_lookup(CITY, LAT, LON + 0.001)['steps']['6_planning_frameworks']
+    assert [(a['title'], a['reasons']) for a in neighbour['council_amendments_naming_this_lot']] == \
+        [('Zoning amendment By-law 8276/26', ['names Lot 17, Concession 8'])]
+    status = pickering_data_status()
+    assert status['council_amendments'] == 1 and status['completeness']['missing_bylaws'] == ['9999/21']

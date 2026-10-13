@@ -118,9 +118,19 @@ def status() -> dict:
     for layer in layers:
         entry = by_category.setdefault(layer.meta['category'] or 'other', [])
         entry.append({'name': layer.meta['name'], 'features': len(layer.features), 'source_url': layer.meta['url']})
+    report = manifest.get('completeness') or {}
     return {'status': 'available', 'retrieved_at': manifest['retrieved_at'], 'layers': by_category,
             'documents': len(manifest['documents']), 'errors': manifest['errors'],
-            'catalog_layers': manifest.get('catalog_layers')}
+            'catalog_layers': manifest.get('catalog_layers'),
+            'council_amendments': sum(1 for d in manifest['documents'] if d.get('source') == 'council'),
+            'completeness': {
+                'complete': report.get('complete'),
+                'incomplete_layers': report.get('incomplete_layers', []),
+                'not_downloaded': report.get('not_downloaded', []),
+                'missing_bylaws': report.get('missing_bylaws', []),
+                'pdfs_with_blank_pages': len(report.get('pdfs_with_blank_pages', [])),
+                'errors': len(manifest['errors']),
+            }}
 
 
 def _clean(attrs: dict) -> dict:
@@ -416,6 +426,41 @@ def zone_provisions(manifest: dict, zone_codes: list[str], per_kind: int = 6) ->
     return found
 
 
+def _lot_concession(text: str) -> set[tuple[str, str]]:
+    """(lot, concession) pairs in a legal description or by-law text: "Part of Lot 22, Concession 4"."""
+    pairs = set()
+    for match in re.finditer(r'\bLots? (\d+)(?:\s*(?:and|&|,)\s*(\d+))?,?\s*(?:\w+\s){0,3}?Con(?:cession|c?\.?)\s*(\w+)', text, re.I):
+        for lot in filter(None, match.groups()[:2]):
+            pairs.add((lot, match.group(3).upper().rstrip('.')))
+    return pairs
+
+
+def lot_amendments(manifest: dict, property_id: dict | None, zone_codes: list[str]) -> list[dict]:
+    """Council zoning amendments whose text names this lot: its address, lot and concession, or exception zone."""
+    property_id = property_id or {}
+    address = property_id.get('address')
+    pairs = _lot_concession(property_id.get('legal_description') or '')
+    exceptions = [c for c in zone_codes if re.fullmatch(r'X\d+', c) or re.search(r'[-(]', c)]
+    found = []
+    for doc in manifest['documents']:
+        if doc.get('source') != 'council' or not doc.get('text_file'):
+            continue
+        text = ' '.join(_pages(doc['text_file'], manifest['retrieved_at']))
+        reasons = []
+        if address and len(_norm(address)) > 4 and _norm(address) in _norm(text):
+            reasons.append(f'names {address}')
+        shared = pairs & _lot_concession(text)
+        if shared:
+            reasons.append('names ' + ', '.join(f'Lot {l}, Concession {c}' for l, c in sorted(shared)))
+        for code in exceptions:
+            if re.search(rf'(?<![A-Za-z0-9-]){re.escape(code)}(?![A-Za-z0-9])', text):
+                reasons.append(f'names zone {code}')
+        if reasons:
+            found.append({'title': doc['title'], 'url': doc['url'], 'file': doc['file'],
+                          'meeting': doc.get('meeting'), 'reasons': reasons})
+    return found
+
+
 def lookup(latitude: float, longitude: float) -> dict:
     manifest, layers = load_store()
     if manifest is None:
@@ -532,6 +577,7 @@ def lookup(latitude: float, longitude: float) -> dict:
             },
             '6_planning_frameworks': {
                 'zoning_bylaw_references': _document_refs(manifest, searched_codes, bylaw_numbers),
+                'council_amendments_naming_this_lot': lot_amendments(manifest, property_id, searched_codes),
                 'official_plan_designation': [_pick(h['attributes'], r'desig', r'land_?use', r'name')
                                               for h in official_plan],
                 'provincial': ['Provincial Planning Statement (2024)'] +
