@@ -104,3 +104,22 @@ def test_real_bylaw_symbols_and_thousands():
     found, _ = rules_from_table(table, '', {'page': 99})
     assert found['R1A']['lot_area']['value'] == 3000 and found['R1G']['front_yard']['value'] == 4.5
     assert parse_value('7,5 m')['value'] == 7.5
+
+
+def test_footnote_marks_and_split_rows():
+    assert parse_value('-(1)') is None and parse_value('9.0(1)')['value'] == 9.0
+    table = [['Requirement', 'A', 'Q'], ['Minimum Lot Area (ha)\nResidential uses\nOther uses', '', '-'],
+             ['', '0.8', '-'], ['', '4.0', '4.0']]
+    found, _ = rules_from_table(table, '', {'page': 130})
+    assert found['A']['lot_area']['value'] == 0.8 and found['Q']['lot_area']['value'] == 4.0
+
+
+def test_one_zone_table_by_building_type_keeps_the_first_type():
+    table = [['Building\nRequirement', 'Min. Lot\nArea', 'Min.\nFront\nYard', 'Min.\nFlankag\ne Yard', 'Min. Rear\nYard'],
+             ['Detached\nDwelling', '', '', '', ''],
+             ['with attached\nprivate garage', '225.0 m2', '3.0 m(3)', '2.4 m', '6.0 m'],
+             ['with detached\nprivate garage', '275.0 m2', '4.5 m', '2.4 m', '7.0 m']]
+    title = 'Table 14.5: Lot and Building Requirements for the Seaton Low Density Type 1 (SLD1) Zone'
+    found, _ = rules_from_table(table, title, {'page': 180})
+    assert found['SLD1']['front_yard']['value'] == 3.0 and found['SLD1']['exterior_side_yard']['value'] == 2.4
+    assert 'Detached Dwelling with attached private garage' in found['SLD1']['front_yard']['label']

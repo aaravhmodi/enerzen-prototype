@@ -21,7 +21,7 @@ from pathlib import Path
 
 # Provision keys, the words that name them, and whether the by-law states a floor or a ceiling.
 PROVISIONS = [
-    ('exterior_side_yard', r'exterior\s+side\s+yard|flankage', 'minimum'),
+    ('exterior_side_yard', r'exterior\s+side\s+yard|flankag\s?e', 'minimum'),
     ('interior_side_yard', r'(interior\s+)?side\s+yard', 'minimum'),
     ('front_yard', r'front\s+yard', 'minimum'),
     ('rear_yard', r'rear\s+yard', 'minimum'),
@@ -41,7 +41,8 @@ VALUE = re.compile(r'(\d+(?:[.,]\d+)?)\s*(square metres|sq\.? ?m|m2|m²|metres?|
 # Zone symbols: R4, R1A, RM2, C1, MU1, SLD2M, SA, A, OS-HL, (H)… but not ordinary words or units.
 ZONE_TOKEN = r'[A-Z]{1,5}(?:[0-9]{1,2}[A-Z]{0,2})?(?:-[A-Z0-9]{1,3})?'
 ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
-NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.'}
+NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.',
+             'FLOOR', 'LAND', 'OPEN', 'UNIT', 'AREA', 'LOT', 'USE', 'USES', 'SPACE', 'YARD', 'PART', 'MAP'}
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
 
@@ -57,7 +58,8 @@ def provision_key(label: str):
 
 def parse_value(cell):
     """First number in a cell with its unit, or None for blanks, dashes and "N/A"."""
-    text = ' '.join(str(cell or '').split())
+    # Footnote markers are not values: "-(1)" is a dash and "4.5(1)" is 4.5.
+    text = re.sub(r'\(\d+\)', '', ' '.join(str(cell or '').split())).strip()
     if not text or re.fullmatch(r'[-–—]|n/?a|not permitted|none', text, re.I):
         return None
     match = VALUE.search(text)
@@ -96,22 +98,26 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
         return {}, []
     out, unparsed = {}, []
 
-    def put(zone, label, cell):
+    def put(zone, label, cell, note=''):
         key = provision_key(label)
+        label = f'{label} {note}'
         value = parse_value(cell)
         if key and value:
-            out.setdefault(zone, {})[key[0]] = {**value, 'bound': key[1], 'label': ' '.join(str(label).split()),
-                                                **source}
+            out.setdefault(zone, {}).setdefault(key[0], {**value, 'bound': key[1],
+                                                         'label': ' '.join(str(label).split()), **source})
         elif value and not key:
             unparsed.append({'zone': zone, 'label': ' '.join(str(label or '').split()), 'cell': value['raw'], **source})
 
     header = _zone_cells(rows[0])
     if sum(1 for z in header[1:] if z) >= 1 and not provision_key(rows[0][0] or ''):
         # Zones across the top, provisions down the first column.
+        label = None
         for row in rows[1:]:
+            # A requirement split over several rows by use keeps its label; the first case stated is kept.
+            label = row[0] or label
             for zone, cell in zip(header[1:], row[1:]):
                 if zone:
-                    put(zone.strip('()'), row[0], cell)
+                    put(zone.strip('()'), label, cell)
         return out, unparsed
     first_col = _zone_cells([r[0] for r in rows[1:]])
     if sum(1 for z in first_col if z) >= 1 and any(provision_key(c or '') for c in rows[0][1:]):
@@ -122,6 +128,19 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
                     put(zone.strip('()'), label, cell)
         return out, unparsed
     zones = _title_zones(page_text)
+    if zones and sum(1 for c in rows[0][1:] if provision_key(c or '')) >= 2:
+        # One zone's table by building type (the Seaton zones): provisions across the top, a row per
+        # building type. The first building type listed is kept, and its name goes in the label.
+        group = ''
+        for row in rows[1:]:
+            name = ' '.join(str(row[0] or '').split())
+            if not any(parse_value(c) for c in row[1:]):
+                group = name
+                continue
+            for label, cell in zip(rows[0][1:], row[1:]):
+                for zone in zones:
+                    put(zone, label, cell, f'– {group} {name}')
+        return out, unparsed
     if zones and sum(1 for r in rows if provision_key(r[0] or '')) >= 2:
         # One zone's table: provision | value (| more columns for the same zone's variants).
         for row in rows:
