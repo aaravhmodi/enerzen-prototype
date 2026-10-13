@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -347,6 +347,25 @@ def pickering_document_file(path: str):
     # Saved city pages are third-party HTML: sandboxed so their scripts never run on this origin.
     return FileResponse(file, media_type=media, headers={"Content-Disposition": f'inline; filename="{file.name}"',
                                                          "Content-Security-Policy": "sandbox"})
+
+
+@app.get("/municipal/pickering/setbacks")
+def pickering_setbacks_coverage():
+    """How many stored lots got every setback from the by-law, by zone, and what is missing for the rest."""
+    return pickering_zoning.setbacks_coverage()
+
+
+@app.get("/municipal/pickering/setbacks.csv")
+def pickering_setbacks_csv():
+    """Every stored lot with its setbacks, standards and their by-law sources, as CSV."""
+    import csv
+    import io
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=pickering_zoning.ALL_LOTS_COLUMNS)
+    writer.writeheader()
+    writer.writerows(pickering_zoning.all_lots())
+    return Response(buffer.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="pickering-lot-setbacks.csv"'})
 
 
 @app.get("/municipal/pickering/search")
