@@ -43,7 +43,9 @@ LAYERS = {
     3: ('Building Footprints', 'esriGeometryPolygon', []),
     5: ('Street Centreline', 'esriGeometryPolyline', [
         {'attributes': {'OBJECTID': 1, 'STREET': 'Test St'},
-         'geometry': {'paths': [[[LON - 0.003, LAT - 0.0005], [LON + 0.003, LAT - 0.0005]]]}}]),
+         'geometry': {'paths': [[[LON - 0.003, LAT - 0.0004], [LON + 0.003, LAT - 0.0004]]]}},
+        {'attributes': {'OBJECTID': 2, 'STREET': 'Corner Ave'},  # 1 Test St is a corner lot
+         'geometry': {'paths': [[[LON + 0.00045, LAT - 0.003], [LON + 0.00045, LAT + 0.003]]]}}]),
 }
 
 
@@ -64,7 +66,8 @@ def text_pdf(*lines) -> bytes:
 
 AMENDMENT = text_pdf('The Corporation of the City of Pickering By-law No. 8276/26',
                      'Being a by-law to amend Zoning By-law 8149/24', 'Schedule 1 is amended from A to R4-X5',
-                     'for lands in Part of Lot 5, Plan 40M-1 and Lots 17 and 18, Concession 8')
+                     'for lands in Part of Lot 5, Plan 40M-1 and Lots 17 and 18, Concession 8',
+                     'X 5', 'the minimum front yard shall be 4.5 metres')
 PARKING = text_pdf('The Corporation of the City of Pickering By-law No. 8300/26', 'Being a by-law respecting parking fines')
 
 
@@ -78,6 +81,17 @@ def bylaw_pdf() -> bytes:
     pdf.drawString(72, 680, 'Minimum rear yard depth 7.5 metres')
     pdf.drawString(72, 660, 'Permitted uses: detached dwelling, home occupation')
     pdf.drawString(72, 640, 'Parking is regulated elsewhere')
+    # The zone table the per-lot setbacks come from.
+    from reportlab.lib import colors
+    from reportlab.platypus import Table, TableStyle
+    table = Table([['Requirement', 'R3', 'R4'], ['Minimum Lot Frontage', '18.0 m', '15.0 m'],
+                   ['Minimum Lot Area', '550 m2', '460 m2'], ['Minimum Front Yard', '7.5 m', '6.0 m'],
+                   ['Minimum Interior Side Yard', '1.5 m', '1.2 m'], ['Minimum Exterior Side Yard', '4.5 m', '4.5 m'],
+                   ['Minimum Rear Yard', '7.5 m', '7.5 m'], ['Maximum Lot Coverage', '33%', '38%'],
+                   ['Maximum Building Height', '9.0 m', '9.0 m']])
+    table.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.5, colors.black)]))
+    table.wrapOn(pdf, 400, 300)
+    table.drawOn(pdf, 72, 400)
     pdf.save()
     return buffer.getvalue()
 
@@ -416,7 +430,9 @@ def test_lot_dimensions_and_street_side_for_the_site_planner(use_store):
     assert dims['street_side'] == 'S' and dims['rectangularity'] == 1.0
     assert result['parcel'] == {'address': '1 Test St', 'zoning': 'R4', 'by_law': '3036',
                                 'official_plan': 'Pickering City Centre', 'overlays': 'rail',
-                                'lot': f"{dims['width_m']} m × {dims['depth_m']} m"}
+                                'lot': f"{dims['width_m']} m × {dims['depth_m']} m",
+                                'setbacks': 'front 6 m (S), rear 7.5 m (N), exterior side 4.5 m (E), '
+                                            'interior side 1.2 m (W)'}
 
 
 def test_rotated_lot_reports_its_own_sides():
@@ -436,3 +452,30 @@ def test_feasibility_names_the_lot_zone_but_never_passes_it(use_store):
     assert check.status == fz.NOT_CHECKED
     assert check.detail.startswith('1 Test St is zoned R4 (by-law 3036); Official Plan: Pickering City Centre')
     assert fz.zoning_check(CITY, {}).detail.startswith('No Pickering parcel')
+
+
+def test_every_setback_of_a_corner_lot_comes_from_the_bylaw(use_store):
+    standards = zoning_lookup(CITY, LAT, LON)['steps']['3_proposed_development']['lot_standards']
+    assert (standards['zone'], standards['street_side'], standards['flank_side'], standards['corner_lot']) == \
+        ('R4', 'S', 'E', True)
+    by_side = {side: (v['applies'], v['value']) for side, v in standards['setbacks_by_side'].items()}
+    assert by_side == {'S': ('front_yard', 6.0), 'N': ('rear_yard', 7.5), 'E': ('exterior_side_yard', 4.5),
+                       'W': ('interior_side_yard', 1.2)}
+    front = standards['setbacks_by_side']['S']
+    assert front['from'] == 'Zone R4 table' and front['page'] == 2 and 'by-law-3036' in front.get('label', '') + str(
+        standards['standards']['front_yard']['file'])
+    assert standards['complete'] and standards['missing'] == ['landscaped_area']
+    assert [(c['standard'], c['ok']) for c in standards['lot_checks']] == [('lot_frontage', True), ('lot_area', True)]
+    # 48.2 x 66.7 m lot less 4.5 + 1.2 m sides and 6 + 7.5 m front and rear
+    assert standards['buildable_area_m2'] == pytest.approx((48.2 - 5.7) * (66.7 - 13.5), rel=0.02)
+    assert standards['max_coverage_m2'] == pytest.approx(0.38 * 48.2 * 66.7, rel=0.02)
+
+
+def test_an_exception_overrides_its_zone_and_says_so(use_store):
+    from engine import lot_rules
+    from engine.pickering_zoning import zone_rules
+    resolved = lot_rules.resolve('R4-X5', zone_rules())
+    assert resolved['front_yard']['value'] == 4.5 and resolved['front_yard']['from'] == 'Exception X5'
+    assert resolved['front_yard']['overrides'] == 6.0 and resolved['rear_yard']['from'] == 'Zone R4 table'
+    unknown = lot_rules.apply_to_lot(None, 'ZZ9', zone_rules(), [], None)
+    assert unknown['missing'][:3] == ['front_yard', 'rear_yard', 'interior_side_yard'] and not unknown['complete']

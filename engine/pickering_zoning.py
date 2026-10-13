@@ -18,6 +18,8 @@ import shapely.ops
 from shapely import STRtree
 from shapely.geometry import Point, mapping, shape
 
+from engine import lot_rules
+
 DEFAULT_STORE = Path(__file__).parent.parent / 'data' / 'municipal' / 'pickering'
 
 # Geometry is kept in local metres around Pickering (equirectangular; error is
@@ -99,6 +101,26 @@ def _load(store: str, stamp: str):
         if path.exists():
             layers.append(Layer(meta, json.loads(path.read_text(encoding='utf-8'))))
     return manifest, layers
+
+
+@lru_cache(maxsize=1)
+def _rules(store: str, stamp: str, file: str | None) -> dict:
+    path = Path(store) / file if file else None
+    if path is None or not path.exists():
+        return {'zones': {}, 'exceptions': {}, 'missing_file': True}
+    return json.loads(path.read_text(encoding='utf-8'))
+
+
+def zone_rules() -> dict:
+    """The by-law's zone standards and exceptions for the stored snapshot (scripts/zone_rules.py)."""
+    manifest, _ = load_store()
+    if manifest is None:
+        return {'zones': {}, 'exceptions': {}, 'missing_file': True}
+    root = store_dir()
+    return _rules(str(root), str((root / 'manifest.json').stat().st_mtime_ns), manifest.get('zone_rules_file'))
+
+
+ZONE_FIELD = (r'^zone$', r'zone_?(code|cat|class)?$', r'zon', r'symbol')
 
 
 def load_store():
@@ -496,12 +518,22 @@ def lot_dimensions(parcel_geom, roads: list) -> dict | None:
               'rectangularity': round(parcel_geom.area / rect.area, 2), 'street_side': None}
     if roads:
         centre = parcel_geom.centroid
-        nearest = min(roads, key=lambda g: g.distance(centre))
+        nearest = min(roads, key=lambda g: g.distance(parcel_geom))  # the side actually nearest a road
         target = shapely.ops.nearest_points(centre, nearest)[1]
         dx, dy = target.x - centre.x, target.y - centre.y
         result['street_side'] = ('E' if dx > 0 else 'W') if abs(dx) > abs(dy) else ('N' if dy > 0 else 'S')
         result['street_distance_m'] = round(nearest.distance(parcel_geom), 1)
     return result
+
+
+def setback_summary(standards: dict) -> str | None:
+    """"front 6 m (S), rear 7.5 m (N), sides 1.2 m" for the workspace's short parcel card."""
+    parts = []
+    order = ('front_yard', 'rear_yard', 'exterior_side_yard', 'interior_side_yard')
+    for side, entry in sorted(standards['setbacks_by_side'].items(), key=lambda kv: order.index(kv[1]['applies'])):
+        if entry['value'] is not None:
+            parts.append(f"{entry['applies'].replace('_yard', '').replace('_', ' ')} {entry['value']:g} m ({side})")
+    return ', '.join(parts) or None
 
 
 def lookup(latitude: float, longitude: float) -> dict:
@@ -565,6 +597,10 @@ def lookup(latitude: float, longitude: float) -> dict:
     roads = [geom for layer in layers if layer.meta['category'] == 'roads'
              for _, geom, _ in layer.near(point, 120)]
     dimensions = lot_dimensions(parcel['_geom'] if parcel else None, roads)
+    # The zone covering most of the lot governs it; its standards come from the by-law's tables.
+    primary_zone = _pick(zoning[0]['attributes'], *ZONE_FIELD) if zoning else None
+    standards = lot_rules.apply_to_lot(parcel['_geom'] if parcel else None, primary_zone, zone_rules(), roads, dimensions)
+    envelope = standards.pop('_envelope')
 
     property_id = None
     if parcel:
@@ -598,8 +634,10 @@ def lookup(latitude: float, longitude: float) -> dict:
                                                     for h in official_plan))) or None,
             'overlays': ', '.join(c.replace('_', ' ') for c in triggered) or None,
             'lot': f"{dimensions['width_m']} m × {dimensions['depth_m']} m" if dimensions else None,
+            'setbacks': setback_summary(standards),
         }.items() if v},
         'source_url': zoning[0]['source_url'] if zoning else None,
+        'buildable_area': mapping(_to_wgs84(envelope)) if envelope is not None else None,
         'source_label': 'City of Pickering zoning (stored on this server)',
         'steps': {
             '1_property_identification': {
@@ -619,6 +657,7 @@ def lookup(latitude: float, longitude: float) -> dict:
                                           'Lot layout: setbacks, parking, access/driveways, landscaped and '
                                           'loading areas'],
                 'check_against': 'The zone standards on the by-law pages listed under step 6.',
+                'lot_standards': standards,
                 'zone_standards_in_bylaw_text': zone_provisions(manifest, searched_codes),
             },
             '4_site_characteristics': {
