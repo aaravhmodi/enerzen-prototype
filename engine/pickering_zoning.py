@@ -10,6 +10,7 @@ import json
 import math
 import os
 import re
+import threading
 from functools import lru_cache
 from pathlib import Path
 
@@ -689,10 +690,99 @@ def lookup(latitude: float, longitude: float) -> dict:
     }
 
 
+_ALL_LOTS_LOCK = threading.Lock()
+ALL_LOTS_COLUMNS = ['address', 'roll_number', 'pin', 'legal_description', 'zone_code', 'zone', 'exceptions',
+                    'street_side', 'corner_lot', 'front_yard_m', 'rear_yard_m', 'interior_side_yard_m',
+                    'exterior_side_yard_m', 'lot_frontage_min_m', 'lot_area_min_m2', 'max_height', 'max_coverage_pct',
+                    'lot_width_m', 'lot_depth_m', 'lot_area_m2', 'buildable_area_m2', 'complete', 'missing',
+                    'sources', 'latitude', 'longitude']
+
+
+def _primary_zone(zoning_layers, geom):
+    """The zone symbol covering most of a lot, read from whichever zoning layer covers it."""
+    best, share = None, 0.0
+    for layer in zoning_layers:
+        for i in layer.tree.query(geom):
+            attrs, zone_geom = layer.features[layer._indexed[int(i)]]
+            overlap = zone_geom.intersection(geom).area if geom.area > 0 else float(zone_geom.contains(geom))
+            if overlap > share:
+                best, share = _pick(attrs, *ZONE_FIELD), overlap
+    return best
+
+
+@lru_cache(maxsize=1)
+def _all_lots(store: str, stamp: str) -> list[dict]:
+    _, layers = load_store()
+    rules = zone_rules()
+    zoning_layers = [l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None]
+    road_layers = [l for l in layers if l.meta['category'] == 'roads' and l.tree is not None]
+    rows = []
+    for layer in layers:
+        if layer.meta['category'] != 'parcels':
+            continue
+        for attrs, geom in layer.features:
+            if geom is None or geom.area <= 0:
+                continue
+            roads = [r.features[r._indexed[int(i)]][1] for r in road_layers
+                     for i in r.tree.query(geom.buffer(lot_rules.FRONTING_M + 100))]
+            dims = lot_dimensions(geom, roads)
+            code = _primary_zone(zoning_layers, geom)
+            lot = lot_rules.apply_to_lot(geom, code, rules, roads, dims)
+            std = lot['standards']
+            side = {v['applies']: v['value'] for v in lot['setbacks_by_side'].values()}
+            value = lambda key: (std.get(key) or {}).get('value')
+            point = geom.representative_point()
+            rows.append({
+                'address': _pick(attrs, r'addr|civic'), 'roll_number': _pick(attrs, r'roll|arn'),
+                'pin': _pick(attrs, r'\bpin\b|^pin'), 'legal_description': _pick(attrs, r'legal|plan|lot|conc'),
+                'zone_code': code, 'zone': lot['zone'], 'exceptions': ' '.join(lot['exceptions']),
+                'street_side': lot['street_side'], 'corner_lot': lot['corner_lot'],
+                'front_yard_m': side.get('front_yard'), 'rear_yard_m': side.get('rear_yard'),
+                'interior_side_yard_m': side.get('interior_side_yard'),
+                'exterior_side_yard_m': side.get('exterior_side_yard') if lot['corner_lot'] else None,
+                'lot_frontage_min_m': value('lot_frontage'), 'lot_area_min_m2': value('lot_area'),
+                'max_height': value('building_height'), 'max_coverage_pct': value('lot_coverage'),
+                'lot_width_m': (dims or {}).get('width_m'), 'lot_depth_m': (dims or {}).get('depth_m'),
+                'lot_area_m2': round(geom.area, 1), 'buildable_area_m2': lot['buildable_area_m2'],
+                'complete': lot['complete'], 'missing': ' '.join(lot['missing']),
+                'sources': '; '.join(sorted({f"{v.get('from')} p.{v.get('page')}" for v in std.values()
+                                             if v.get('from')})),
+                'latitude': round(point.y / M_PER_DEG_LAT, 7), 'longitude': round(point.x / M_PER_DEG_LON, 7),
+            })
+    return rows
+
+
+def all_lots() -> list[dict]:
+    """Every stored parcel with its setbacks and standards from the by-law (cached per scrape)."""
+    if load_store()[0] is None:
+        return []
+    root = store_dir()
+    with _ALL_LOTS_LOCK:
+        return _all_lots(str(root), str((root / 'manifest.json').stat().st_mtime_ns))
+
+
+def setbacks_coverage() -> dict:
+    """How many lots got every setback from the by-law, by zone, and what stopped the rest."""
+    rows = all_lots()
+    by_zone = {}
+    for row in rows:
+        entry = by_zone.setdefault(row['zone'] or 'no zone', {'lots': 0, 'complete': 0, 'missing': {}})
+        entry['lots'] += 1
+        entry['complete'] += bool(row['complete'])
+        for key in (row['missing'] or '').split():
+            entry['missing'][key] = entry['missing'].get(key, 0) + 1
+    return {'lots': len(rows), 'complete': sum(1 for r in rows if r['complete']),
+            'corner_lots': sum(1 for r in rows if r['corner_lot']),
+            'without_zone': sum(1 for r in rows if not r['zone']),
+            'without_street': sum(1 for r in rows if not r['street_side']),
+            'by_zone': dict(sorted(by_zone.items(), key=lambda kv: -kv[1]['lots']))}
+
+
 def warm():
     """Load the layers and the address index ahead of the first request; quiet if nothing is stored."""
     try:
         if load_store()[0] is not None:
             search_properties('warm')
+            all_lots()
     except Exception:
         pass

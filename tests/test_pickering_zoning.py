@@ -479,3 +479,19 @@ def test_an_exception_overrides_its_zone_and_says_so(use_store):
     assert resolved['front_yard']['overrides'] == 6.0 and resolved['rear_yard']['from'] == 'Zone R4 table'
     unknown = lot_rules.apply_to_lot(None, 'ZZ9', zone_rules(), [], None)
     assert unknown['missing'][:3] == ['front_yard', 'rear_yard', 'interior_side_yard'] and not unknown['complete']
+
+
+def test_every_stored_lot_gets_its_setbacks(use_store):
+    from api.main import pickering_setbacks_coverage, pickering_setbacks_csv
+    from engine.pickering_zoning import all_lots
+    rows = {r['address']: r for r in all_lots()}
+    corner = rows['1 Test St']
+    assert (corner['zone'], corner['front_yard_m'], corner['rear_yard_m'], corner['interior_side_yard_m'],
+            corner['exterior_side_yard_m'], corner['corner_lot'], corner['complete']) == ('R4', 6.0, 7.5, 1.2, 4.5, True, True)
+    assert 'Zone R4 table p.2' in corner['sources']
+    neighbour = rows['3 Test St']  # inside the R3-7 polygon: R3 standards, exception 7 has no stored section
+    assert neighbour['zone'] in ('R3', 'R4') and neighbour['street_side'] == 'S'
+    coverage = pickering_setbacks_coverage()
+    assert coverage['lots'] == 2 and coverage['complete'] == 2 and coverage['corner_lots'] == 1
+    csv_text = pickering_setbacks_csv().body.decode()
+    assert csv_text.splitlines()[0].startswith('address,roll_number,pin') and '1 Test St' in csv_text
