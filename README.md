@@ -106,20 +106,55 @@ docker compose up -d --build
 
 The web app is at `http://<TAILSCALE_IP>:3000` and the API at `http://<TAILSCALE_IP>:8001`. The web app is built against that API address, and the API allows it through `CORS_ORIGINS`.
 
+### Pickering zoning map
+
+`http://<TAILSCALE_IP>:3000/zoning` finds a Pickering lot by address, roll number or PIN, draws it on a Mapbox map with every zoning, Official Plan and overlay layer around it, and sets out the zoning review beside it:
+
+1. **Property:** the City's parcel record: address, roll number, PIN, legal description, area.
+2. **Zoning and Official Plan:** the zone and by-law, the Official Plan designation, and overlays on or near the lot (floodplain and TRCA regulation limit, natural and cultural heritage, easements, rail within 300 m, Greenbelt and Oak Ridges Moraine).
+3. **Proposed development:** the lines of the by-law that state the zone's standards (frontage, yards, height, coverage, parking, units), each linked to its page, with a preliminary check of your numbers.
+4. **Site:** servicing nearby, topography, and the zoning next door.
+5. **Supporting documents:** what a complete application needs, plus the studies this lot's overlays trigger.
+6. **Frameworks:** the by-law pages and excerpts for the zone, the council amendments that name the lot, and every stored by-law, plan and regulation.
+
+A second tab searches the full text of every stored by-law. Put a public Mapbox token in `.env` as `MAPBOX_TOKEN` (the lot review works without one).
+
 ### Pickering zoning data
 
-The server keeps its own copy of the City of Pickering's zoning data. To download or refresh it:
+The server keeps its own copy of everything the map uses. To download or refresh it:
 
 ```bash
 docker compose run --rm scrape-pickering
 ```
 
-This walks the City's ArcGIS server and saves every zoning, parcel, Official Plan and overlay layer (floodplain, natural heritage, heritage, easements, rail, Greenbelt and Oak Ridges Moraine, servicing, topography) as GeoJSON. It also saves the zoning by-law and Official Plan PDFs, with their text, plus the Provincial Planning Statement and O. Reg. 545/06 pages. Everything goes into `./municipal-data/pickering` on the server (set `PICKERING_DATA_HOST_DIR` to put it elsewhere). `manifest.json` records the source URL, retrieval time and checksum of every file. `catalog.json` lists every layer the City publishes, including ones that were not downloaded.
+It collects:
 
-The API then answers the review steps for a parcel, using only that local data:
+- **City of Pickering ArcGIS:** every published layer (zoning, parcels, address points, Official Plan, overlays, servicing, topography and the rest), checked against the server's own feature counts.
+- **Durham Region Official Plan, TRCA regulation limit and Ontario Greenbelt layers,** clipped to Pickering.
+- **Comprehensive Zoning By-law 8149/24** (in force since 16 December 2024) and its schedules, the zoning and Official Plan pages, and every PDF on them. Scanned pages are read with OCR.
+- **Every by-law on a council agenda since December 2024 that amends the zoning by-law,** from the City's eScribe meetings site.
+- **The Provincial Planning Statement (2024) and O. Reg. 545/06.**
 
-- `GET /locations/Pickering%20(Dunbarton)/zoning?latitude=43.84&longitude=-79.09` (or `?query=<address, roll number or PIN>`) returns the parcel, its zone and by-law, the Official Plan designation and nearby overlays. It also lists the by-law pages that mention the zone, the studies the overlays trigger, and what the applicant still has to supply.
-- `GET /municipal/pickering/status` shows what has been downloaded and when.
+Everything goes into `./municipal-data/pickering` on the server (set `PICKERING_DATA_HOST_DIR` to move it). Each run writes a dated snapshot and switches over only when it got data, keeping the last two.
+
+- `manifest.json` records the source, retrieval time and checksum of every file.
+- `catalog.json` lists every layer published, downloaded or not.
+- The manifest's `completeness` report names anything still missing: a layer short of the server's count, a by-law cited on the zoning map but not found, or an unreadable page. The zoning page shows the same gaps.
+
+The run exits 0 only when nothing is missing. Re-check the stored copy any time with `--verify`. A weekly refresh from cron:
+
+```cron
+0 3 * * 1  cd /path/to/enerzen-prototype && docker compose run --rm scrape-pickering
+```
+
+The API answers from that local copy only:
+
+- `GET /locations/Pickering%20(Dunbarton)/zoning?latitude=…&longitude=…` (or `?query=<address, roll number or PIN>`): the six review steps for the lot.
+- `GET /municipal/pickering/geocode?q=…`: parcels and addresses matching an address, roll number or PIN.
+- `GET /municipal/pickering/map?latitude=…&longitude=…`: GeoJSON of the lot and every layer around it.
+- `GET /municipal/pickering/search?q=…`: full-text search across every stored by-law page.
+- `GET /municipal/pickering/documents` and `…/documents/file?path=…`: the stored documents.
+- `GET /municipal/pickering/status`: what is stored, when, and what is missing.
 
 None of this is a zoning determination. Confirm with the City.
 
