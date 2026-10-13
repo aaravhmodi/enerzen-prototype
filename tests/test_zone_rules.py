@@ -191,3 +191,31 @@ def test_an_exception_table_with_a_row_per_zone_two_heading_rows_and_merged_cell
     table[2][5] = '1.2\nmetres\n2.7\nmetres'
     again = rules_by_zone_row(table, {})['S1']
     assert (again['interior_side_yard']['value'], again['exterior_side_yard']['value']) == (1.2, 2.7)
+
+
+def test_a_newer_exception_table_with_a_column_per_kind_of_lot_runs_over_the_page():
+    # Exception 332, as the PDF reader returns its two pages.
+    from scripts.zone_rules import rules_by_lot_type
+    first = [['', '', '9.0 m single\ndwelling', '12.0 m\nsingle\ndwelling', 'semi-\ndetached\ndwelling', 'Lane\nsingle\nattached\ndwelling'],
+             ['', 'Lot Frontage\n(Minimum)', '9.0 m', '12.0 m', '7.5 m', '6.0 m'],
+             ['', 'Lot Area\n(Minimum)', '225 square\nmetres', '300\nsquare\nmetres', '180\nsquare\nmetres', '170\nsquare\nmetres'],
+             ['', 'Front Yard\nDepth\n(Minimum)', '3.0 m', '3.0 m', '3.0 m', '3.0 m'],
+             ['', 'Interior Side\nyard Width\n(Minimum)', '1.2 m on one\nside and 0.6\nm on the', '1.2 m on\none side', '1.2 m,\nexcept', '1.2 m,\nexcept']]
+    second = [['', '', 'adjacent lots;', 'adjacent lots;', 'to that wall on either lot;', 'to that wall on either lot'],
+              ['', 'Flanking Side\nYard Width\n(Minimum)', '2.4 m', '2.4 m', '2.4 m', '2.4 m'],
+              ['', 'Rear Yard\nDepth\n(Minimum)', '7.0 m', '7.0 m', '7.0 m', '12.0 m'],
+              ['', 'Lot Coverage of\nAll Accessory\nBuildings', '15 square\nmetres', '15 square\nmetres', '15 square\nmetres', '15 square\nmetres']]
+    kinds, types = rules_by_lot_type(first, {'page': 591})
+    assert types[0] == '9.0 m single dwelling' and [k['provisions']['lot_frontage']['value'] for k in kinds] == [9.0, 12.0, 7.5, 6.0]
+    assert rules_by_lot_type(second, {}) == ([], [])  # no headings of its own
+    more, _ = rules_by_lot_type(second, {'page': 592}, types)
+    assert [k['provisions']['rear_yard']['value'] for k in more] == [7.0, 7.0, 7.0, 12.0]
+    assert 'lot_coverage' not in more[0]['provisions'] and more[0]['provisions']['exterior_side_yard']['value'] == 2.4
+    for kind, extra in zip(kinds, more):
+        kind['provisions'].update(extra['provisions'])
+    from engine.lot_rules import resolve
+    rules = {'zones': {}, 'exceptions': {'X332': {'provisions': {}, 'by_lot_type': {'S-SD-SA-3': kinds}}}}
+    wide, narrow = resolve('S-SD-SA-3-X332', rules, 12.3), resolve('S-SD-SA-3-X332', rules, 5.8)
+    assert wide['lot_area']['value'] == 300 and wide['rear_yard']['from'] == 'Exception X332, "12.0 m single dwelling" column'
+    assert narrow['rear_yard']['value'] == 12.0  # 5.8 m measured reaches the 6.0 m lane lot with the half metre's grace
+    assert resolve('S-SD-SA-3-X332', rules, 4.0) == {} and resolve('S-SD-SA-3-X332', rules) == {}

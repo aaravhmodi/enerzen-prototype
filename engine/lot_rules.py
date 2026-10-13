@@ -56,23 +56,35 @@ def street_sides(parcel, roads: list, rotation_deg: float = 0.0) -> list[str]:
     return sides
 
 
-def resolve(code: str | None, rules: dict) -> dict:
+def resolve(code: str | None, rules: dict, frontage_m: float | None = None) -> dict:
     """Each standard for a zone code: the zone table's value, replaced by any exception's."""
     if not code:
         return {}
     base, exceptions = split_zone(code)
+    # The zone as the exception names it: "S-SD-SA-3" for a lot mapped "S-SD-SA-3-X332".
+    designation = re.sub(r'[-\s(]*X\s?\d+\)?', '', code.upper()).strip('- ')
     resolved = {}
     for key, rule in (rules.get('zones', {}).get(base) or {}).items():
         resolved[key] = {**rule, 'from': f'Zone {base} table'}
     for exception in exceptions:
         section = rules.get('exceptions', {}).get(exception) or {}
         # The exception's own table of zones by row, where it has one, is its most specific word.
-        stated = [*(section.get('provisions') or {}).items(), *((section.get('by_zone') or {}).get(base) or {}).items()]
-        for key, rule in stated:
+        by_zone = section.get('by_zone') or {}
+        stated = [(key, rule, f'Exception {exception}') for key, rule in
+                  [*(section.get('provisions') or {}).items(), *(by_zone.get(designation) or by_zone.get(base) or {}).items()]]
+        # A newer exception gives one zone a column per kind of lot ("9.0 m single dwelling", "12.0 m
+        # single dwelling", "semi-detached dwelling"). The lot takes the widest kind its own frontage
+        # reaches, measured with half a metre's grace, and the column is named beside each value.
+        kinds = [k for k in (section.get('by_lot_type') or {}).get(designation, []) if 'lot_frontage' in k['provisions']]
+        fits = [k for k in kinds if frontage_m is not None and k['provisions']['lot_frontage']['value'] <= frontage_m + 0.5]
+        if fits:
+            kind = max(fits, key=lambda k: k['provisions']['lot_frontage']['value'])
+            stated += [(key, rule, f'Exception {exception}, "{kind["type"]}" column') for key, rule in kind['provisions'].items()]
+        for key, rule, said_by in stated:
             # 'on lands designated "S1" and "S2": 4.5 metres' is not this lot's standard in an S4 zone.
             if rule.get('applies_to') and base not in rule['applies_to']:
                 continue
-            resolved[key] = {**rule, 'from': f'Exception {exception}', 'overrides': resolved.get(key, {}).get('value')}
+            resolved[key] = {**rule, 'from': said_by, 'overrides': resolved.get(key, {}).get('value')}
     return resolved
 
 
@@ -89,7 +101,6 @@ def _envelope(parcel, rotation_deg: float, sides: dict):
 
 def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions: dict | None) -> dict:
     """The lot's setbacks by side, the lot standards, checks of the lot itself, and the buildable area."""
-    standards = resolve(code, rules)
     base, exceptions = split_zone(code) if code else (None, [])
     streets = street_sides(parcel, roads, (dimensions or {}).get('rotation_deg', 0.0)) if parcel is not None else []
     street = streets[0] if streets else (dimensions or {}).get('street_side')
@@ -102,6 +113,8 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         if on_street(flank) < on_street(street):
             street, flank = flank, street
     through = bool(street and OPPOSITE[street] in streets)
+    frontage = dimensions['width_m' if street in 'NS' else 'depth_m'] if dimensions and street else None
+    standards = resolve(code, rules, frontage)
 
     by_side, missing = {}, []
     if street:

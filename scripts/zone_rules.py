@@ -21,7 +21,7 @@ from pathlib import Path
 
 # Provision keys, the words that name them, and whether the by-law states a floor or a ceiling.
 PROVISIONS = [
-    ('exterior_side_yard', r'exterior\s+side\s+yard|flankag\s?e', 'minimum'),
+    ('exterior_side_yard', r'exterior\s+side\s+yard|flank(?:ag\s?e|ing)', 'minimum'),
     ('interior_side_yard', r'(interior\s+)?side\s+yard', 'minimum'),
     ('front_yard', r'front\s+yard', 'minimum'),
     ('rear_yard', r'rear\s+yard', 'minimum'),
@@ -57,6 +57,8 @@ LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
 LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max)\b\.?)*', re.I)
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
+# 'Zone Requirements ("S-SD-SA-3")': which of an exception's zones the standards below are for.
+ZONE_HEADING = re.compile(r'Zone Requirements\s*\(\W*([A-Z][A-Z0-9/\-]*)')
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
 
@@ -224,13 +226,50 @@ def rules_by_zone_row(table, source: dict) -> dict:
     return {zone: rules for zone, rules in out.items() if rules}
 
 
-def _open_exceptions(pages: list[str]) -> list:
-    """For each page, the exception whose section is open at the top of it (None before the first)."""
-    opened, code = [], None
+def rules_by_lot_type(table, source: dict, carried: list | None = None) -> tuple[list, list]:
+    """([{type, provisions}], column headings) from a newer exception's table: a column per kind of lot
+    ("9.0 m single dwelling", "semi-detached dwelling"), a row per standard.
+
+    The table runs on to the next page without its headings, so that part is read with the headings
+    carried from the page before; its first row is then the tail of a cell split by the page break.
+    """
+    rows = [[' '.join(str(c or '').split()) for c in r] for r in table if r and any(r)]
+    width = max(map(len, rows), default=0)
+    rows = [r + [''] * (width - len(r)) for r in rows]
+    counts = [sum(bool(provision_key(r[c])) for r in rows) for c in range(width)]
+    label = max(range(width), key=counts.__getitem__, default=0)
+    if len(rows) < 2 or counts[label] < 2 or width - label < 3:
+        return [], []
+    head = rows[0][label + 1:]
+    if not rows[0][label] and sum('dwelling' in c.lower() for c in head) >= 2:
+        types, body = head, rows[1:]
+    elif carried and len(carried) == width - label - 1:
+        types, body = carried, rows
+    else:
+        return [], []
+    kinds = [{'type': kind, 'provisions': {}} for kind in types]
+    for row in body:
+        key = provision_key(row[label])
+        if not key or re.search(r'accessory', row[label], re.I):  # "Lot Coverage of All Accessory Buildings"
+            continue
+        for kind, cell in zip(kinds, row[label + 1:]):
+            value = parse_value(cell)
+            if value and (key[0].endswith('yard') or key[0] == 'lot_frontage'):
+                length = LENGTH.search(cell)
+                value = {**value, 'value': float(length.group(1)), 'unit': 'm'} if length else None
+            if value:
+                kind['provisions'].setdefault(key[0], {**value, 'bound': key[1], 'label': row[label], **source})
+    return kinds, types
+
+
+def _open_sections(pages: list[str]) -> list:
+    """For each page, the (exception, zone) whose requirements are open at the top of it."""
+    opened, code, zone = [], None, None
     for text in pages:
-        opened.append(code)
-        for head in EXCEPTION_HEADING.finditer(text):
-            code = f'X{int(head.group(1))}'
+        opened.append((code, zone))
+        marks = [(m.start(), 'X', m) for m in EXCEPTION_HEADING.finditer(text)] +                 [(m.start(), 'Z', m) for m in ZONE_HEADING.finditer(text)]
+        for _, kind, mark in sorted(marks, key=lambda m: m[0]):
+            code, zone = (f'X{int(mark.group(1))}', None) if kind == 'X' else (code, mark.group(1))
     return opened
 
 
@@ -327,7 +366,7 @@ def extract(documents: list[dict], store: Path) -> dict:
         pages = json.loads((store / doc['text_file']).read_text(encoding='utf-8')) if doc.get('text_file') else []
         source = {'document': doc.get('title'), 'file': doc['file'], 'url': doc.get('url')}
         read.append(doc['file'])
-        opened, tabled = _open_exceptions(pages), {}
+        opened, tabled, typed, running = _open_sections(pages), {}, {}, None
         if pdfplumber and path.exists():
             try:
                 with pdfplumber.open(path) as pdf:
@@ -340,6 +379,7 @@ def extract(documents: list[dict], store: Path) -> dict:
                         page_text = page.extract_text() or stored or ''
                         tables = page.find_tables()
                         heads = page.search(r'Exception\s+Zone\s+(\d{1,4})', regex=True) if tables else []
+                        zoned = page.search(ZONE_HEADING.pattern, regex=True) if tables else []
                         for table in tables:
                             cells, where = table.extract(), {**source, 'page': number}
                             found, missed = rules_from_table(cells, page_text, where)
@@ -349,12 +389,25 @@ def extract(documents: list[dict], store: Path) -> dict:
                                     zones.setdefault(zone, {}).setdefault(key, rule)
                             # A table of zones by row belongs to the exception it sits in: the last
                             # heading above it on the page, or the section open at the top of the page.
-                            before = [h for h in heads if h['top'] < table.bbox[1]]
-                            code = (f"X{int(before[-1]['groups'][0])}" if before
-                                    else opened[number - 1] if number <= len(opened) else None)
+                            code, named = opened[number - 1] if number <= len(opened) else (None, None)
+                            marks = [(h['top'], 'X', h) for h in heads] + [(h['top'], 'Z', h) for h in zoned]
+                            for top, kind, mark in sorted(marks, key=lambda m: m[0]):
+                                if top < table.bbox[1]:
+                                    code, named = ((f"X{int(mark['groups'][0])}", None) if kind == 'X'
+                                                   else (code, mark['groups'][0]))
                             for zone, rules in (rules_by_zone_row(cells, where) if code else {}).items():
                                 for key, rule in rules.items():
                                     tabled.setdefault(code, {}).setdefault(zone, {}).setdefault(key, rule)
+                            # A table by kind of lot belongs to the zone whose requirements it sits
+                            # under, and carries on over the page break without its headings.
+                            carries = running and running[:2] == (code, named) and number - running[2] <= 1
+                            kinds, types = rules_by_lot_type(cells, where, running[3] if carries else None)                                 if code and named else ([], [])
+                            if kinds:
+                                kept = typed.setdefault(code, {}).setdefault(named, kinds)
+                                for mine, theirs in zip(kept, kinds):
+                                    for key, rule in theirs['provisions'].items():
+                                        mine['provisions'].setdefault(key, rule)
+                                running = (code, named, number, types)
                         page.flush_cache()
             except Exception as exc:
                 unparsed.append({'file': doc['file'], 'error': repr(exc)})
@@ -369,6 +422,9 @@ def extract(documents: list[dict], store: Path) -> dict:
                 kept = exceptions[code].setdefault('by_zone', {}).setdefault(zone, {})
                 for key, rule in rules.items():
                     kept.setdefault(key, rule)
+        for code, by_type in typed.items():
+            if code in exceptions:
+                exceptions[code].setdefault('by_lot_type', {}).update(by_type)
     return {'zones': zones, 'exceptions': exceptions, 'unparsed': unparsed[:500], 'documents_read': read,
             'table_reader': 'pdfplumber' if pdfplumber else None}
 

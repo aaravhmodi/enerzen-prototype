@@ -611,6 +611,14 @@ and O. Reg. 545/06. The API reads only that stored copy.
   down the column, which reads as blank, takes the value above it. One "side
   and flankage" cell gives both yards. A length is the first number given in
   metres, so "1 dwelling per registered lot 15 metres" is a 15 m frontage.
+- **A table by kind of lot** — the newer exceptions give one zone a column per
+  kind of lot ("9.0 m single dwelling", "12.0 m single dwelling", "semi-detached
+  dwelling", "lane single attached dwelling"). The table belongs to the zone
+  named in the "Zone Requirements" heading above it and carries over the page
+  break. A lot takes the widest kind its measured frontage reaches, with 0.5 m
+  of grace; where two kinds share a minimum frontage the first listed is taken.
+  The column is named beside each value, because the City's data does not say
+  which kind of dwelling a lot holds.
 - **Which side is which** — sides are judged in the lot's own frame: the lot's
   minimum rotated rectangle, turned so the edge nearer east-west lies flat. The
   front yard faces the nearest road centreline within 15 m of the lot boundary;
