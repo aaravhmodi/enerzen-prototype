@@ -299,6 +299,9 @@ def map_features(latitude: float, longitude: float, radius_m: float = 250, per_l
         parcel = {'type': 'Feature', 'properties': {**_clean(attrs), '_layer': layer.meta['name']},
                   'geometry': mapping(_to_wgs84(geom))}
     area = point.buffer(radius_m)
+    # A shape far larger than the view (a floodplain, a land-use designation) is cut to twice the
+    # view, or one lot's map would carry tens of megabytes of the rest of the city.
+    view = point.buffer(radius_m * 2).bounds
     out, drawn, fabric = [], set(), _lot_fabric(layers)
     for layer in layers:
         # The City publishes the same roads, buildings and address points under several services, and
@@ -312,6 +315,10 @@ def map_features(latitude: float, longitude: float, radius_m: float = 250, per_l
             attrs, geom = layer.features[layer._indexed[int(i)]]
             if not geom.intersects(area):
                 continue
+            if shapely.get_num_coordinates(geom) > 400:
+                geom = shapely.clip_by_rect(geom, *view)
+                if geom.is_empty:
+                    continue
             props = _clean(attrs)
             if layer.meta['category'] == 'zoning':
                 props['_zone'] = _pick(attrs, r'^zone$', r'zone_?(code|cat|class)?$', r'zon', r'symbol')
