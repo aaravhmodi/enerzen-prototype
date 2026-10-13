@@ -597,14 +597,21 @@ and O. Reg. 545/06. The API reads only that stored copy.
   marks are removed, so "one side 1.8 m and other side 3.0 m" is read as 1.8.
   Where a requirement is split over rows by use, the first case stated is kept.
   The Seaton zones give a row per building type; the first type listed is kept
-  and named beside the value. In an exception's prose a number counts only when
-  it directly follows the yard's name ("REAR YARD DEPTH (minimum): 7.5 metres").
+  and named beside the value. In an exception's prose a yard counts only when
+  it is written as a heading that opens its clause, names a depth, width or
+  minimum, and is followed directly by its number, on the same line or the
+  next ("REAR YARD DEPTH (minimum): 7.5 metres"). A lower-case list item under
+  another heading ("Detached Garage Requirements"), a clause about encroachments
+  or projections, a definition, and a bare number over 60 with no unit are not
+  read as the lot's standard. A value stated 'on lands designated "S1" and
+  "S2"' applies to those zones only.
 - **Which side is which** — sides are judged in the lot's own frame: the lot's
   minimum rotated rectangle, turned so the edge nearer east-west lies flat. The
   front yard faces the nearest road centreline within 15 m of the lot boundary;
   on a corner lot the side toward a second such road takes the exterior side
-  yard. Curbs, road labels and streetlights, which the City also publishes as
-  road layers, are not used.
+  yard, and the shorter of the two street lines is the front (By-law 8149/24,
+  "Lot Line, Front"). Curbs, road labels and streetlights, which the City also
+  publishes as road layers, are not used.
 - **Buildable area** — that rectangle inset by each side's setback, cut to the
   lot's outline and turned back.
 - **Overlays** — reported when on the lot or within a set distance of it:
