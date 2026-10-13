@@ -50,7 +50,9 @@ ARCGIS_ROOTS = ['https://maps.pickering.ca/arcgisinter/rest/services']
 PICKERING_BBOX = (-79.23, 43.79, -78.95, 44.04)
 # Regional, conservation-authority and provincial layers the City server may not carry.
 EXTERNAL_SOURCES = [
-    {'label': 'Durham Region Official Plan and open data',  # incl. Oak Ridges Moraine, railways, MTSAs
+    # Only the Official Plan maps (incl. Oak Ridges Moraine, railways, MTSAs): the rest of the folder
+    # is region-wide census, contours and terrain, about 7 million features that no lot review reads.
+    {'label': 'Durham Region Official Plan', 'only': r'OfficialPlan',
      'url': 'https://maps.durham.ca/arcgis/rest/services/Open_Data'},
     {'label': 'TRCA regulation limit (O. Reg. 41/24)',
      'url': 'https://services1.arcgis.com/d0ZCwU7eGKVeNiEE/ArcGIS/rest/services/TRCA_Regulation_Limit2/FeatureServer'},
@@ -541,7 +543,7 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
                {'bbox': PICKERING_BBOX, **r} for r in arcgis_roots]
     for source in sources:
         try:
-            services = walk_services(fetch, source['url'])
+            services = [s for s in walk_services(fetch, source['url']) if re.search(source.get('only', ''), s)]
         except Exception as exc:
             errors.append({'url': source['url'], 'error': repr(exc)})
             continue

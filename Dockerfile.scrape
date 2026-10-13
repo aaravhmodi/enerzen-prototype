@@ -5,6 +5,8 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+# Progress lines reach the log as they happen.
+ENV PYTHONUNBUFFERED=1
 COPY scripts/requirements-scrape.txt .
 RUN pip install --no-cache-dir -r requirements-scrape.txt
 
