@@ -10,6 +10,8 @@ type Props = {
   data: MapData | null;
   hidden: Set<string>;
   onPick: (latitude: number, longitude: number) => void;
+  // Called after the map settles at street zoom, to load the layers around the new view.
+  onExplore?: (latitude: number, longitude: number) => void;
 };
 
 const PICKERING_CENTER: [number, number] = [-79.09, 43.87];
@@ -91,7 +93,7 @@ function popupContent(
   return root;
 }
 
-export default function ZoningMap({ data, hidden, onPick }: Props) {
+export default function ZoningMap({ data, hidden, onPick, onExplore }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const added = useRef<{ layers: string[]; sources: string[]; byCategory: Map<string, string[]> }>({
@@ -101,11 +103,14 @@ export default function ZoningMap({ data, hidden, onPick }: Props) {
   });
   const names = useRef(new Map<string, string>());
   const pick = useRef(onPick);
+  const explore = useRef(onExplore);
+  const fittedParcel = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     pick.current = onPick;
-  }, [onPick]);
+    explore.current = onExplore;
+  }, [onPick, onExplore]);
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !container.current || map.current) return;
@@ -119,6 +124,12 @@ export default function ZoningMap({ data, hidden, onPick }: Props) {
     instance.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
     instance.addControl(new mapboxgl.ScaleControl({ unit: "metric" }), "bottom-left");
     instance.on("load", () => setReady(true));
+    // Only moves the person made (not our own fly-to) reload the surrounding layers.
+    instance.on("moveend", (event) => {
+      if (!("originalEvent" in event) || !event.originalEvent || instance.getZoom() < 15) return;
+      const { lat, lng } = instance.getCenter();
+      explore.current?.(lat, lng);
+    });
     instance.on("click", (event) => {
       const hits = instance.queryRenderedFeatures(event.point);
       new mapboxgl.Popup({ maxWidth: "320px" })
@@ -225,6 +236,10 @@ export default function ZoningMap({ data, hidden, onPick }: Props) {
       state.layers.push("zn-parcel-fill", "zn-parcel-line");
     }
 
+    // Fly to a newly chosen lot; layers reloaded around a panned view leave the camera alone.
+    const key = data.parcel ? JSON.stringify(data.parcel.geometry).slice(0, 200) : `${data.center.latitude},${data.center.longitude}`;
+    if (data.explored || key === fittedParcel.current) return;
+    fittedParcel.current = key;
     const box = bounds(data.parcel);
     if (box) instance.fitBounds(box, { padding: 160, maxZoom: 17.5, duration: 900 });
     else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17.5, duration: 900 });

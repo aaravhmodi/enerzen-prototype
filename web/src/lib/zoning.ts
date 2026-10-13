@@ -33,6 +33,8 @@ export type MapData = {
   layers: MapLayer[];
   retrieved_at: string;
   detail?: string;
+  // Set when these layers were loaded for a panned view rather than a chosen lot.
+  explored?: boolean;
 };
 
 export type Hit = {
@@ -250,5 +252,6 @@ export const CATEGORY_LABELS: Record<string, string> = {
   topography: "Topography",
   addresses: "Address points",
   neighbourhoods: "Neighbourhoods",
+  roads: "Roads",
   other: "Other City layers",
 };
