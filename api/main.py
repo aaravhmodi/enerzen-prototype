@@ -431,7 +431,11 @@ def run_report(req: ReportRequest):
     top = results[req.top_n_index]
 
     catalog = load_catalog()
-    checks = [fz.gate_check(gate), _constraints_check(spec, catalog), site_check, fz.zoning_check(resolved.name)]
+    parcel = None
+    if is_pickering(spec.location) and req.site and req.site.latitude is not None and req.site.longitude is not None:
+        parcel = pickering_zoning.lookup(req.site.latitude, req.site.longitude).get("parcel")
+    checks = [fz.gate_check(gate), _constraints_check(spec, catalog), site_check,
+              fz.zoning_check(resolved.name, parcel)]
     timeline = _spec_soft_timeline(spec)
     steps, enhancements = fz.next_steps(
         location=resolved, checks=checks, target_label=spec.target_label,

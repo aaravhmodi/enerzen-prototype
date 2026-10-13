@@ -14,6 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import shapely
+import shapely.ops
 from shapely import STRtree
 from shapely.geometry import Point, mapping, shape
 
@@ -224,7 +225,7 @@ CATEGORY_STYLE = {
     'parcels': '#6b7280', 'zoning': '#8c7ca9', 'official_plan': '#c08a3e', 'floodplain': '#2f7fc1',
     'natural_heritage': '#3f8f4f', 'heritage': '#b5523b', 'easements': '#d4a017', 'rail': '#222222',
     'provincial_plans': '#1f9e89', 'servicing': '#0e7490', 'topography': '#a16207', 'addresses': '#525252',
-    'neighbourhoods': '#9ca3af', 'other': '#64748b',
+    'neighbourhoods': '#9ca3af', 'roads': '#a8a29e', 'other': '#64748b',
 }
 
 
@@ -476,6 +477,33 @@ def lot_amendments(manifest: dict, property_id: dict | None, zone_codes: list[st
     return found
 
 
+def lot_dimensions(parcel_geom, roads: list) -> dict | None:
+    """The lot as the site planner sees it: E-W width, N-S depth, and which side faces the street.
+
+    Sides come from the lot's minimum rotated rectangle, the one nearer east-west
+    taken as the width; the street side is the direction of the nearest road.
+    """
+    if parcel_geom is None or parcel_geom.area <= 0:
+        return None
+    rect = parcel_geom.minimum_rotated_rectangle
+    xs, ys = rect.exterior.coords.xy
+    edges = [(xs[i + 1] - xs[i], ys[i + 1] - ys[i]) for i in range(2)]
+    lengths = [math.hypot(dx, dy) for dx, dy in edges]
+    ew = 0 if abs(edges[0][0]) >= abs(edges[1][0]) else 1
+    rotation = math.degrees(math.atan2(edges[ew][1], edges[ew][0])) % 180
+    result = {'width_m': round(lengths[ew], 1), 'depth_m': round(lengths[1 - ew], 1),
+              'rotation_deg': round(rotation if rotation <= 90 else rotation - 180, 1),
+              'rectangularity': round(parcel_geom.area / rect.area, 2), 'street_side': None}
+    if roads:
+        centre = parcel_geom.centroid
+        nearest = min(roads, key=lambda g: g.distance(centre))
+        target = shapely.ops.nearest_points(centre, nearest)[1]
+        dx, dy = target.x - centre.x, target.y - centre.y
+        result['street_side'] = ('E' if dx > 0 else 'W') if abs(dx) > abs(dy) else ('N' if dy > 0 else 'S')
+        result['street_distance_m'] = round(nearest.distance(parcel_geom), 1)
+    return result
+
+
 def lookup(latitude: float, longitude: float) -> dict:
     manifest, layers = load_store()
     if manifest is None:
@@ -534,6 +562,10 @@ def lookup(latitude: float, longitude: float) -> dict:
     adjacent_zones = sorted({z for h in adjacent if (z := _pick(h['attributes'], r'^zone$', r'zone_?(code|cat|class)?$',
                                                                 r'zon', r'symbol'))} - set(zone_codes))
 
+    roads = [geom for layer in layers if layer.meta['category'] == 'roads'
+             for _, geom, _ in layer.near(point, 120)]
+    dimensions = lot_dimensions(parcel['_geom'] if parcel else None, roads)
+
     property_id = None
     if parcel:
         a = parcel['attributes']
@@ -542,6 +574,7 @@ def lookup(latitude: float, longitude: float) -> dict:
             'roll_number': _pick(a, r'roll|arn'), 'pin': _pick(a, r'\bpin\b|^pin'),
             'legal_description': _pick(a, r'legal|plan|lot|conc'),
             'area_m2': round(parcel['_geom'].area, 1), 'perimeter_m': round(parcel['_geom'].length, 1),
+            'dimensions': dimensions,
             'layer': parcel['layer'], 'source_url': parcel['source_url'], 'attributes': a,
         }
     elif addresses:
@@ -556,6 +589,18 @@ def lookup(latitude: float, longitude: float) -> dict:
                   'on any use, height, setback or parking rule; this is not a zoning determination.',
         'retrieved_at': manifest['retrieved_at'],
         'query': {'latitude': latitude, 'longitude': longitude},
+        # The same short shape as the Toronto lookup, for the workspace's site step.
+        'parcel': {k: v for k, v in {
+            'address': (property_id or {}).get('address'),
+            'zoning': ', '.join(zone_codes) or None,
+            'by_law': ', '.join(bylaw_numbers) or None,
+            'official_plan': ', '.join(filter(None, (_pick(h['attributes'], r'desig', r'land_?use', r'name')
+                                                    for h in official_plan))) or None,
+            'overlays': ', '.join(c.replace('_', ' ') for c in triggered) or None,
+            'lot': f"{dimensions['width_m']} m × {dimensions['depth_m']} m" if dimensions else None,
+        }.items() if v},
+        'source_url': zoning[0]['source_url'] if zoning else None,
+        'source_label': 'City of Pickering zoning (stored on this server)',
         'steps': {
             '1_property_identification': {
                 'from_city_data': property_id,
