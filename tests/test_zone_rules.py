@@ -123,3 +123,13 @@ def test_one_zone_table_by_building_type_keeps_the_first_type():
     found, _ = rules_from_table(table, title, {'page': 180})
     assert found['SLD1']['front_yard']['value'] == 3.0 and found['SLD1']['exterior_side_yard']['value'] == 2.4
     assert 'Detached Dwelling with attached private garage' in found['SLD1']['front_yard']['label']
+
+
+def test_prose_takes_only_a_number_that_follows_the_provision_name():
+    text = ('"Front Yard Depth" shall mean the shortest horizontal di1nension of a front yard\n'
+            'no accessory building shall be erected in the rear yard and shall not be less than 1.0 metres from\n'
+            'FRONT YARD DEPTH (minimum): 4.5 metres\nREAR YARD DEPTH (minimum): 7.5 metres\n'
+            'FLANKAGE SIDE YARD WIDTH (minimum): 2. 7 metres\nthe minimum interior side yard shall be 1.2 metres')
+    rules = rules_from_text(text, {})
+    assert {k: v['value'] for k, v in rules.items()} == {
+        'front_yard': 4.5, 'rear_yard': 7.5, 'exterior_side_yard': 2.7, 'interior_side_yard': 1.2}

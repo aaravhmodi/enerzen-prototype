@@ -43,6 +43,9 @@ ZONE_TOKEN = r'[A-Z]{1,5}(?:[0-9]{1,2}[A-Z]{0,2})?(?:-[A-Z0-9]{1,3})?'
 ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
 NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.',
              'FLOOR', 'LAND', 'OPEN', 'UNIT', 'AREA', 'LOT', 'USE', 'USES', 'SPACE', 'YARD', 'PART', 'MAP'}
+# What may stand between a provision's name and its number: "DEPTH (minimum):", "width of", "shall be".
+DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max|of|shall|be|is|a)\b\.?)*\d',
+                             re.I)
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
@@ -151,13 +154,22 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
 
 
 def rules_from_text(text: str, source: dict) -> dict:
-    """Provisions stated in prose: "the minimum rear yard shall be 7.5 metres"."""
+    """Provisions stated in prose: "the minimum rear yard shall be 7.5 metres".
+
+    The number has to follow the provision's name directly ("REAR YARD DEPTH (minimum): 7.5 metres").
+    A sentence that only mentions a yard ("erected in the rear yard and not less than 1.0 metres
+    from...") or defines one is not that yard's standard, and a missing standard is reported as
+    missing rather than guessed.
+    """
     rules = {}
+    text = re.sub(r'(?<=\d)\.\s(?=\d\s*(?:m\b|metres?))', '.', text)  # scanned by-laws: "2. 7 metres"
     for line in re.split(r'\n|;|(?<=\.)\s+(?=[A-Z(])', text):
         key = provision_key(line)
         if not key:
             continue
         after = re.split(PROVISIONS[[p[0] for p in PROVISIONS].index(key[0])][1], line, maxsplit=1, flags=re.I)[-1]
+        if not DIRECTLY_STATED.match(after):
+            continue
         value = parse_value(after)
         if value and key[0] not in rules:
             rules[key[0]] = {**value, 'bound': key[1], 'label': ' '.join(line.split())[:200], **source}
@@ -177,11 +189,15 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
         body = text[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(text)]
         code = f'X{int(head.group(1))}'
         page = page_at(head.start())
-        provisions = rules_from_text(body, {**source, 'page': page})
         entry = found.setdefault(code, {'heading': ' '.join(head.group(0).split())[:160], 'page': page,
                                         'provisions': {}, 'text': ' '.join(body.split())[:4000], **source})
-        for key, rule in provisions.items():
-            entry['provisions'].setdefault(key, rule)
+        # Read page by page, so each standard cites the page it is on rather than the section's first.
+        begin, end = head.end(), head.end() + len(body)
+        for (start, number), (stop, _) in zip(offsets, offsets[1:] + [(len(text), None)]):
+            if max(start, begin) < min(stop, end):
+                part = text[max(start, begin):min(stop, end)]
+                for key, rule in rules_from_text(part, {**source, 'page': number}).items():
+                    entry['provisions'].setdefault(key, rule)
     return found
 
 
