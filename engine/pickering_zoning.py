@@ -564,7 +564,8 @@ def lot_dimensions(parcel_geom, roads: list) -> dict | None:
     xs, ys = rect.exterior.coords.xy
     edges = [(xs[i + 1] - xs[i], ys[i + 1] - ys[i]) for i in range(2)]
     lengths = [math.hypot(dx, dy) for dx, dy in edges]
-    ew = 0 if abs(edges[0][0]) >= abs(edges[1][0]) else 1
+    # By direction, not by reach: a long edge at 53 degrees reaches further east than a short one at 37.
+    ew = 0 if abs(edges[0][0]) / lengths[0] >= abs(edges[1][0]) / lengths[1] else 1
     rotation = math.degrees(math.atan2(edges[ew][1], edges[ew][0])) % 180
     result = {'width_m': round(lengths[ew], 1), 'depth_m': round(lengths[1 - ew], 1),
               'rotation_deg': round(rotation if rotation <= 90 else rotation - 180, 1),
@@ -572,9 +573,7 @@ def lot_dimensions(parcel_geom, roads: list) -> dict | None:
     if roads:
         centre = parcel_geom.centroid
         nearest = min(roads, key=lambda g: g.distance(parcel_geom))  # the side actually nearest a road
-        target = shapely.ops.nearest_points(centre, nearest)[1]
-        dx, dy = target.x - centre.x, target.y - centre.y
-        result['street_side'] = ('E' if dx > 0 else 'W') if abs(dx) > abs(dy) else ('N' if dy > 0 else 'S')
+        result['street_side'] = lot_rules._side_of(centre, nearest, result['rotation_deg'])
         result['street_distance_m'] = round(nearest.distance(parcel_geom), 1)
     return result
 

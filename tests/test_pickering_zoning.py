@@ -520,3 +520,21 @@ def test_lookup_takes_the_lot_not_a_larger_parcel_around_it(use_store):
         assert found['steps']['1_property_identification']['from_city_data']['area_m2'] == round(geom.area, 1)
     finally:
         layers.remove(outline)
+
+
+def test_a_lot_at_an_angle_fronts_on_its_street_side():
+    # 1025 Dalewood Dr: 16.5 m on the street and 33 m deep, turned 37 degrees from north. Its long
+    # side was taken as the frontage, which left a 4.5 m strip to build on.
+    from shapely import affinity
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot = affinity.rotate(box(0, 0, 16.5, 33), -37, origin=(0, 0))
+    street = affinity.rotate(LineString([(-50, -10), (60, -10)]), -37, origin=(0, 0))
+    dims = pickering_zoning.lot_dimensions(lot, [street])
+    assert (dims['width_m'], dims['depth_m'], dims['street_side']) == (16.5, 33.0, 'S')
+    yard = lambda value: {'value': value, 'unit': 'm'}
+    rules = {'zones': {'R1G': {'front_yard': yard(4.5), 'rear_yard': yard(7.5), 'interior_side_yard': yard(1.2)}},
+             'exceptions': {}}
+    found = lot_rules.apply_to_lot(lot, 'R1G', rules, [street], dims)
+    assert found['setbacks_by_side']['S']['applies'] == 'front_yard' and not found['corner_lot']
+    assert found['buildable_area_m2'] == pytest.approx((16.5 - 2.4) * (33 - 12), abs=0.5)

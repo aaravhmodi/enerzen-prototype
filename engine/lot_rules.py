@@ -33,19 +33,24 @@ def split_zone(code: str) -> tuple[str, list[str]]:
     return base, exceptions
 
 
-def _side_of(centre, geom) -> str:
+def _side_of(centre, geom, rotation_deg: float = 0.0) -> str:
+    """Which side of the lot a road is on, in the lot's own frame: the lot turned upright by its
+    rotation, as _envelope draws it. Judged by compass instead, a lot at an angle to north got its
+    front yard on a side lot line."""
     target = shapely.ops.nearest_points(centre, geom)[1]
     dx, dy = target.x - centre.x, target.y - centre.y
+    turn = math.radians(rotation_deg)
+    dx, dy = dx * math.cos(turn) + dy * math.sin(turn), dy * math.cos(turn) - dx * math.sin(turn)
     return ('E' if dx > 0 else 'W') if abs(dx) > abs(dy) else ('N' if dy > 0 else 'S')
 
 
-def street_sides(parcel, roads: list) -> list[str]:
+def street_sides(parcel, roads: list, rotation_deg: float = 0.0) -> list[str]:
     """Sides of the lot with a road within FRONTING_M of its boundary, nearest road first."""
     centre = parcel.centroid
     near = sorted((g for g in roads if g.distance(parcel) <= FRONTING_M), key=lambda g: g.distance(parcel))
     sides = []
     for road in near:
-        side = _side_of(centre, road)
+        side = _side_of(centre, road, rotation_deg)
         if side not in sides:
             sides.append(side)
     return sides
@@ -81,7 +86,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     """The lot's setbacks by side, the lot standards, checks of the lot itself, and the buildable area."""
     standards = resolve(code, rules)
     base, exceptions = split_zone(code) if code else (None, [])
-    streets = street_sides(parcel, roads) if parcel is not None else []
+    streets = street_sides(parcel, roads, (dimensions or {}).get('rotation_deg', 0.0)) if parcel is not None else []
     street = streets[0] if streets else (dimensions or {}).get('street_side')
     # A corner lot has a second street on a side next to (not opposite) the front.
     flank = next((s for s in streets[1:] if s not in (street, OPPOSITE.get(street))), None)
