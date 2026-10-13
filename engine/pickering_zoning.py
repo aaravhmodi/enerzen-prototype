@@ -17,7 +17,7 @@ from pathlib import Path
 import shapely
 import shapely.ops
 from shapely import STRtree
-from shapely.geometry import Point, mapping, shape
+from shapely.geometry import Point, mapping
 
 from engine import lot_rules
 
@@ -29,6 +29,8 @@ REF_LAT = 43.85
 M_PER_DEG_LAT = 111_132.0
 M_PER_DEG_LON = 111_320.0 * math.cos(math.radians(REF_LAT))
 SCALE = (M_PER_DEG_LON, M_PER_DEG_LAT)
+# West, south, east, north in WGS84: the City with a margin (the scraper clips to the same box).
+CITY_BOUNDS = (-79.23, 43.79, -78.95, 44.04)
 
 # Overlays that matter when they are near, not only underneath, the parcel.
 NEARBY_M = {'rail': 300, 'floodplain': 120, 'natural_heritage': 120, 'easements': 30, 'heritage': 60,
@@ -69,8 +71,16 @@ class Layer:
                 self.features.append((feature['properties'], None))
                 continue
             try:
-                geom = shapely.transform(shape(feature['geometry']), lambda xy: xy * SCALE)
+                geom = shapely.from_geojson(json.dumps(feature['geometry']))
+                # Regional and provincial layers come as region-wide shapes of a million points;
+                # only the part over the City is ever looked at.
+                if shapely.get_num_coordinates(geom) > 20_000:
+                    geom = shapely.clip_by_rect(geom, *CITY_BOUNDS)
+                geom = shapely.transform(geom, lambda xy: xy * SCALE)
             except Exception:
+                continue
+            if geom is None or geom.is_empty:
+                self.features.append((feature['properties'], None))
                 continue
             if not geom.is_valid:
                 geom = geom.buffer(0)
