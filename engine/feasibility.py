@@ -66,9 +66,22 @@ def assess(checks: list[Check], relaxed: list[str] | None = None) -> Assessment:
     return Assessment(FEASIBLE, ["Every hard constraint and gate passes."], checks, relaxed)
 
 
-def zoning_check(location_name: str) -> Check:
-    """Always not checked until a parcel is selected and its rules evaluated."""
-    if location_name.startswith("Pickering"):
+def zoning_check(location_name: str, parcel: dict | None = None) -> Check:
+    """Never passes: by-law standards are not evaluated against the design.
+
+    With a stored Pickering parcel the detail names its zone, by-law and overlays,
+    so the next step (confirm those standards) is specific.
+    """
+    if location_name.startswith("Pickering") and parcel and parcel.get("zoning"):
+        facts = [f"{parcel.get('address') or 'The selected lot'} is zoned {parcel['zoning']}"
+                 + (f" (by-law {parcel['by_law']})" if parcel.get("by_law") else "")]
+        if parcel.get("official_plan"):
+            facts.append(f"Official Plan: {parcel['official_plan']}")
+        if parcel.get("overlays"):
+            facts.append(f"overlays nearby: {parcel['overlays']}")
+        detail = ("; ".join(facts) + ". The zone's permitted uses, height and setbacks are listed on the zoning map "
+                  "but not evaluated against this design, so zoning is not checked.")
+    elif location_name.startswith("Pickering"):
         detail = ("No Pickering parcel is selected, so zoning, permitted uses, height and setbacks are not "
                   "checked. Lot dimensions and setbacks are scenario assumptions.")
     else:

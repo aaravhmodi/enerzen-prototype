@@ -85,6 +85,7 @@ CATEGORIES = [
     ('easements', r'easement|right[- ]of[- ]way|hydro corridor|utility corridor|transmission'),
     ('servicing', r'water ?main|sanitary|storm|sewer|hydrant|servic'),
     ('topography', r'contour|elevation|topograph|\bdem\b|lidar|slope'),
+    ('roads', r'\broads?\b|street|centre ?line|center ?line'),
     ('zoning', r'zon(e|ing)|by-?law|exception'),
     ('official_plan', r'official plan|land use|designation|secondary plan|urban (boundary|area)|settlement'),
     ('parcels', r'parcel|propert(y|ies)|\blots?\b|cadastr|assessment|\broll\b|\bpin\b|lot fabric|ownership'),

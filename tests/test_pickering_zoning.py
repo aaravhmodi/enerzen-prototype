@@ -41,6 +41,9 @@ LAYERS = {
         {'attributes': {'OBJECTID': 1, 'OWNER': 'CN'},
          'geometry': {'paths': [[[LON - 0.01, LAT + 0.002], [LON + 0.01, LAT + 0.002]]]}}]),
     3: ('Building Footprints', 'esriGeometryPolygon', []),
+    5: ('Street Centreline', 'esriGeometryPolyline', [
+        {'attributes': {'OBJECTID': 1, 'STREET': 'Test St'},
+         'geometry': {'paths': [[[LON - 0.003, LAT - 0.0005], [LON + 0.003, LAT - 0.0005]]]}}]),
 }
 
 
@@ -200,8 +203,8 @@ def use_store(store, monkeypatch):
 
 def test_scrape_downloads_every_layer_and_proves_it(store):
     out, manifest = store
-    assert {layer['category'] for layer in manifest['layers']} == {'zoning', 'parcels', 'rail', 'official_plan'}  # empty footprints skipped
-    assert len(json.loads((out / 'catalog.json').read_text())) == 6
+    assert {layer['category'] for layer in manifest['layers']} == {'zoning', 'parcels', 'rail', 'official_plan', 'roads'}  # empty footprints skipped
+    assert len(json.loads((out / 'catalog.json').read_text())) == 7
     parcels = next(l for l in manifest['layers'] if l['category'] == 'parcels')
     assert parcels['features'] == parcels['expected'] == 2 and parcels['complete']  # the capped page was retried
     report = manifest['completeness']
@@ -275,7 +278,8 @@ def test_layer_names_map_to_review_categories():
     assert classify('Zoning By-law 7364/14') == 'zoning'
     assert classify('TRCA Regulation Limit') == 'floodplain'
     assert classify('Greenbelt Plan Area') == 'provincial_plans'
-    assert classify('Street Centreline') is None
+    assert classify('Street Centreline') == 'roads'
+    assert classify('Building Footprints') is None
     assert classify('Watercourses') == 'natural_heritage'
 
 
@@ -300,7 +304,7 @@ def test_map_returns_the_lot_and_layers_in_wgs84(use_store):
     ring = result['parcel']['geometry']['coordinates'][0][0]
     assert all(abs(x - LON) < 0.001 and abs(y - LAT) < 0.001 for x, y in ring)
     layers = {l['category']: l for l in result['layers']}
-    assert set(layers) == {'parcels', 'zoning', 'rail', 'official_plan'}
+    assert set(layers) == {'parcels', 'zoning', 'rail', 'official_plan', 'roads'}
     assert {f['properties']['_zone'] for f in layers['zoning']['features']['features']} == {'R4', 'R3-7'}
     assert pickering_map(LAT, LON, radius_m=25)['layers'][-1]['category'] != 'rail'  # rail is ~190 m away
     json.dumps(result)
@@ -403,3 +407,32 @@ def test_lot_review_lists_amendments_naming_the_lot(use_store):
         [('Zoning amendment By-law 8276/26', ['names Lot 17, Concession 8'])]
     status = pickering_data_status()
     assert status['council_amendments'] == 1 and status['completeness']['missing_bylaws'] == ['9999/21']
+
+
+def test_lot_dimensions_and_street_side_for_the_site_planner(use_store):
+    result = zoning_lookup(CITY, LAT, LON)
+    dims = result['steps']['1_property_identification']['from_city_data']['dimensions']
+    assert dims['width_m'] == pytest.approx(48.2, abs=0.5) and dims['depth_m'] == pytest.approx(66.7, abs=0.5)
+    assert dims['street_side'] == 'S' and dims['rectangularity'] == 1.0
+    assert result['parcel'] == {'address': '1 Test St', 'zoning': 'R4', 'by_law': '3036',
+                                'official_plan': 'Pickering City Centre', 'overlays': 'rail',
+                                'lot': f"{dims['width_m']} m × {dims['depth_m']} m"}
+
+
+def test_rotated_lot_reports_its_own_sides():
+    from shapely import affinity
+    from shapely.geometry import LineString, box
+    from engine.pickering_zoning import lot_dimensions
+    lot = affinity.rotate(box(0, 0, 15, 40), 20, origin='centroid')  # 15 m frontage, 40 m deep, turned 20 degrees
+    dims = lot_dimensions(lot, [LineString([(-50, 60), (50, 60)])])
+    assert (dims['width_m'], dims['depth_m'], dims['rotation_deg']) == (15.0, 40.0, 20.0)
+    assert dims['street_side'] == 'N'
+
+
+def test_feasibility_names_the_lot_zone_but_never_passes_it(use_store):
+    from engine import feasibility as fz
+    parcel = zoning_lookup(CITY, LAT, LON)['parcel']
+    check = fz.zoning_check(CITY, parcel)
+    assert check.status == fz.NOT_CHECKED
+    assert check.detail.startswith('1 Test St is zoned R4 (by-law 3036); Official Plan: Pickering City Centre')
+    assert fz.zoning_check(CITY, {}).detail.startswith('No Pickering parcel')
