@@ -65,12 +65,14 @@ def resolve(code: str | None, rules: dict) -> dict:
     for key, rule in (rules.get('zones', {}).get(base) or {}).items():
         resolved[key] = {**rule, 'from': f'Zone {base} table'}
     for exception in exceptions:
-        section = rules.get('exceptions', {}).get(exception)
-        for key, rule in ((section or {}).get('provisions') or {}).items():
+        section = rules.get('exceptions', {}).get(exception) or {}
+        # The exception's own table of zones by row, where it has one, is its most specific word.
+        stated = [*(section.get('provisions') or {}).items(), *((section.get('by_zone') or {}).get(base) or {}).items()]
+        for key, rule in stated:
             # 'on lands designated "S1" and "S2": 4.5 metres' is not this lot's standard in an S4 zone.
             if rule.get('applies_to') and base not in rule['applies_to']:
                 continue
-            resolved[key] ={**rule, 'from': f'Exception {exception}', 'overrides': resolved.get(key, {}).get('value')}
+            resolved[key] = {**rule, 'from': f'Exception {exception}', 'overrides': resolved.get(key, {}).get('value')}
     return resolved
 
 

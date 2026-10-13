@@ -163,3 +163,31 @@ def test_a_lower_case_list_item_under_another_heading_is_not_the_zone_standard()
     text = ('Detached Garage Requirements:\n\uf0b7 minimum side yard width of 0.0 metres;\n'
             '\uf0b7 minimum rear yard depth of 0.6 metres;')
     assert rules_from_text(text, {}) == {}
+
+
+def test_an_exception_table_with_a_row_per_zone_two_heading_rows_and_merged_cells():
+    # Exception 295, "Figure 1", as the PDF reader returns it.
+    from scripts.zone_rules import rules_by_zone_row
+    table = [
+        ['Zone', 'Symbol', 'Maximum Density', '', 'Minimum Yards', '', '', 'Minimum Ground Floor\nArea/'],
+        ['', '', 'Minimum\nFrontage', 'Minimum Lot\nArea/Dwelling', 'Front', 'Side and\nFlankage', 'Rear', 'Bung.'],
+        ['Single\nDetached\nDwelling', 'S1', '1 dwelling\nper\nregistered\nlot\n15 metres\n16.5 metres\ncorner lot',
+         '510 square\nmetres', '4.5\nmetres',
+         '1.2\nmetres\nside\n2.7\nmetres\nflankage', '7.5\nmetres', '110'],
+        ['Single\nDetached\nDwelling', 'S2', '13.4 metres\n15 metres\ncorner lot', '450 square\nmetres', '', '', '', ''],
+        ['Semi-detached\nDwellings', 'SD', '18 metres', '275 square\nmetres', '', '', '', ''],
+    ]
+    found = rules_by_zone_row(table, {'page': 374})
+    values = lambda zone: {k: v['value'] for k, v in found[zone].items()}
+    assert values('S1') == {'lot_frontage': 15.0, 'lot_area': 510.0, 'front_yard': 4.5, 'interior_side_yard': 1.2,
+                            'exterior_side_yard': 2.7, 'rear_yard': 7.5}
+    assert values('S2') == {**values('S1'), 'lot_frontage': 13.4, 'lot_area': 450.0}  # yards merged down from S1
+    assert found['SD']['front_yard']['label'] == 'Minimum Yards: Front yard'
+    from engine.lot_rules import resolve
+    rules = {'zones': {}, 'exceptions': {'X295': {'provisions': {}, 'by_zone': found}}}
+    assert resolve('S2-X295', rules)['rear_yard']['value'] == 7.5 and 'rear_yard' not in resolve('S4-X295', rules)
+    assert rules_by_zone_row([['Requirement', 'R1A', 'R1B'], ['Minimum Front Yard (m)', '9.0', '9.0']], {}) == {}
+    # Exception 289 gives the two widths without naming them; the heading's order says which is which.
+    table[2][5] = '1.2\nmetres\n2.7\nmetres'
+    again = rules_by_zone_row(table, {})['S1']
+    assert (again['interior_side_yard']['value'], again['exterior_side_yard']['value']) == (1.2, 2.7)

@@ -605,6 +605,12 @@ and O. Reg. 545/06. The API reads only that stored copy.
   or projections, a definition, and a bare number over 60 with no unit are not
   read as the lot's standard. A value stated 'on lands designated "S1" and
   "S2"' applies to those zones only.
+- **An exception's own table** — where an exception sets out its zones in a
+  table with a row per zone (its "Figure 1"), each zone's row is read for that
+  exception only and takes precedence over the exception's prose. A cell merged
+  down the column, which reads as blank, takes the value above it. One "side
+  and flankage" cell gives both yards. A length is the first number given in
+  metres, so "1 dwelling per registered lot 15 metres" is a 15 m frontage.
 - **Which side is which** — sides are judged in the lot's own frame: the lot's
   minimum rotated rectangle, turned so the edge nearer east-west lies flat. The
   front yard faces the nearest road centreline within 15 m of the lot boundary;

@@ -53,6 +53,8 @@ NOT_A_STANDARD = re.compile(r'encroach|project|shall mean', re.I)
 # What may come before a provision's name in its clause: an article, "minimum", a list mark.
 OPENS_THE_CLAUSE = re.compile(r'''(?:[\s,()\-–"'“”‘’•.]|\b(?:the|a|an|minimum|maximum|min|max|required)\b'''
                               r'''|\(?\b(?:[ivxlc]{1,4}|\d{1,2}|[a-z])[.)])*''', re.I)
+LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
+SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
 LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max)\b\.?)*', re.I)
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
@@ -161,6 +163,77 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
     return out, unparsed
 
 
+def rules_by_zone_row(table, source: dict) -> dict:
+    """{zone: {provision: rule}} from a table with a row per zone and the zone's symbol in a column of
+    its own, as the older exception zones set out their standards ("Figure 1").
+
+    Such a table has a heading two rows deep ("Minimum Yards" over "Front", "Side and Flankage",
+    "Rear"), and cells merged down a column read as blank below the first row, so a blank cell takes
+    the value above it.
+    """
+    rows = [[' '.join(str(c or '').split()) for c in r] for r in table if r and any(r)]
+    width = max(map(len, rows), default=0)
+    rows = [r + [''] * (width - len(r)) for r in rows]
+    symbol = lambda cell: bool(ZONE.match(cell)) and cell.strip('()') not in NOT_ZONES  # as written: "S1", not "Front"
+    counts = [sum(symbol(r[c]) for r in rows) for c in range(width)]
+    column = max(range(width), key=counts.__getitem__, default=None)
+    first = next((i for i, r in enumerate(rows) if column is not None and symbol(r[column])), 0)
+    if column is None or counts[column] < 2 or first == 0:
+        return {}
+    labels = []
+    for c in range(width):
+        parts = []
+        for depth, row in enumerate(rows[:first]):
+            cell, left = row[c], c
+            # A heading spanning several columns sits in the first of them; the rest read as blank.
+            while not cell and depth < first - 1 and left > 0 and rows[first - 1][c]:
+                left -= 1
+                cell = row[left]
+            parts.append(cell)
+        label = ' '.join(p for p in parts if p)
+        if len(parts) > 1 and re.search(r'\byards?\b', parts[0], re.I) and not re.search(r'yard', parts[-1], re.I):
+            label = f'{parts[0]}: {parts[-1]} yard'  # "Minimum Yards: Front yard"
+        labels.append(label)
+    out, above = {}, [''] * width
+    for row in rows[first:]:
+        above = [cell or kept for cell, kept in zip(row, above)]
+        if not symbol(row[column]):
+            continue
+        rules = out.setdefault(row[column].strip('()'), {})
+        for c, (label, cell) in enumerate(zip(labels, above)):
+            if c == column or not cell:
+                continue
+            if re.search(r'side.*flankage', label, re.I):
+                # One cell for both: "1.2 metres side 2.7 metres flankage", or just "1.2 metres 2.7
+                # metres" in the heading's order. Anything else is left unread.
+                lengths = LENGTH.findall(cell)
+                pairs = [(n, w.lower()) for n, w in SIDE_AND_FLANKAGE.findall(cell)] or \
+                    (list(zip(lengths, ('side', 'flankage'))) if len(lengths) == 2 else [])
+                for number, which in pairs:
+                    key = 'interior_side_yard' if which == 'side' else 'exterior_side_yard'
+                    rules.setdefault(key, {'value': float(number), 'unit': 'm', 'raw': cell, 'bound': 'minimum',
+                                           'label': label, **source})
+                continue
+            key, value = provision_key(label), parse_value(cell)
+            if key and value and (key[0].endswith('yard') or key[0] == 'lot_frontage'):
+                # "1 dwelling per registered lot 15 metres": the length, not the count before it.
+                length = LENGTH.search(cell)
+                value = {**value, 'value': float(length.group(1)), 'unit': 'm'} if length else None
+            if key and value:
+                rules.setdefault(key[0], {**value, 'bound': key[1], 'label': label, **source})
+    return {zone: rules for zone, rules in out.items() if rules}
+
+
+def _open_exceptions(pages: list[str]) -> list:
+    """For each page, the exception whose section is open at the top of it (None before the first)."""
+    opened, code = [], None
+    for text in pages:
+        opened.append(code)
+        for head in EXCEPTION_HEADING.finditer(text):
+            code = f'X{int(head.group(1))}'
+    return opened
+
+
 def rules_from_text(text: str, source: dict) -> dict:
     """Provisions stated in prose: "the minimum rear yard shall be 7.5 metres".
 
@@ -254,6 +327,7 @@ def extract(documents: list[dict], store: Path) -> dict:
         pages = json.loads((store / doc['text_file']).read_text(encoding='utf-8')) if doc.get('text_file') else []
         source = {'document': doc.get('title'), 'file': doc['file'], 'url': doc.get('url')}
         read.append(doc['file'])
+        opened, tabled = _open_exceptions(pages), {}
         if pdfplumber and path.exists():
             try:
                 with pdfplumber.open(path) as pdf:
@@ -264,14 +338,24 @@ def extract(documents: list[dict], store: Path) -> dict:
                         if stored is not None and not STATES_A_STANDARD.search(stored):
                             continue
                         page_text = page.extract_text() or stored or ''
-                        tables = page.extract_tables()
-                        page.flush_cache()
+                        tables = page.find_tables()
+                        heads = page.search(r'Exception\s+Zone\s+(\d{1,4})', regex=True) if tables else []
                         for table in tables:
-                            found, missed = rules_from_table(table, page_text, {**source, 'page': number})
+                            cells, where = table.extract(), {**source, 'page': number}
+                            found, missed = rules_from_table(cells, page_text, where)
                             unparsed += missed
                             for zone, rules in found.items():
                                 for key, rule in rules.items():
                                     zones.setdefault(zone, {}).setdefault(key, rule)
+                            # A table of zones by row belongs to the exception it sits in: the last
+                            # heading above it on the page, or the section open at the top of the page.
+                            before = [h for h in heads if h['top'] < table.bbox[1]]
+                            code = (f"X{int(before[-1]['groups'][0])}" if before
+                                    else opened[number - 1] if number <= len(opened) else None)
+                            for zone, rules in (rules_by_zone_row(cells, where) if code else {}).items():
+                                for key, rule in rules.items():
+                                    tabled.setdefault(code, {}).setdefault(zone, {}).setdefault(key, rule)
+                        page.flush_cache()
             except Exception as exc:
                 unparsed.append({'file': doc['file'], 'error': repr(exc)})
         for code, entry in exceptions_from_pages(pages, source).items():
@@ -280,6 +364,11 @@ def extract(documents: list[dict], store: Path) -> dict:
                 current.setdefault('also_in', []).append(entry['file'])
                 for key, rule in entry['provisions'].items():
                     current['provisions'].setdefault(key, rule)
+        for code, by_zone in tabled.items():
+            for zone, rules in by_zone.items() if code in exceptions else ():
+                kept = exceptions[code].setdefault('by_zone', {}).setdefault(zone, {})
+                for key, rule in rules.items():
+                    kept.setdefault(key, rule)
     return {'zones': zones, 'exceptions': exceptions, 'unparsed': unparsed[:500], 'documents_read': read,
             'table_reader': 'pdfplumber' if pdfplumber else None}
 
