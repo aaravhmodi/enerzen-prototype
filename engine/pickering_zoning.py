@@ -140,6 +140,12 @@ ZONE_CODE_FIELD = (r'^zone$', r'^zon(e|ing)_?(code|cat|category|class|symbol)$')
 _LOAD_LOCK = threading.Lock()
 
 
+def _lot_fabric(layers):
+    """The parcel layer with the most features: the lots. The others are the City's outline and the
+    township survey grid."""
+    return max((l for l in layers if l.meta['category'] == 'parcels'), key=lambda l: len(l.features), default=None)
+
+
 def _street_layers(layers) -> list:
     """Road centrelines, which say where a street runs. The City's other "road" layers are curbs,
     labels and streetlights, and a curb near a side lot line made most lots look like corner lots."""
@@ -284,19 +290,23 @@ def map_features(latitude: float, longitude: float, radius_m: float = 250, per_l
     if manifest is None:
         return status()
     point = Point(_to_metres(longitude, latitude))
+    # The smallest parcel at the point is the lot (see lookup).
+    at_point = [(attrs, geom, layer) for layer in layers if layer.meta['category'] == 'parcels'
+                for attrs, geom, _ in layer.near(point, 0)]
     parcel = None
-    for layer in layers:
-        if layer.meta['category'] == 'parcels':
-            hits = layer.near(point, 0)
-            if hits:
-                parcel = {'type': 'Feature', 'properties': {**_clean(hits[0][0]), '_layer': layer.meta['name']},
-                          'geometry': mapping(_to_wgs84(hits[0][1]))}
-                break
+    if at_point:
+        attrs, geom, layer = min(at_point, key=lambda hit: hit[1].area)
+        parcel = {'type': 'Feature', 'properties': {**_clean(attrs), '_layer': layer.meta['name']},
+                  'geometry': mapping(_to_wgs84(geom))}
     area = point.buffer(radius_m)
-    out = []
+    out, drawn, fabric = [], set(), _lot_fabric(layers)
     for layer in layers:
-        if layer.tree is None:
+        # The City publishes the same roads, buildings and address points under several services, and
+        # its own outline as a parcel: each layer is drawn once, and only the lot fabric as parcels.
+        same = (layer.meta['name'], len(layer.features))
+        if layer.tree is None or same in drawn or (layer.meta['category'] == 'parcels' and layer is not fabric):
             continue
+        drawn.add(same)
         features = []
         for i in layer.tree.query(area):
             attrs, geom = layer.features[layer._indexed[int(i)]]
@@ -754,8 +764,7 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
     zoning_layers = [l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None]
     road_layers = _street_layers(layers)
     rows = []
-    # The parcel layer with the most features is the lot fabric (see lookup for the others).
-    fabric = max((l for l in layers if l.meta['category'] == 'parcels'), key=lambda l: len(l.features), default=None)
+    fabric = _lot_fabric(layers)
     for layer in [fabric] if fabric else []:
         for attrs, geom in layer.features:
             if geom is None or geom.area <= 0:
