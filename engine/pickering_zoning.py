@@ -15,7 +15,7 @@ from pathlib import Path
 
 import shapely
 from shapely import STRtree
-from shapely.geometry import Point, shape
+from shapely.geometry import Point, mapping, shape
 
 DEFAULT_STORE = Path(__file__).parent.parent / 'data' / 'municipal' / 'pickering'
 
@@ -136,12 +136,26 @@ def _pick(attrs: dict, *patterns) -> str | None:
     return None
 
 
-def find_property(query: str):
-    """A point inside the parcel matching an address, roll number or PIN, or None."""
+def _to_wgs84(geom):
+    return shapely.transform(geom, lambda xy: xy / SCALE)
+
+
+def _label(attrs: dict) -> str | None:
+    return _pick(attrs, r'full_?addr', r'addr', r'civic', r'legal', r'roll|arn', r'\bpin\b|^pin')
+
+
+def search_properties(query: str, limit: int = 8) -> list[dict]:
+    """Parcels and address points matching an address, roll number, PIN or legal description, best first.
+
+    Exact matches rank before prefix matches, which rank before matches that only
+    contain every word of the query (so "1 Test" finds "1 Test St").
+    """
     _, layers = load_store()
     wanted = _norm(query)
+    words = [_norm(w) for w in query.split() if _norm(w)]
     if not wanted:
-        return None
+        return []
+    found = {}
     for layer in layers:
         if layer.meta['category'] not in ('parcels', 'addresses'):
             continue
@@ -149,33 +163,193 @@ def find_property(query: str):
             if geom is None:
                 continue
             for key, value in attrs.items():
-                if value is None or not re.search(r'addr|civic|street|roll|arn|pin|legal|plan|lot', key, re.I):
+                if value is None or not re.search(r'addr|civic|street|roll|arn|pin|legal|plan|lot|conc', key, re.I):
                     continue
-                if _norm(value) == wanted or (re.search(r'addr|civic', key, re.I) and _norm(value).startswith(wanted)):
-                    p = geom.representative_point()
-                    return {'latitude': p.y / M_PER_DEG_LAT, 'longitude': p.x / M_PER_DEG_LON,
-                            'matched': {'layer': layer.meta['name'], 'field': key, 'value': value}}
-    return None
+                norm = _norm(value)
+                if not norm:
+                    continue
+                if norm == wanted:
+                    rank = 0
+                elif norm.startswith(wanted):
+                    rank = 1
+                elif words and all(w in norm for w in words):
+                    rank = 2
+                else:
+                    continue
+                p = geom.representative_point()
+                lat, lon = round(p.y / M_PER_DEG_LAT, 7), round(p.x / M_PER_DEG_LON, 7)
+                candidate = {'label': str(value).strip(), 'latitude': lat, 'longitude': lon, 'rank': rank,
+                             'matched': {'layer': layer.meta['name'], 'field': key, 'value': value},
+                             'kind': layer.meta['category']}
+                key_ = (candidate['label'].lower(), round(lat, 4), round(lon, 4))
+                if key_ not in found or found[key_]['rank'] > rank:
+                    found[key_] = candidate
+    # Parcels before address points at equal rank: a parcel carries the lot boundary.
+    return sorted(found.values(), key=lambda c: (c['rank'], c['kind'] != 'parcels', len(c['label'])))[:limit]
+
+
+def find_property(query: str):
+    """A point inside the parcel matching an address, roll number or PIN, or None."""
+    candidates = search_properties(query, limit=1)
+    return candidates[0] if candidates else None
+
+
+# Colours shared with the web map legend.
+CATEGORY_STYLE = {
+    'parcels': '#6b7280', 'zoning': '#8c7ca9', 'official_plan': '#c08a3e', 'floodplain': '#2f7fc1',
+    'natural_heritage': '#3f8f4f', 'heritage': '#b5523b', 'easements': '#d4a017', 'rail': '#222222',
+    'provincial_plans': '#1f9e89', 'servicing': '#0e7490', 'topography': '#a16207', 'addresses': '#525252',
+    'neighbourhoods': '#9ca3af', 'other': '#64748b',
+}
+
+
+def map_features(latitude: float, longitude: float, radius_m: float = 250, per_layer: int = 1500) -> dict:
+    """GeoJSON of every stored layer around a point, for drawing the lot in context on a map."""
+    manifest, layers = load_store()
+    if manifest is None:
+        return status()
+    point = Point(_to_metres(longitude, latitude))
+    parcel = None
+    for layer in layers:
+        if layer.meta['category'] == 'parcels':
+            hits = layer.near(point, 0)
+            if hits:
+                parcel = {'type': 'Feature', 'properties': {**_clean(hits[0][0]), '_layer': layer.meta['name']},
+                          'geometry': mapping(_to_wgs84(hits[0][1]))}
+                break
+    area = point.buffer(radius_m)
+    out = []
+    for layer in layers:
+        if layer.tree is None:
+            continue
+        features = []
+        for i in layer.tree.query(area):
+            attrs, geom = layer.features[layer._indexed[int(i)]]
+            if not geom.intersects(area):
+                continue
+            props = _clean(attrs)
+            if layer.meta['category'] == 'zoning':
+                props['_zone'] = _pick(attrs, r'^zone$', r'zone_?(code|cat|class)?$', r'zon', r'symbol')
+            features.append({'type': 'Feature', 'properties': props,
+                             'geometry': mapping(_to_wgs84(geom))})
+            if len(features) >= per_layer:
+                break
+        if features:
+            category = layer.meta['category'] or 'other'
+            out.append({'category': category, 'name': layer.meta['name'], 'source_url': layer.meta['url'],
+                        'geometry_type': layer.meta.get('geometry_type'), 'color': CATEGORY_STYLE.get(category),
+                        'truncated': len(features) >= per_layer,
+                        'features': {'type': 'FeatureCollection', 'features': features}})
+    order = list(CATEGORY_STYLE)
+    out.sort(key=lambda l: order.index(l['category']) if l['category'] in order else len(order))
+    return {'status': 'available', 'center': {'latitude': latitude, 'longitude': longitude}, 'radius_m': radius_m,
+            'parcel': parcel, 'layers': out, 'retrieved_at': manifest['retrieved_at']}
+
+
+DOCUMENT_GROUPS = [
+    ('zoning_bylaw', r'zoning|by-?law|zone'),
+    ('official_plan', r'official[-_ ]?plan|secondary[-_ ]plan|neighbourhood plan'),
+    ('provincial', r'provincial|ontario\.ca|planning statement|greenbelt|moraine|o\. ?reg|060545|planning act'),
+    ('heritage_environment', r'heritage|environment|natural|conservation|trca|cloca'),
+    ('development_standards', r'sustainab|standard|guideline|site plan|urban design|complete application'),
+]
+
+
+def document_group(doc: dict) -> str:
+    label = f"{doc.get('title', '')} {doc.get('url', '')}"
+    for group, pattern in DOCUMENT_GROUPS:
+        if re.search(pattern, label, re.I):
+            return group
+    return 'other'
+
+
+def _grouped_documents(manifest: dict) -> dict:
+    grouped = {}
+    for doc in manifest['documents']:
+        grouped.setdefault(document_group(doc), []).append(doc)
+    return grouped
+
+
+def documents() -> dict:
+    """Every stored document, grouped by the framework it belongs to."""
+    manifest, _ = load_store()
+    if manifest is None:
+        return status()
+    grouped = {}
+    for doc in manifest['documents']:
+        grouped.setdefault(document_group(doc), []).append(
+            {k: doc.get(k) for k in ('title', 'url', 'file', 'kind', 'pages', 'bytes', 'sha256')})
+    for docs in grouped.values():
+        docs.sort(key=lambda d: (d['kind'] != 'pdf', d['title'] or ''))
+    return {'status': 'available', 'retrieved_at': manifest['retrieved_at'], 'groups': grouped,
+            'count': len(manifest['documents'])}
+
+
+def document_path(file: str) -> Path | None:
+    """The stored file for a manifest entry, never anything outside the store."""
+    manifest, _ = load_store()
+    if manifest is None or file not in {d['file'] for d in manifest['documents']}:
+        return None
+    path = (store_dir() / file).resolve()
+    return path if path.is_file() and store_dir().resolve() in path.parents else None
+
+
+@lru_cache(maxsize=256)
+def _pages(text_file: str, stamp: str) -> list[str]:
+    return json.loads((store_dir() / text_file).read_text(encoding='utf-8'))
+
+
+def _snippet(text: str, match: re.Match, width: int = 160) -> str:
+    start, end = max(0, match.start() - width), min(len(text), match.end() + width)
+    return ('…' if start else '') + ' '.join(text[start:end].split()) + ('…' if end < len(text) else '')
+
+
+def search_documents(query: str, limit: int = 50) -> dict:
+    """Full-text search over every stored PDF page: the by-laws, plans and regulations."""
+    manifest, _ = load_store()
+    if manifest is None:
+        return status()
+    if not query.strip():
+        return {'status': 'available', 'query': query, 'results': []}
+    pattern = re.compile(re.escape(query.strip()), re.I)
+    stamp, results = manifest['retrieved_at'], []
+    for doc in manifest['documents']:
+        if not doc.get('text_file'):
+            continue
+        for number, text in enumerate(_pages(doc['text_file'], stamp), 1):
+            match = pattern.search(text)
+            if match:
+                results.append({'title': doc['title'], 'url': doc['url'], 'file': doc['file'], 'page': number,
+                                'group': document_group(doc), 'snippet': _snippet(text, match),
+                                'hits_on_page': len(pattern.findall(text))})
+    results.sort(key=lambda r: (r['group'] != 'zoning_bylaw', -r['hits_on_page']))
+    return {'status': 'available', 'query': query, 'total': len(results), 'results': results[:limit]}
 
 
 def _document_refs(manifest: dict, zone_codes: list[str], bylaw_numbers: list[str]) -> list[dict]:
-    """Downloaded documents that name this parcel's by-law, and the pages that mention its zone."""
-    root, refs = store_dir(), []
+    """Downloaded documents that name this parcel's by-law, and the pages (with text) that mention its zone."""
+    refs = []
     for doc in manifest['documents']:
         label = f"{doc['title']} {doc['url']}"
         named = [n for n in bylaw_numbers if re.search(rf'(?<!\d){re.escape(n)}(?!\d)', label)]
-        if not (named or re.search(r'zoning|by-?law', label, re.I)):
+        if not (named or document_group(doc) == 'zoning_bylaw'):
             continue
-        ref = {'title': doc['title'], 'url': doc['url'], 'file': doc['file'], 'names_parcel_bylaw': named}
+        ref = {'title': doc['title'], 'url': doc['url'], 'file': doc['file'], 'names_parcel_bylaw': named,
+               'zone_pages': {}, 'excerpts': []}
         if doc.get('text_file') and zone_codes:
-            pages = json.loads((root / doc['text_file']).read_text(encoding='utf-8'))
-            hits = {code: [i + 1 for i, text in enumerate(pages)
-                           if re.search(rf'(?<![A-Za-z0-9-]){re.escape(code)}(?![A-Za-z0-9])', text)][:25]
-                    for code in zone_codes}
-            ref['zone_pages'] = {code: p for code, p in hits.items() if p}
-        if named or ref.get('zone_pages'):
+            pages = _pages(doc['text_file'], manifest['retrieved_at'])
+            for code in zone_codes:
+                pattern = re.compile(rf'(?<![A-Za-z0-9-]){re.escape(code)}(?![A-Za-z0-9])')
+                for number, text in enumerate(pages, 1):
+                    match = pattern.search(text)
+                    if not match:
+                        continue
+                    ref['zone_pages'].setdefault(code, []).append(number)
+                    if len(ref['excerpts']) < 12:
+                        ref['excerpts'].append({'zone': code, 'page': number, 'text': _snippet(text, match)})
+        if named or ref['zone_pages']:
             refs.append(ref)
-    return sorted(refs, key=lambda r: (not r['names_parcel_bylaw'], r['title']))
+    return sorted(refs, key=lambda r: (not r['names_parcel_bylaw'], -sum(map(len, r['zone_pages'].values()))))
 
 
 def lookup(latitude: float, longitude: float) -> dict:
@@ -290,6 +464,9 @@ def lookup(latitude: float, longitude: float) -> dict:
                                               for h in official_plan],
                 'provincial': ['Provincial Planning Statement (2024)'] +
                               [h['layer'] for h in overlays['provincial_plans']],
+                'all_documents': {group: [{'title': d['title'], 'url': d['url'], 'file': d['file'],
+                                           'pages': d.get('pages')} for d in docs]
+                                  for group, docs in _grouped_documents(manifest).items()},
             },
         },
     }

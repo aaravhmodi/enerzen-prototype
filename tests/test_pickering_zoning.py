@@ -186,3 +186,46 @@ def test_esri_rings_become_polygons_with_holes():
     outer, hole = square(0, 0, 2), square(0, 0, 1)[::-1]
     geo = esri_to_geojson({'rings': [outer, hole, square(10, 0, 1)]})
     assert [len(p) for p in geo['coordinates']] == [2, 1]
+
+
+def test_geocode_ranks_exact_then_partial_and_prefers_parcels(use_store):
+    from api.main import pickering_geocode
+    candidates = pickering_geocode('test st')['candidates']
+    assert [c['label'] for c in candidates] == ['1 Test St', '3 Test St']
+    assert pickering_geocode('1801000002')['candidates'][0]['label'] == '1801000002'
+    assert pickering_geocode('zzz')['candidates'] == []
+
+
+def test_map_returns_the_lot_and_layers_in_wgs84(use_store):
+    from api.main import pickering_map
+    result = pickering_map(LAT, LON, radius_m=300)
+    assert result['parcel']['properties']['ADDRESS'] == '1 Test St'
+    ring = result['parcel']['geometry']['coordinates'][0][0]
+    assert all(abs(x - LON) < 0.001 and abs(y - LAT) < 0.001 for x, y in ring)
+    layers = {l['category']: l for l in result['layers']}
+    assert set(layers) == {'parcels', 'zoning', 'rail'}
+    assert layers['zoning']['features']['features'][0]['properties']['_zone'] == 'R4'
+    assert pickering_map(LAT, LON, radius_m=25)['layers'][-1]['category'] != 'rail'  # rail is ~190 m away
+    json.dumps(result)
+
+
+def test_documents_are_grouped_searchable_and_served(use_store):
+    from fastapi import HTTPException
+    from api.main import pickering_document_file, pickering_documents, pickering_search
+    docs = pickering_documents()
+    bylaw = docs['groups']['zoning_bylaw'][0]
+    assert bylaw['pages'] == 2
+    hits = pickering_search('lot frontage')['results']
+    assert hits[0]['page'] == 2 and 'R4 zone' in hits[0]['snippet']
+    response = pickering_document_file(bylaw['file'])
+    assert response.media_type == 'application/pdf'
+    for bad in ('manifest.json', '../../etc/passwd', 'catalog.json'):
+        with pytest.raises(HTTPException):
+            pickering_document_file(bad)
+
+
+def test_lookup_quotes_the_zone_text(use_store):
+    refs = zoning_lookup(CITY, LAT, LON)['steps']['6_planning_frameworks']
+    excerpt = refs['zoning_bylaw_references'][0]['excerpts'][0]
+    assert excerpt['page'] == 2 and 'minimum lot frontage' in excerpt['text']
+    assert 'zoning_bylaw' in refs['all_documents']

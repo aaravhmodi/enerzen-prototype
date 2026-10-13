@@ -11,6 +11,7 @@ import os
 from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -305,6 +306,44 @@ def zoning_lookup(name: str, latitude: Optional[float] = None, longitude: Option
 def pickering_data_status():
     """What the server's Pickering zoning store holds, and when it was scraped."""
     return pickering_zoning.status()
+
+
+@app.get("/municipal/pickering/geocode")
+def pickering_geocode(q: str, limit: int = 8):
+    """Parcels and address points in the stored City data matching an address, roll number or PIN."""
+    return {"query": q, "candidates": pickering_zoning.search_properties(q, limit=max(1, min(limit, 25)))}
+
+
+@app.get("/municipal/pickering/map")
+def pickering_map(latitude: float, longitude: float, radius_m: float = 250):
+    """GeoJSON of the lot and every stored zoning, plan and overlay layer around it."""
+    if not 43.7 <= latitude <= 44.1 or not -79.3 <= longitude <= -78.9:
+        raise HTTPException(422, "That point is outside Pickering.")
+    return pickering_zoning.map_features(latitude, longitude, max(25.0, min(radius_m, 1000.0)))
+
+
+@app.get("/municipal/pickering/documents")
+def pickering_documents():
+    """Every stored by-law, plan and regulation, grouped by framework."""
+    return pickering_zoning.documents()
+
+
+@app.get("/municipal/pickering/documents/file")
+def pickering_document_file(path: str):
+    """A stored document, served from the server's copy (open a PDF at a page with #page=N)."""
+    file = pickering_zoning.document_path(path)
+    if file is None:
+        raise HTTPException(404, "No such stored document.")
+    media = "application/pdf" if file.suffix == ".pdf" else "text/html; charset=utf-8"
+    # Saved city pages are third-party HTML: sandboxed so their scripts never run on this origin.
+    return FileResponse(file, media_type=media, headers={"Content-Disposition": f'inline; filename="{file.name}"',
+                                                         "Content-Security-Policy": "sandbox"})
+
+
+@app.get("/municipal/pickering/search")
+def pickering_search(q: str, limit: int = 50):
+    """Full-text search across every stored by-law and plan page."""
+    return pickering_zoning.search_documents(q, limit=max(1, min(limit, 200)))
 
 
 @app.get("/catalog")
