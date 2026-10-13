@@ -76,8 +76,9 @@ design guidance rather than fitted to Ontario-specific data.
 
 **Pickering data is city-wide context, not a site review.** The pilot snapshot
 (section 5.3) adds municipal inventories and a small multifamily energy
-benchmark. No pilot parcel is selected, so zoning, setbacks and permitted uses
-are not checked.
+benchmark. A Pickering lot's zone and by-law setbacks can be looked up from the
+stored copy of the City's data (section 5.3), but they are shown for review and
+never evaluated against the design, so zoning is still reported as not checked.
 
 ---
 
@@ -562,8 +563,39 @@ context only.
   median is about 188 kWh/m2/yr (P25 150, P75 272). These are self-reported
   large buildings, so the figure is a local reference point, not a calibration
   or a target for new low-rise homes.
-- **Zoning** — not looked up. Zoning status is reported as `not_checked` until a
-  parcel is chosen and checked against Pickering's zoning by-laws.
+- **Zoning** — looked up per lot once the City's data has been scraped onto the
+  server (below); until then the lookup reports `not_scraped`. The feasibility
+  zoning check stays `not_checked` either way.
+
+**Parcel zoning and setbacks.** Sources: `engine/pickering_zoning.py`,
+`engine/lot_rules.py`, `scripts/scrape_pickering_zoning.py`,
+`scripts/zone_rules.py`. The scrape stores the City's ArcGIS layers (zoning,
+parcels, address points, Official Plan, overlays), Durham Region, TRCA and
+Greenbelt layers clipped to Pickering, Zoning By-law 8149/24 with its council
+amendments, the Provincial Planning Statement and O. Reg. 545/06. The API reads
+only that stored copy.
+
+- **Geometry** — coordinates are projected to local metres around latitude
+  43.85 (equirectangular: 111,132 m per degree of latitude, 111,320 × cos(43.85°)
+  m per degree of longitude), so areas and distances read in metres; the error
+  is well under 1% across the city.
+- **Zone of a lot** — the zone polygon covering most of the parcel. The code is
+  split into its base zone and exception numbers (`R4-X12` → `R4`, `X12`).
+- **Standards** — each zone's front, rear, interior side and exterior side
+  yards, lot frontage, lot area, coverage, height and landscaped area are read
+  from the by-law's tables, and each exception's from its numbered section.
+  A lot starts from its zone's table values and its exceptions replace them.
+  Every value keeps its table or section and page. A standard the by-law text
+  did not yield is reported as missing, never filled with a default.
+- **Which side is which** — the front yard faces the nearest road within 15 m
+  of the lot boundary; on a corner lot the side toward a second such road takes
+  the exterior side yard.
+- **Overlays** — reported when on the lot or within a set distance of it:
+  rail 300 m, floodplain and natural heritage 120 m, heritage 60 m, easements
+  30 m.
+
+None of this is a zoning determination; it is preliminary context to confirm
+with the City.
 
 The snapshot is refreshed by running `scripts/import_pickering.py`, which
 prints the new JSON for review before `data/pickering.json` is replaced.
@@ -1171,9 +1203,11 @@ The status comes from a list of checks, each pass, fail or not checked:
 
 The checks are the budget and performance gate (section 11.2), the brief's
 hard constraints, site fit, and zoning. **Zoning is always "not checked"**:
-no Pickering parcel is selected and no municipal rules are evaluated, so
-every report currently reads FURTHER STUDY REQUIRED and says why, rather
-than claiming feasibility. On Path A, a site-fit failure no longer refuses
+no municipal rules are evaluated against the design, so every report
+currently reads FURTHER STUDY REQUIRED and says why, rather than claiming
+feasibility. When the site is a stored Pickering lot, the check names its
+zone, by-law, Official Plan designation and nearby overlays so the next step
+is specific. On Path A, a site-fit failure no longer refuses
 the report; it is a failed check. Without a lot, site fit is not checked.
 The engine does not yet relax constraints on its own, so FEASIBLE WITH
 MODIFICATIONS is defined but not produced until a relaxation step exists.
