@@ -19,6 +19,7 @@ const WEB = process.env.WEB_URL || 'http://localhost:3000';
     await page.getByPlaceholder('Address, roll number or PIN').fill('test st');
     await page.getByRole('button', {name: /1 Test St/}).click();
     await page.getByRole('heading', {name: '1 Test St'}).waitFor();
+    await page.locator('.zr-summary').waitFor();
     await page.getByText('Property identification').waitFor();
     assert.equal(await page.locator('.zr-summary .tile-value').first().innerText(), 'R4');
     assert.ok(await page.getByText('1801000000').first().isVisible());
@@ -46,10 +47,19 @@ const WEB = process.env.WEB_URL || 'http://localhost:3000';
     assert.ok(await page.locator('blockquote').filter({hasText: 'R4 zone'}).first().isVisible());
     await shot('zoning-bylaws');
 
+    // The data gaps from the last scrape are shown, not hidden.
+    assert.match(await page.locator('.zr-gaps summary').innerText(), /Data gaps: \d+/);
+    // A neighbouring lot named by a council amendment lists it.
+    await page.getByRole('tab', {name: 'Lot review'}).click();
+    await page.getByPlaceholder('Address, roll number or PIN').fill('3 test');
+    await page.getByRole('button', {name: /3 Test St/}).click();
+    await page.getByRole('heading', {name: '3 Test St'}).waitFor();
+    await page.getByText('names Lot 17, Concession 8').waitFor();
+
     // A shared link reopens the same lot.
     const shared = page.url();
     await page.goto(shared);
-    await page.getByRole('heading', {name: '1 Test St'}).waitFor();
+    await page.getByRole('heading', {name: '3 Test St'}).waitFor();
     await page.close();
   }
   await browser.close();

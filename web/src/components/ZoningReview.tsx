@@ -252,6 +252,30 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
         ) : (
           <p className="zr-muted">No stored by-law mentions this lot&apos;s zone yet. Search the by-laws below.</p>
         )}
+        <h4>Council amendments naming this lot</h4>
+        {frameworks.council_amendments_naming_this_lot.length ? (
+          <ul className="zr-refs">
+            {frameworks.council_amendments_naming_this_lot.map((a) => (
+              <li key={a.file}>
+                <div className="zr-hit-head">
+                  <a href={docUrl(a.file)} target="_blank" rel="noreferrer">
+                    {a.title}
+                  </a>
+                  {a.meeting && (
+                    <a href={a.meeting} target="_blank" rel="noreferrer" className="zr-source">
+                      Council agenda ↗
+                    </a>
+                  )}
+                </div>
+                <p className="zr-tag">{a.reasons.join("; ")}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="zr-muted">
+            No stored amendment to By-law 8149/24 names this lot&apos;s address, lot and concession, or exception zone.
+          </p>
+        )}
         <h4>Official Plan designation</h4>
         <p>{frameworks.official_plan_designation.filter(Boolean).join(", ") || "Not in the City layers"}</p>
         <h4>Provincial</h4>

@@ -25,6 +25,29 @@ const ZoningMap = dynamic(() => import("@/components/ZoningMap"), {
 });
 
 type Tab = "review" | "bylaws";
+type Report = NonNullable<Awaited<ReturnType<typeof dataStatus>>["completeness"]>;
+
+// What the last scrape could not get, so a gap is never mistaken for "no rule".
+function Completeness({ report }: { report: Report }) {
+  if (report.complete) return <p className="zr-ok">Complete: every published layer and cited by-law is stored.</p>;
+  const gaps = [
+    report.incomplete_layers.length && `${report.incomplete_layers.length} layers short of the server's count`,
+    report.not_downloaded.length && `${report.not_downloaded.length} layers not downloaded`,
+    report.missing_bylaws.length && `cited by-laws not found: ${report.missing_bylaws.join(", ")}`,
+    report.pdfs_with_blank_pages && `${report.pdfs_with_blank_pages} PDFs with unreadable pages`,
+    report.errors && `${report.errors} download errors`,
+  ].filter(Boolean);
+  return (
+    <details className="zr-gaps">
+      <summary>Data gaps: {gaps.length}</summary>
+      <ul className="zr-plain">
+        {gaps.map((gap) => (
+          <li key={String(gap)}>{gap}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 export default function ZoningPage() {
   const [query, setQuery] = useState("");
@@ -197,10 +220,14 @@ export default function ZoningPage() {
               </p>
             )}
             {status?.status === "available" && (
-              <p className="zr-muted">
-                City data from {status.retrieved_at?.slice(0, 10)} ·{" "}
-                {Object.values(status.layers ?? {}).flat().length} layers · {status.documents} documents
-              </p>
+              <>
+                <p className="zr-muted">
+                  City data from {status.retrieved_at?.slice(0, 10)} ·{" "}
+                  {Object.values(status.layers ?? {}).flat().length} layers · {status.documents} documents ·{" "}
+                  {status.council_amendments ?? 0} council amendments
+                </p>
+                {status.completeness && <Completeness report={status.completeness} />}
+              </>
             )}
           </div>
 
