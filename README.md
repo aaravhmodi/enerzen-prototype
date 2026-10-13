@@ -129,11 +129,14 @@ docker compose run --rm scrape-pickering
 
 It collects:
 
-- **City of Pickering ArcGIS:** every published layer (zoning, parcels, address points, Official Plan, overlays, servicing, topography and the rest), checked against the server's own feature counts.
+- **City of Pickering ArcGIS:** every published layer (address points, Official Plan, overlays, servicing and the rest), checked against the server's own feature counts.
+- **The City's zoning polygons and parcel fabric,** which sit on its ArcGIS Online account behind the interactive zoning map.
 - **Durham Region Official Plan, TRCA regulation limit and Ontario Greenbelt layers,** clipped to Pickering.
-- **Comprehensive Zoning By-law 8149/24** (in force since 16 December 2024) and its schedules, the zoning and Official Plan pages, and every PDF on them. Scanned pages are read with OCR.
+- **Comprehensive Zoning By-law 8149/24** (in force since 16 December 2024), its exception zones, schedules and amendments from the City's Laserfiche records, the zoning and Official Plan pages, and every PDF on them. Scanned pages are read with OCR.
 - **Every by-law on a council agenda since December 2024 that amends the zoning by-law,** from the City's eScribe meetings site.
 - **The Provincial Planning Statement (2024) and O. Reg. 545/06.**
+
+A run takes a little over an hour and about 1.5 GB. After it, the API takes about five minutes to load the layers each time it starts; the zoning page answers once that is done.
 
 Everything goes into `./municipal-data/pickering` on the server (set `PICKERING_DATA_HOST_DIR` to move it). Each run writes a dated snapshot and switches over only when it got data, keeping the last two.
 

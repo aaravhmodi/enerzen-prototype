@@ -569,27 +569,44 @@ context only.
 
 **Parcel zoning and setbacks.** Sources: `engine/pickering_zoning.py`,
 `engine/lot_rules.py`, `scripts/scrape_pickering_zoning.py`,
-`scripts/zone_rules.py`. The scrape stores the City's ArcGIS layers (zoning,
-parcels, address points, Official Plan, overlays), Durham Region, TRCA and
-Greenbelt layers clipped to Pickering, Zoning By-law 8149/24 with its council
-amendments, the Provincial Planning Statement and O. Reg. 545/06. The API reads
-only that stored copy.
+`scripts/zone_rules.py`. The scrape stores the City's ArcGIS layers (address
+points, Official Plan, overlays), the zoning polygons and parcel fabric from the
+City's ArcGIS Online account, Durham Region Official Plan, TRCA and Greenbelt
+layers clipped to Pickering, Zoning By-law 8149/24 with its exception zones and
+amendments from the City's Laserfiche records, the Provincial Planning Statement
+and O. Reg. 545/06. The API reads only that stored copy.
 
 - **Geometry** — coordinates are projected to local metres around latitude
   43.85 (equirectangular: 111,132 m per degree of latitude, 111,320 × cos(43.85°)
   m per degree of longitude), so areas and distances read in metres; the error
   is well under 1% across the city.
-- **Zone of a lot** — the zone polygon covering most of the parcel. The code is
-  split into its base zone and exception numbers (`R4-X12` → `R4`, `X12`).
+- **The lot** — the smallest parcel at the point, from the layer with the most
+  parcels. The City also publishes its own outline and the township survey grid
+  as parcel layers.
+- **Zone of a lot** — the zone polygon covering most of the parcel. The zoning
+  layer keeps the exception number in its own field; it is joined to the zone
+  (`R1G` with exception 146 → `R1G-X146`) and split back into base zone and
+  exceptions. A layer with no zone-symbol field never governs a lot.
 - **Standards** — each zone's front, rear, interior side and exterior side
   yards, lot frontage, lot area, coverage, height and landscaped area are read
   from the by-law's tables, and each exception's from its numbered section.
   A lot starts from its zone's table values and its exceptions replace them.
   Every value keeps its table or section and page. A standard the by-law text
   did not yield is reported as missing, never filled with a default.
-- **Which side is which** — the front yard faces the nearest road within 15 m
-  of the lot boundary; on a corner lot the side toward a second such road takes
-  the exterior side yard.
+- **How a number is read** — the first number in a table cell, after footnote
+  marks are removed, so "one side 1.8 m and other side 3.0 m" is read as 1.8.
+  Where a requirement is split over rows by use, the first case stated is kept.
+  The Seaton zones give a row per building type; the first type listed is kept
+  and named beside the value. In an exception's prose a number counts only when
+  it directly follows the yard's name ("REAR YARD DEPTH (minimum): 7.5 metres").
+- **Which side is which** — sides are judged in the lot's own frame: the lot's
+  minimum rotated rectangle, turned so the edge nearer east-west lies flat. The
+  front yard faces the nearest road centreline within 15 m of the lot boundary;
+  on a corner lot the side toward a second such road takes the exterior side
+  yard. Curbs, road labels and streetlights, which the City also publishes as
+  road layers, are not used.
+- **Buildable area** — that rectangle inset by each side's setback, cut to the
+  lot's outline and turned back.
 - **Overlays** — reported when on the lot or within a set distance of it:
   rail 300 m, floodplain and natural heritage 120 m, heritage 60 m, easements
   30 m.
