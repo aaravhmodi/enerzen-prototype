@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CATEGORY_LABELS, docUrl, type Hit, type Lookup } from "@/lib/zoning";
+import { CATEGORY_LABELS, docUrl, lotForForm, type Hit, type Lookup } from "@/lib/zoning";
 import { useUnits } from "@/lib/units";
 import ZoneStandards from "./ZoneStandards";
 import LotSetbacks from "./LotSetbacks";
@@ -17,25 +17,11 @@ const GROUP_LABELS: Record<string, string> = {
 
 // Opens the design workspace on this lot: its point, measured sides and street side.
 function workspaceLink(lookup: Lookup) {
-  const dims = lookup.steps?.["1_property_identification"].from_city_data?.dimensions;
-  const params = new URLSearchParams({ lot: `${lookup.query!.latitude},${lookup.query!.longitude}` });
-  if (dims) {
-    params.set("w", String(dims.width_m));
-    params.set("d", String(dims.depth_m));
-    if (dims.street_side) params.set("street", dims.street_side);
-  }
-  const lot = lookup.steps?.["3_proposed_development"].lot_standards;
-  if (lot) {
-    const sides = Object.values(lot.setbacks_by_side);
-    const pick = (applies: string) => sides.find((v) => v.applies === applies)?.value;
-    const front = pick("front_yard");
-    const rear = pick("rear_yard");
-    // The site planner takes one side setback: the larger of the lot's two.
-    const side = Math.max(...sides.filter((v) => v.applies.endsWith("side_yard")).map((v) => v.value ?? 0));
-    if (front != null) params.set("front", String(front));
-    if (rear != null) params.set("rear", String(rear));
-    if (side > 0) params.set("side", String(side));
-  }
+  const lot = lotForForm(lookup)!;
+  const params = new URLSearchParams({ lot: `${lot.latitude},${lot.longitude}` });
+  const keys = [["w", "lot_width_m"], ["d", "lot_depth_m"], ["street", "street_side"],
+    ["front", "front_setback_m"], ["side", "side_setback_m"], ["rear", "rear_setback_m"]] as const;
+  for (const [param, key] of keys) if (lot[key] != null) params.set(param, String(lot[key]));
   return `/?${params}`;
 }
 

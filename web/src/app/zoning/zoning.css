@@ -426,3 +426,12 @@
     justify-self: center;
   }
 }
+/* The lot picker inside the design forms: the search above a shorter map. */
+.lot-picker {
+  display: grid;
+  gap: 12px;
+}
+.lot-picker .zoning-map {
+  height: 380px;
+  min-height: 300px;
+}

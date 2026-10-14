@@ -140,9 +140,14 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore }:
         .addTo(instance);
     });
     map.current = instance;
+    // A map built while hidden (a form step not yet shown) measures nothing; redraw when its box changes.
+    const resized = new ResizeObserver(() => instance.resize());
+    resized.observe(container.current);
     return () => {
+      resized.disconnect();
       instance.remove();
       map.current = null;
+      setReady(false);
     };
   }, []);
 

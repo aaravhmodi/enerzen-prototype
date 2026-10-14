@@ -10,6 +10,8 @@ import {
   DevSpecInput,
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
+import LotPicker from "@/components/LotPicker";
+import { PICKERING_LOCATION } from "@/lib/zoning";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
 
@@ -249,6 +251,20 @@ export default function DevForm({
                 concept.
               </p>
             </div>
+            <LotPicker
+              onLot={(lot) =>
+                setState((current) => ({
+                  ...current,
+                  location: PICKERING_LOCATION,
+                  lot_width_m: lot.lot_width_m ?? current.lot_width_m,
+                  lot_depth_m: lot.lot_depth_m ?? current.lot_depth_m,
+                  street_side: lot.street_side ?? current.street_side,
+                  front_setback_m: lot.front_setback_m ?? current.front_setback_m,
+                  side_setback_m: lot.side_setback_m ?? current.side_setback_m,
+                  rear_setback_m: lot.rear_setback_m ?? current.rear_setback_m,
+                }))
+              }
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={`Lot width (E–W, ${u.lengthUnit})`}>
                 <input

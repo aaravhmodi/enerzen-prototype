@@ -12,6 +12,8 @@ import {
   SiteSpecInput,
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
+import LotPicker from "@/components/LotPicker";
+import { PICKERING_LOCATION } from "@/lib/zoning";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
 
@@ -263,8 +265,8 @@ export default function ProjectForm({
             ? "Start with the space you need. You can explore different designs without losing the rest of your brief."
             : step === 1
               ? state.site.latitude != null && state.site.longitude != null
-                ? "Lot dimensions come from the parcel you chose. Setbacks are still assumptions; check them against the zone's standards on the zoning map."
-                : "City-wide data gives you context. Lot dimensions and setbacks remain assumptions until you choose a property."
+                ? "The lot's size, street side and setbacks come from the parcel and by-law you chose. Any you change below are your own."
+                : "Find your lot to fill its size, street side and setbacks from the City's data, or enter them yourself."
               : step === 2
                 ? selectedDesign
                   ? "This design has updated your area, storeys and footprint. Check the live brief before continuing."
@@ -427,6 +429,15 @@ export default function ProjectForm({
 
         {step === 1 && (
           <div className="space-y-5">
+            <LotPicker
+              onLot={(lot) =>
+                setState((current) => ({
+                  ...current,
+                  spec: { ...current.spec, location: PICKERING_LOCATION },
+                  site: { ...current.site, ...lot },
+                }))
+              }
+            />
             <LocationInfoPanel
               location={state.spec.location}
               latitude={state.site.latitude}

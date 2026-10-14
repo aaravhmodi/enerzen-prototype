@@ -210,6 +210,43 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return response.json();
 }
 
+// What a looked-up lot gives the design forms: its point, measured sides, street side, and the by-law's
+// setbacks. A setback the by-law did not yield is left out, so the form keeps its own value for it.
+export type LotForForm = {
+  latitude: number;
+  longitude: number;
+  lot_width_m?: number;
+  lot_depth_m?: number;
+  street_side?: "N" | "S" | "E" | "W";
+  front_setback_m?: number;
+  side_setback_m?: number;
+  rear_setback_m?: number;
+};
+
+export function lotForForm(lookup: Lookup): LotForForm | null {
+  if (!lookup.query) return null;
+  const lot: LotForForm = { latitude: lookup.query.latitude, longitude: lookup.query.longitude };
+  const dims = lookup.steps?.["1_property_identification"].from_city_data?.dimensions;
+  if (dims) {
+    lot.lot_width_m = dims.width_m;
+    lot.lot_depth_m = dims.depth_m;
+    if (dims.street_side) lot.street_side = dims.street_side;
+  }
+  const standards = lookup.steps?.["3_proposed_development"].lot_standards;
+  if (standards) {
+    const sides = Object.values(standards.setbacks_by_side);
+    const pick = (applies: string) => sides.find((v) => v.applies === applies)?.value;
+    const front = pick("front_yard");
+    const rear = pick("rear_yard");
+    // The site planner takes one side setback: the larger of the lot's two.
+    const side = Math.max(...sides.filter((v) => v.applies.endsWith("side_yard")).map((v) => v.value ?? 0));
+    if (front != null) lot.front_setback_m = front;
+    if (rear != null) lot.rear_setback_m = rear;
+    if (side > 0) lot.side_setback_m = side;
+  }
+  return lot;
+}
+
 export const docUrl = (file: string, page?: number) =>
   `${API_BASE}/municipal/pickering/documents/file?path=${encodeURIComponent(file)}${page ? `#page=${page}` : ""}`;
 
