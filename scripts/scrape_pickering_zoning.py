@@ -574,6 +574,15 @@ def _write_json(path: Path, value):
     tmp.replace(path)
 
 
+def _live_rules(out: Path) -> dict:
+    """The zone standards the working copy was read into, or nothing before the first run."""
+    try:
+        live = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+        return json.loads((out / live['zone_rules_file']).read_text(encoding='utf-8'))
+    except (OSError, KeyError, ValueError):
+        return {}
+
+
 def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, all_layers=True,
            fetch: Fetcher | None = None, log=print, ocr: bool = True, escribe: str | None = ESCRIBE,
            archive: str | None = WAYBACK) -> dict:
@@ -647,7 +656,16 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
     manifest.update(finished_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
                     completeness=completeness(out, catalog, downloaded, documents, errors, rules))
     _write_json(out / snapshot / 'manifest.json', manifest)
-    if downloaded:  # never replace a working copy with an empty run (e.g. the city server was down)
+    # Never replace a working copy with a run that got less of the by-law: an empty run (the City's map
+    # server down) or one that missed the by-law's own text (its records server down) and read fewer zones.
+    live = _live_rules(out)
+    manifest['promoted'] = bool(downloaded) and all(len(rules.get(k) or {}) >= len(live.get(k) or {})
+                                                    for k in ('zones', 'exceptions'))
+    _write_json(out / snapshot / 'manifest.json', manifest)
+    if not manifest['promoted']:
+        log(f"kept the working copy: this run read {len(rules['zones'])} zones and {len(rules['exceptions'])} exceptions, "
+            f"it has {len(live.get('zones') or {})} and {len(live.get('exceptions') or {})}; see {snapshot}")
+    else:
         _write_json(out / 'manifest.json', manifest)
         _write_json(out / 'catalog.json', catalog)
         runs = sorted((out / 'snapshots').iterdir())
@@ -710,7 +728,7 @@ def main(argv=None):
                       'zones_without_standards': report['zones_without_standards'],
                       'exceptions_without_text': report['exceptions_without_text'][:50],
                       'pdfs_with_blank_pages': len(report['pdfs_with_blank_pages'])}, indent=1))
-    if not manifest['layers']:
+    if not manifest['promoted']:
         return 1
     return 0 if report['complete'] else 2
 

@@ -261,6 +261,16 @@ def test_verify_catches_damage_and_failed_runs_keep_the_good_copy(store, tmp_pat
     scrape(out, arcgis_roots=['http://127.0.0.1:9/arcgis'], document_pages=[],
            fetch=Fetcher(delay=0, retries=1, timeout=2), log=lambda *_: None, escribe=None)
     assert (out / 'manifest.json').read_text() == before
+    # The map server answers but the by-law's own text cannot be had (its records server is down): every
+    # layer arrives, no zone standards are read, and the working copy is still kept.
+    server = ThreadingHTTPServer(('127.0.0.1', 0), FakeCity)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        run = scrape(out, arcgis_roots=[f'http://127.0.0.1:{server.server_port}/arcgis/rest/services'], document_pages=[],
+                     fetch=Fetcher(delay=0, retries=1), log=lambda *_: None, escribe=None, archive=None)
+    finally:
+        server.shutdown()
+    assert run['layers'] and not run['promoted'] and (out / 'manifest.json').read_text() == before
 
 
 def test_lookup_answers_the_review_steps(use_store):
