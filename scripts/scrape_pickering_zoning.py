@@ -509,24 +509,61 @@ def collect_council_bylaws(fetch: Fetcher, out: Path, base: str, errors: list, s
             except Exception as exc:
                 errors.append({'url': link, 'error': repr(exc)})
                 continue
-            if body[:5] != b'%PDF-':
-                continue
-            document_id = re.search(r'DocumentId=(\d+)', link)
-            path = docs_dir / f"{slug(text)[:60]}-{document_id.group(1) if document_id else hashlib.sha256(link.encode()).hexdigest()[:8]}.pdf"
-            path.write_bytes(body)
-            pages, ocr_pages = pdf_pages(path, ocr)
-            if not pages or not ZONING_BYLAW_TEXT.search(' '.join(pages)):
-                path.unlink()
-                continue
-            number = re.search(r'By-?law (?:No\.? ?)?(\d{3,4}/\d{2})', ' '.join(pages[:2]), re.I)
-            text_path = path.with_suffix('.pages.json')
-            text_path.write_text(json.dumps(pages), encoding='utf-8')
-            kept.append({'url': link, 'title': f"Zoning amendment By-law {number.group(1)}" if number else text,
-                         'link_text': text, 'meeting': meeting, 'file': str(path.relative_to(out)), 'kind': 'pdf',
-                         'sha256': hashlib.sha256(body).hexdigest(), 'bytes': len(body), 'pages': len(pages),
-                         'text_file': str(text_path.relative_to(out)), 'ocr_pages': len(ocr_pages),
-                         'blank_pages': sum(1 for t in pages if len(t.strip()) < 20), 'source': 'council'})
+            entry = _keep_council_pdf(out, docs_dir, link, text, body, meeting, ocr)
+            if entry:
+                kept.append(entry)
     return kept
+
+
+def _keep_council_pdf(out: Path, docs_dir: Path, link: str, text: str, body: bytes, meeting: str, ocr: bool) -> dict | None:
+    """A council attachment stored with its text when it is a PDF that speaks of the zoning by-law; else None."""
+    if body[:5] != b'%PDF-':
+        return None
+    document_id = re.search(r'DocumentId=(\d+)', link)
+    path = docs_dir / f"{slug(text)[:60]}-{document_id.group(1) if document_id else hashlib.sha256(link.encode()).hexdigest()[:8]}.pdf"
+    path.write_bytes(body)
+    pages, ocr_pages = pdf_pages(path, ocr)
+    if not pages or not ZONING_BYLAW_TEXT.search(' '.join(pages)):
+        path.unlink()
+        return None
+    number = re.search(r'By-?law (?:No\.? ?)?(\d{3,4}/\d{2})', ' '.join(pages[:2]), re.I)
+    text_path = path.with_suffix('.pages.json')
+    text_path.write_text(json.dumps(pages), encoding='utf-8')
+    return {'url': link, 'title': f"Zoning amendment By-law {number.group(1)}" if number else text,
+            'link_text': text, 'meeting': meeting, 'file': str(path.relative_to(out)), 'kind': 'pdf',
+            'sha256': hashlib.sha256(body).hexdigest(), 'bytes': len(body), 'pages': len(pages),
+            'text_file': str(text_path.relative_to(out)), 'ocr_pages': len(ocr_pages),
+            'blank_pages': sum(1 for t in pages if len(t.strip()) < 20), 'source': 'council'}
+
+
+def import_council(out: Path, bundle: Path, ocr: bool = True, log=print) -> list[dict]:
+    """Add council by-laws saved from a browser into the working copy.
+
+    eScribe answers a script with a browser check, so the attachments can be saved from a person's
+    browser instead, as JSON: {"source", "retrieved_at", "documents": [{"url", "title", "meeting_url",
+    "meeting_date", "pdf_base64"}]}. Each is kept as the scrape keeps one (a PDF whose own text speaks of
+    the zoning by-law), into the working snapshot, and recorded as saved from a browser on that date.
+    """
+    import base64
+    saved = json.loads(bundle.read_text(encoding='utf-8'))
+    manifest = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+    docs_dir = out / manifest['snapshot'] / 'documents' / 'council'
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    have = {d['url'] for d in manifest['documents']}
+    added = []
+    for doc in saved['documents']:
+        if doc['url'] in have:
+            continue
+        entry = _keep_council_pdf(out, docs_dir, doc['url'], doc['title'], base64.b64decode(doc['pdf_base64']),
+                                  doc.get('meeting_url', ''), ocr)
+        if entry:
+            entry.update(meeting_date=doc.get('meeting_date'), saved_from_browser=saved.get('retrieved_at'))
+            added.append(entry)
+            log(f"kept {entry['title']}")
+    manifest['documents'] += added
+    _write_json(out / manifest['snapshot'] / 'manifest.json', manifest)
+    _write_json(out / 'manifest.json', manifest)
+    return added
 
 
 # ── Run ─────────────────────────────────────────────────────────────────────
@@ -750,7 +787,13 @@ def main(argv=None):
     parser.add_argument('--no-ocr', action='store_true')
     parser.add_argument('--skip-council', action='store_true', help='skip zoning amendments from council agendas')
     parser.add_argument('--verify', action='store_true', help='check the stored copy instead of downloading')
+    parser.add_argument('--import-council', type=Path, metavar='BUNDLE',
+                        help='add council by-laws saved from a browser (see import_council) instead of downloading')
     args = parser.parse_args(argv)
+    if args.import_council:
+        added = import_council(args.out, args.import_council, ocr=not args.no_ocr)
+        print(json.dumps({'added': len(added), 'titles': [d['title'] for d in added]}, indent=1))
+        return 0
     if args.verify:
         report = verify(args.out)
         print(json.dumps(report, indent=1))

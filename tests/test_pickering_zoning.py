@@ -717,3 +717,23 @@ def test_a_parcel_without_a_legal_description_gets_one_from_the_city_layers():
         "Registered Plan 40M-2600; Part of Lot 27, Concession 3, Geographic Township of Pickering "
         "(from the City's subdivision and lot fabric layers)")
     assert pickering_zoning._legal_description([fabric, plans], lot, {'LEGAL_DESC': 'PLAN 40M-1 LOT 2'}) == 'PLAN 40M-1 LOT 2'
+
+
+def test_council_by_laws_saved_from_a_browser_are_imported_like_scraped_ones(store, tmp_path):
+    import base64
+    import shutil
+    from scripts.scrape_pickering_zoning import import_council
+    out = tmp_path / 'copy'
+    shutil.copytree(store[0], out)
+    bundle = tmp_path / 'bundle.json'
+    doc = lambda n, pdf: {'url': f'https://pub-pickering.escribemeetings.com/FileStream.ashx?DocumentId={n}',
+                          'title': f'By-law {n}.pdf', 'meeting_url': 'https://pub-pickering.escribemeetings.com/Meeting.aspx?Id=m9',
+                          'meeting_date': '2026/04/27', 'pdf_base64': base64.b64encode(pdf).decode()}
+    bundle.write_text(json.dumps({'retrieved_at': '2026-10-14T20:49:00Z',
+                                  'documents': [doc(9001, AMENDMENT), doc(9002, PARKING)]}), encoding='utf-8')
+    added = import_council(out, bundle, ocr=False, log=lambda *_: None)
+    assert [d['title'] for d in added] == ['Zoning amendment By-law 8276/26']  # the parking by-law is dropped
+    manifest = json.loads((out / 'manifest.json').read_text())
+    assert added[0]['url'] in {d['url'] for d in manifest['documents']} and added[0]['saved_from_browser'] == '2026-10-14T20:49:00Z'
+    assert (out / added[0]['text_file']).exists()
+    assert import_council(out, bundle, ocr=False, log=lambda *_: None) == []  # already in the store
