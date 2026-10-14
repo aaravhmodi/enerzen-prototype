@@ -357,11 +357,32 @@ def from_archive(fetch: Fetcher, url: str, archive: str = WAYBACK) -> tuple[byte
     return fetch.get(copy), copy
 
 
+def _carry_over(out: Path, docs_dir: Path, entry: dict | None) -> dict | None:
+    """The last good run's copy of a document the City cannot serve now (its records server down), copied
+    into this run with the date it was fetched, so one outage does not take the by-law out of the store."""
+    if not entry or not (out / entry['file']).exists():
+        return None
+    docs_dir.mkdir(parents=True, exist_ok=True)
+    kept = dict(entry)
+    for key in ('file', 'text_file'):
+        if key not in entry:
+            continue
+        if not (out / entry[key]).exists():
+            kept.pop(key)
+            continue
+        target = docs_dir / Path(entry[key]).name
+        shutil.copy2(out / entry[key], target)
+        kept[key] = str(target.relative_to(out))
+    return kept
+
+
 def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list, ocr: bool = True,
-                      docs_dir: Path | None = None, archive: str | None = WAYBACK) -> list[dict]:
+                      docs_dir: Path | None = None, archive: str | None = WAYBACK,
+                      kept: dict[str, dict] | None = None) -> list[dict]:
     """Save each listed page, the relevant pages it links to, and every PDF they link to.
 
-    A link the City has taken down (404 or 410) is fetched from `archive` instead, where it was captured.
+    A link the City has taken down (404 or 410) is fetched from `archive` instead, where it was captured;
+    one that cannot be fetched at all keeps the copy in `kept` (the last good run's documents by URL).
     """
     docs_dir = docs_dir or out / 'documents'
     docs_dir.mkdir(parents=True, exist_ok=True)
@@ -381,9 +402,15 @@ def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list,
                 body, archived = from_archive(fetch, url, archive)
             except Exception:
                 errors.append({'url': url, 'error': repr(exc)})
+                carried = _carry_over(out, docs_dir, (kept or {}).get(url))
+                if carried:
+                    documents.append(carried)
                 continue
         except Exception as exc:
             errors.append({'url': url, 'error': repr(exc)})
+            carried = _carry_over(out, docs_dir, (kept or {}).get(url))
+            if carried:
+                documents.append(carried)
             continue
         is_pdf = body[:5] == b'%PDF-' or urlparse(url).path.lower().endswith('.pdf')
         name = slug(Path(urlparse(url).path).stem or urlparse(url).netloc)
@@ -557,13 +584,16 @@ def completeness(out: Path, catalog: list, layers: list, documents: list, errors
         'exceptions_without_text': sorted(mapped_exceptions - set(rules['exceptions']),
                                           key=lambda c: int(c[1:])),
         'pdfs_without_text': [d['url'] for d in documents if d['kind'] == 'pdf' and 'text_file' not in d],
+        'documents_carried_over': [{'url': d['url'], 'fetched': d['carried_over_from']}
+                                   for d in documents if d.get('carried_over_from')],
         'pdfs_with_blank_pages': [{'url': d['url'], 'blank_pages': d['blank_pages']}
                                   for d in documents if d.get('blank_pages')],
         'errors': len(errors),
     }
     report['complete'] = not (report['not_downloaded'] or report['incomplete_layers'] or missing_bylaws
                               or report['zones_without_standards'] or report['exceptions_without_text']
-                              or report['pdfs_without_text'] or report['pdfs_with_blank_pages'] or errors)
+                              or report['pdfs_without_text'] or report['pdfs_with_blank_pages'] or errors
+                              or report['documents_carried_over'])
     return report
 
 
@@ -574,11 +604,18 @@ def _write_json(path: Path, value):
     tmp.replace(path)
 
 
+def _live_manifest(out: Path) -> dict:
+    """The working copy's manifest, or nothing before the first run."""
+    try:
+        return json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+
 def _live_rules(out: Path) -> dict:
     """The zone standards the working copy was read into, or nothing before the first run."""
     try:
-        live = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
-        return json.loads((out / live['zone_rules_file']).read_text(encoding='utf-8'))
+        return json.loads((out / _live_manifest(out)['zone_rules_file']).read_text(encoding='utf-8'))
     except (OSError, KeyError, ValueError):
         return {}
 
@@ -631,12 +668,22 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
                            'sha256': hashlib.sha256((out / file).read_bytes()).hexdigest()})
 
     log('documents')
+    live = _live_manifest(out)
+    # A document already carried over keeps the date it was really fetched.
+    kept = {d['url']: {'carried_over_from': live['retrieved_at'], **d} for d in live.get('documents', [])}
     documents = collect_documents(fetch, out, document_pages, errors, ocr=ocr, docs_dir=out / snapshot / 'documents',
-                                  archive=archive)
+                                  archive=archive, kept=kept)
     if escribe:
         log('council by-laws')
         documents += collect_council_bylaws(fetch, out, escribe, errors, ocr=ocr,
                                             docs_dir=out / snapshot / 'documents' / 'council')
+    # An amendment passed by council stays law when its meeting page cannot be read this time.
+    fetched = {d['url'] for d in documents}
+    for entry in kept.values():
+        if entry.get('source') == 'council' and entry['url'] not in fetched:
+            carried = _carry_over(out, out / snapshot / 'documents' / 'council', entry)
+            if carried:
+                documents.append(carried)
     manifest = {
         'municipality': 'Pickering',
         'retrieved_at': started.isoformat(timespec='seconds'),

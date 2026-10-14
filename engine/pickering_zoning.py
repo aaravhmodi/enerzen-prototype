@@ -223,6 +223,7 @@ def status() -> dict:
                 'not_downloaded': report.get('not_downloaded', []),
                 'missing_bylaws': report.get('missing_bylaws', []),
                 'pdfs_with_blank_pages': len(report.get('pdfs_with_blank_pages', [])),
+                'documents_carried_over': len(report.get('documents_carried_over', [])),
                 'errors': len(manifest['errors']),
             }}
 

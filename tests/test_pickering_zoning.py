@@ -2,6 +2,7 @@
 import io
 import json
 import threading
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -271,6 +272,17 @@ def test_verify_catches_damage_and_failed_runs_keep_the_good_copy(store, tmp_pat
     finally:
         server.shutdown()
     assert run['layers'] and not run['promoted'] and (out / 'manifest.json').read_text() == before
+    # A document the City cannot serve this time (its server is gone) keeps the last good run's copy,
+    # with the date that copy was fetched, and the failure is still on record.
+    from scripts.scrape_pickering_zoning import collect_documents
+    entry = next(d for d in store[1]['documents'] if d['url'].endswith('/files/by-law-3036.pdf'))
+    errors = []
+    docs = collect_documents(Fetcher(delay=0, retries=1, timeout=2), out, [entry['url']], errors, archive=None,
+                             docs_dir=out / 'snapshots' / 'next' / 'documents',
+                             kept={entry['url']: {'carried_over_from': '2026-10-13', **entry}})
+    assert [d['carried_over_from'] for d in docs] == ['2026-10-13'] and [e['url'] for e in errors] == [entry['url']]
+    assert Path(docs[0]['file']).parts[:3] == ('snapshots', 'next', 'documents')
+    assert (out / docs[0]['file']).read_bytes() == (out / entry['file']).read_bytes() and (out / docs[0]['text_file']).exists()
 
 
 def test_lookup_answers_the_review_steps(use_store):

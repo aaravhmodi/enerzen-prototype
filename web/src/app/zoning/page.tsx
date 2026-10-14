@@ -38,6 +38,8 @@ function Completeness({ report }: { report: Report }) {
     report.not_downloaded.length && `${report.not_downloaded.length} layers not downloaded`,
     report.missing_bylaws.length && `cited by-laws not found: ${report.missing_bylaws.join(", ")}`,
     report.pdfs_with_blank_pages && `${report.pdfs_with_blank_pages} PDFs with unreadable pages`,
+    report.documents_carried_over &&
+      `${report.documents_carried_over} documents kept from the last run (the City could not serve them)`,
     report.errors && `${report.errors} download errors`,
   ].filter(Boolean);
   return (

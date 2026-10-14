@@ -333,6 +333,7 @@ export const dataStatus = () =>
       not_downloaded: { name: string; url: string; reason: string }[];
       missing_bylaws: string[];
       pdfs_with_blank_pages: number;
+      documents_carried_over?: number;
       errors: number;
     };
   }>("/municipal/pickering/status");
