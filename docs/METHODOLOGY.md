@@ -654,6 +654,19 @@ and O. Reg. 545/06. The API reads only that stored copy.
   varies by lot depth or frontage with no "all other lots" figure is left unread.
 - **A figure across a page break** — a standard named at the foot of a page
   takes its figure from the top of the next, past the page's header and footer.
+- **A figure for each kind of dwelling** — "for detached dwellings: 1.2 metres
+  one side, no minimum the other" / "for semi-detached dwellings: 0.6 metres":
+  every kind is kept, and a lot whose building the City's footprints show joined
+  to its neighbour takes the semi-detached, attached or townhouse figure, any
+  other lot the detached one. "No minimum" on one side is 0 m, or what makes up
+  the aggregate of both side yards where the by-law states one.
+- **Figures by lot size** — Table 12.6 gives the ORMA zone one figure for lots
+  over 4 ha and one for smaller lots ("> 4 ha: 15.0 / < 4 ha: 12.0"); a lot takes
+  the figure for its own area. A lot area stated in hectares ("Minimum Lot Area
+  (ha)") is checked in hectares.
+- **Lane lots** — a lot without a lane behind it takes the widest non-lane column
+  its frontage reaches, and only a lot too narrow for every non-lane column
+  falls back to a lane one.
 - **Urban Reserve** — Table 13.3 gives the UR zone no figures of its own; its
   note 1 applies the Agriculture zone's requirements, so UR lots take those.
   The Utility zone (UT) has dashes in that table and stays without yards.

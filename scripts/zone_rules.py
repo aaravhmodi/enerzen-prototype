@@ -46,11 +46,11 @@ ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
 NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.',
              'FLOOR', 'LAND', 'OPEN', 'UNIT', 'AREA', 'LOT', 'USE', 'USES', 'SPACE', 'YARD', 'PART', 'MAP'}
 # What may stand between a provision's name and its number: "DEPTH (minimum):", "width of", "shall be".
-DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–·]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max|per|dwelling|unit|of|shall|be|is|a)\b\.?)*\d',
+DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–·]|\b(?:side|yard|depth|wi\w{2,3}h|setback|minim(?:um|a)|maximum|min|max|per|dwelling|unit|of|shall|be|is|a)\b\.?)*\d',
                              re.I)
 # A standard names a depth, a width or a minimum. "1) front yard: 0.6 metres" under "bay windows may
 # encroach as follows" is how far a window may reach into the yard.
-STATES_ITS_OWN = re.compile(r'\b(?:depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max)\b', re.I)
+STATES_ITS_OWN = re.compile(r'\b(?:depth|wi\w{2,3}h|setback|minim(?:um|a)|maximum|min|max)\b', re.I)
 NOT_A_STANDARD = re.compile(r'encroach|project|shall mean', re.I)
 # What may come before a provision's name in its clause: an article, "minimum", a list mark.
 OPENS_THE_CLAUSE = re.compile(r'''(?:[\s,()\-–"'“”‘’•.]|\b(?:the|a|an|minimum|maximum|min|max|required)\b'''
@@ -69,7 +69,7 @@ ONE_SIDE_AND_THE_OTHER = re.compile(r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m
 ONE_SIDE_FIRST = re.compile(r'one side\s*(\d+(?:\.\d+)?)\s*(?:metres?|m)\b\W+(?:and\s+)?(?:the\s+)?other side\s*(\d+(?:\.\d+)?)', re.I)
 LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
-LABEL_ONLY = re.compile(r'(?:[\s:,()\-–·]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max|per|dwelling|unit)\b\.?)*', re.I)
+LABEL_ONLY = re.compile(r'(?:[\s:,()\-–·]|\b(?:side|yard|depth|wi\w{2,3}h|setback|minim(?:um|a)|maximum|min|max|per|dwelling|unit)\b\.?)*', re.I)
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag|setback\s+from\s+street\s+line', re.I)
 # 'Zone Requirements ("S-SD-SA-3")': which of an exception's zones the standards below are for.
 ZONE_HEADING = re.compile(r'Zone Requirements\s*\(\W*([A-Z][A-Z0-9/\-]*)')
@@ -78,7 +78,12 @@ LIST_MARK = re.compile('^[ (]*[0-9ivx]{1,3}[)] +')  # "1) " or "(ii) " opening a
 FOR_A_KIND = re.compile(r'[\s:,()\-–]*(?:width|depth)?\s*for\b', re.I)
 # A line, or the start of one, that names a kind of dwelling: "semi-detached dwelling:", "for detached
 # dwellings:", "multiple dwelling - horizontal:", "DWELLINGS:", "detached dwelling residential use:".
-A_KIND = re.compile(r'\s*(?:for\s+)?(?:[A-Za-z][\w,/\-]*\s+){0,6}?(?:dwellings?|units?)\b[^:\d]{0,45}(?::\s*|\s*$)', re.I)
+A_KIND = re.compile(r'\s*(?:for\s+)?(?:[A-Za-z][\w,/\-]*\s+){0,6}?(?:dwellings?|units?)\b[^:\d]{0,45}(?::\s*|\s*$|(?=\d))', re.I)
+# A kind's name, as against a sentence that happens to mention dwellings.
+KIND_NAME = re.compile(r'detached|attached|multiple|townhouse', re.I)
+NOT_A_NAME = re.compile(r'\b(?:is|are|has|have|share|shall|where|which|that|those|such|on|may)\b', re.I)
+# "> 4 ha: 15.0 < 4 ha: 12.0": one figure for lots over the size named, one for smaller lots.
+BY_LOT_AREA = re.compile(r'>\s*(\d+(?:\.\d+)?)\s*ha\s*:\s*(\d+(?:\.\d+)?)\s*<\s*\1\s*ha\s*:\s*(\d+(?:\.\d+)?)', re.I)
 BY_DWELLING = re.compile(r'\s*for\s+[\w\s,\-]*?dwellings?\s*:?\s*', re.I)
 JOINED_KIND = re.compile('semi-? ?detached|attached|townhouse', re.I)
 JOINED = re.compile(r'(?:[^.;\n]*\n)?[^.;\n]*(?:common wall|attached together|are attached|party wall)[^.;]*', re.I)
@@ -104,8 +109,8 @@ ALL_OTHER = re.compile(r'\s*(?:[A-Z]\.\s*)?for all other (?:lots|lands)\s*:?\s*'
 # What a page carries at its head and foot, between a label and a figure split by the page break.
 FURNITURE = re.compile(r'\s*(?:\d{1,4}|Section \d+ \|.*|Consolidated Zoning By-law.*|City of Pickering)\s*$')
 # "SIDE YARD WIDTHS (minimal):" / "interior side yard: 1.5 metres" / "flankage side yard: 3 metres".
-SIDE_WIDTHS = re.compile(r'\W*side yard widths\s*\(minim\w*\)\s*:?\s*$', re.I)
-EACH_SIDE = re.compile(r'\W*(interior|flankage|exterior)\s+side\s+yard\s*:', re.I)
+SIDE_WIDTHS = re.compile(r'\W*side yard widths?\s*\(minim\w*\)\s*:?\s*$', re.I)
+EACH_SIDE = re.compile(r'\W*(interior|flankage|exterior)\s+side\s+yard\s*[:\-–]', re.I)
 # A column heading in an exception's table of standards: '“S3-7” Zone', "SA-14 Zone".
 ZONE_COLUMN = re.compile(r'\W*([A-Z][A-Z0-9]*(?:[-/][A-Z0-9]+)*)\W*\s*Zone\W*')
 # A zone as an exception writes it, hyphens and all: S1-2, S-SD-SA, RH/MU, MD-H5.
@@ -131,6 +136,10 @@ def parse_value(cell):
         return None
     # "As shown on Schedule 5" and "see Section 4.23" name a place in the by-law, not an amount.
     text = REFERENCE.sub('', text)
+    by_area = BY_LOT_AREA.search(text)
+    if by_area:
+        return {'value': float(by_area.group(2)), 'unit': None, 'raw': text,
+                'small_lot': {'below_ha': float(by_area.group(1)), 'value': float(by_area.group(3))}}
     match = VALUE.search(text)
     if not match:
         return None
@@ -179,6 +188,8 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
             key = None  # "Minimum Main Wall Stepback for Buildings greater than 37.5 m in Height"
         if key and key == ('street_line_setback', 'maximum'):
             key = ('street_line_setback_max', 'maximum')
+        if key and value and key[0] == 'lot_area' and value['unit'] is None and re.search(r'\(ha\)', label, re.I):
+            value['unit'] = 'ha'  # "Minimum Lot Area (ha) | 0.8"
         if key and value and key[0] == 'lot_frontage' and value['unit'] == '%':
             return  # "Active At Grade Frontages: 40% of the first storey" is not a lot's frontage
         if key and value:
@@ -424,15 +435,19 @@ def rules_from_text(text: str, source: dict) -> dict:
         previous = row
     for i, line in enumerate(lines):
         if SIDE_WIDTHS.match(line):  # one heading for both side yards, each named on a line under it
+            both = {}
             for below in lines[i + 1:i + 14]:
                 side = EACH_SIDE.match(below)
                 value = parse_value(below[side.end():]) if side else None
-                if _is_a_label(below):
+                if (_is_a_label(below) and not side) or NOT_A_STANDARD.search(below):
                     break
                 if value:
-                    rules.setdefault('interior_side_yard' if side.group(1).lower() == 'interior' else 'exterior_side_yard',
-                                     {**value, 'bound': 'minimum', 'label': ' '.join(f'{line} {below}'.split())[:200], **source})
-            continue
+                    both.setdefault('interior_side_yard' if side.group(1).lower() == 'interior' else 'exterior_side_yard',
+                                    {**value, 'bound': 'minimum', 'label': ' '.join(f'{line} {below}'.split())[:200], **source})
+            for side, rule in both.items():
+                rules.setdefault(side, rule)
+            if both:
+                continue
         key = provision_key(line)
         if not key or not STATES_ITS_OWN.search(line) or NOT_A_STANDARD.search(line):
             continue
@@ -472,21 +487,62 @@ def rules_from_text(text: str, source: dict) -> dict:
             line = f'{line} {said}'
         if not DIRECTLY_STATED.match(after):
             continue
-        if re.search(r'one side\W*(?:and\W*)?$', after, re.I) and where + 1 < len(lines):
-            after = f"{after} {LIST_MARK.sub('', lines[where + 1])}"  # "0.3 metres one side" / "2) 1.2 metres other side"
+        if (re.search('one side', after, re.I) and not re.search('other', after, re.I) and where + 1 < len(lines)
+                and re.search('other', lines[where + 1], re.I)):
+            # "0.3 metres one side" / "2) 1.2 metres other side"; "1.2 metres one side, no" / "minimum the other"
+            after = _no_minimum(f"{after} {LIST_MARK.sub('', lines[where + 1])}")
         # From the figure itself: a scan's "WI0TH (minimum): 2.7 metres" has a digit in its label.
+        after = _no_minimum(after)
         value = parse_value(after[DIRECTLY_STATED.match(after).end() - 1:])
         if value and value['value'] > 60 and value['unit'] != 'm':
             continue  # a page or section number, not a yard: "FRONT YARD DEPTH (minimum): 164"
+        total = re.search(r'aggregate[^.;]{0,80}?(\d+(?:\.\d+)?)\s*metres', ' '.join(lines[where:where + 3]), re.I)
+        if value and value.get('other_side') == 0.0 and total:
+            # "1.2 metres one side, no minimum the other provided that the aggregate of actual side yard
+            # widths on the lot equal or exceed 1.8 metres": the other side is what makes up the total.
+            value['other_side'] = round(max(float(total.group(1)) - value['value'], 0.0), 2)
         if value and key[0] not in rules:
             rules[key[0]] = {**value, 'bound': key[1], 'label': ' '.join(line.split())[:200], **source}
             if named:
                 rules[key[0]]['applies_to'] = named
             if ALL_OTHER.search(said):
                 rules[key[0]]['varies'] = ' '.join(said.split())[:300]
+            named_kind = lambda m: bool(m) and bool(KIND_NAME.search(m.group(0))) and not NOT_A_NAME.search(m.group(0))
+            name = lambda m: re.sub(r'(?i)^for\s+|\s+minimum$', '', ' '.join(m.group(0).split()).strip(' :'))
+            kind = next((m for m in map(A_KIND.match, lines[i + 1:where + 1]) if named_kind(m)), None)
+            if kind:
+                # A figure for each kind of dwelling: the first is the standard as read, and the others
+                # are kept beside it for a lot of that kind.
+                rules[key[0]]['kind'] = name(kind)
+                for n in range(where + 1, min(where + 40, len(lines))):
+                    other = A_KIND.match(lines[n])
+                    if _is_a_label(lines[n]):
+                        break
+                    if not named_kind(other):
+                        continue
+                    rest = lines[n][other.end():]
+                    if not rest.strip() and other.group(0).rstrip().endswith(':') and n + 1 < len(lines):
+                        rest = LIST_MARK.sub('', lines[n + 1])
+                    elif re.search('one side', rest, re.I) and not re.search('other', rest, re.I) and n + 1 < len(lines):
+                        rest = f'{rest} {lines[n + 1]}'
+                    stated = DIRECTLY_STATED.match(_no_minimum(rest))
+                    theirs = parse_value(_no_minimum(rest)[stated.end() - 1:]) if stated else None
+                    if theirs:
+                        rules[key[0]].setdefault('other_kinds', []).append(
+                            {**theirs, 'kind': name(other), 'bound': key[1],
+                             'label': ' '.join(f'{lines[i]} {lines[n]}'.split())[:200], **source})
             if others:
                 rules[key[0]]['other_zones'] = others
     return rules
+
+
+def _no_minimum(text: str) -> str:
+    """"no minimum one side, minimum 1.2 metres other side" and "1.2 metres one side, no minimum the
+    other", with the side that needs no yard written as 0 metres."""
+    text = re.sub(r'no minimum (?:on )?one side,?\s*(?:and\s+)?(?:minimum\s+)?(\d+(?:\.\d+)?)\s*metres?\s+(?:on\s+)?(?:the\s+)?other side',
+                  r'\1 metres one side, 0 metres other side', text, flags=re.I)
+    return re.sub(r'one side,?\s*(?:and\s+)?no\s+minimum\s+(?:on\s+)?(?:the\s+)?other(?:\s+side)?', 'one side, 0 metres other side',
+                  text, flags=re.I)
 
 
 def _is_a_label(line: str) -> bool:
@@ -525,6 +581,7 @@ def _value_below(lines: list, start: int, only_named: bool = False):
                 return (' '.join([*said, *lines[at:other + 1]]), lines[other][ALL_OTHER.match(lines[other]).end():],
                         zones, other)
         said.append(line)
+        rest = _no_minimum(rest)
         if DIRECTLY_STATED.match(rest):
             return ' '.join(said), rest, zones, at
         if any(ch.isdigit() for ch in rest):
@@ -568,8 +625,9 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
                 if max(start, begin) < min(stop, end):
                     chunk = text[max(start, begin):min(stop, end)]
                     kept = [line for line in chunk.split('\n') if line.strip() and not FURNITURE.match(line)]
-                    if kept and kept[-1].rstrip().endswith(':') and stop < end:
-                        # A standard named at the foot of a page has its figure at the top of the next.
+                    if kept and (kept[-1].rstrip().endswith(':') or DESIGNATED.match(kept[-1])) and stop < end:
+                        # A standard named at the foot of a page has its figure at the top of the next,
+                        # and a list of figures zone by zone carries on there.
                         over = [line for line in text[stop:min(stop + 500, end)].split('\n')
                                 if line.strip() and not FURNITURE.match(line)][:4]
                         chunk = '\n'.join(kept + over[:next((n for n, line in enumerate(over) if _is_a_label(line)), 4)])

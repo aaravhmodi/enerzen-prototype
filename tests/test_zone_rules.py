@@ -396,3 +396,25 @@ def test_the_other_ways_exceptions_word_a_yard():
     assert {k: v['value'] for k, v in found['R3'].items()} == {'front_yard': 7.5, 'interior_side_yard': 1.5, 'rear_yard': 7.5}
     assert found['S3-7']['interior_side_yard']['other_side'] == 0.6 and 'rear_yard' not in found['S3-7']
     assert rules_by_zone_column([['', 'R1A', 'R1B'], ['Minimum Front Yard (m)', '6', '7']], {}) == {}
+
+
+def test_a_yard_for_each_kind_of_dwelling_and_for_each_size_of_lot():
+    from scripts.zone_rules import rules_from_text
+    found = rules_from_text('FRONT YARD DEPTH (minimum per dwelling unit):\ndetached dwelling 2.6 metres\nmultiple dwelling – horizontal 4.5 metres\n'
+                            'despite subsection B above, on the lands shaded on Figure 1, a\nmultiple dwelling – horizontal may provide a minimum front yard\n'
+                            'depth of 2.6 metres;\nINTERIOR SIDE YARD WIDTH (minimum):\nfor detached dwellings  minimum 1.2 metres one side, no\n'
+                            'minimum the other provided that the aggregate of actual side yard\nfor semi detached dwellings minimum 0.6 metres except that,\n'
+                            'which that dwelling is located;\n1) minimum 1.2 metre interior side yard shall be provided\n'
+                            'SIDE YARD WIDTH (Minimum)\nFlankage Side Yard - 12 metres, except that where', {})
+    kinds = lambda rule: [(rule['kind'], rule['value'], rule.get('other_side'))] + [(k['kind'], k['value'], k.get('other_side')) for k in rule.get('other_kinds', [])]
+    assert kinds(found['front_yard']) == [('detached dwelling', 2.6, None), ('multiple dwelling – horizontal', 4.5, None)]
+    assert kinds(found['interior_side_yard']) == [('detached dwellings', 1.2, 0.0), ('semi detached dwellings', 0.6, None)]
+    assert found['exterior_side_yard']['value'] == 12.0
+    slip = rules_from_text('INTERIOR SIDE YARD WIHDTH:\nno minimum one side, minimum 1.8 metres other side', {})['interior_side_yard']
+    assert (slip['value'], slip['other_side']) == (1.8, 0.0)
+    # The ORMA zone: one figure for lots over four hectares, one for smaller lots.
+    table = [['Requirement', 'ORMA', 'ORMC'], ['Minimum Lot Area (ha)', '> 4 ha: 4.0\n< 4 ha: 0.8', '-'],
+             ['Minimum Front Yard (m)', '> 4 ha: 15.0\n< 4 ha: 12.0', '-']]
+    orma = rules_from_table(table, '', {})[0]['ORMA']
+    assert (orma['front_yard']['value'], orma['front_yard']['small_lot']) == (15.0, {'below_ha': 4.0, 'value': 12.0})
+    assert orma['lot_area']['unit'] == 'ha'

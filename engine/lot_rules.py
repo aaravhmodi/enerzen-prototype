@@ -19,7 +19,9 @@ import shapely.ops
 from shapely import affinity
 from shapely.geometry import box
 
-LANE_KIND = re.compile(r'lane|garage at the rear', re.I)
+LANE_KIND = re.compile(r'\blane\b|garage at the rear', re.I)
+# Kinds of dwelling that meet a neighbour at the side lot line ("detached" does not contain "attached").
+JOINED_KIND = re.compile(r'semi|\battached|multiple|townhouse|horizontal', re.I)
 SETBACKS = ('front_yard', 'rear_yard', 'interior_side_yard', 'exterior_side_yard')
 LOT_STANDARDS = ('lot_frontage', 'lot_area', 'lot_coverage', 'building_height', 'landscaped_area')
 OPPOSITE = {'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E'}
@@ -93,7 +95,19 @@ def drawn_rule(code: str | None, rules: dict) -> dict | None:
     return None
 
 
-def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane_lot: bool = False) -> dict:
+def _for_kind(rule: dict, joined: bool) -> dict:
+    """Where the by-law gives a standard for each kind of dwelling ("for detached dwellings", "for
+    semi-detached dwellings"), the figure for the lot's own kind: joined to its neighbour, or not."""
+    mine = next((k for k in [rule, *rule.get('other_kinds', [])]
+                 if k.get('kind') and bool(JOINED_KIND.search(k['kind'])) == joined), rule)
+    if mine is rule:
+        return rule
+    kept = {k: rule[k] for k in ('common_wall', 'overrides') if k in rule}
+    return {**kept, **mine, 'from': f"{rule['from']}, for \"{mine['kind']}\""}
+
+
+def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane_lot: bool = False,
+            joined: bool = False) -> dict:
     """Each standard for a zone code: the zone table's value, replaced by any exception's."""
     if not code:
         return {}
@@ -121,8 +135,9 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
         # Kinds reached from a rear lane ("Lane single attached dwelling", "Integrated garage at the
         # rear") are for lots with a lane behind them, and the others for lots without.
         by_lane = [k for k in kinds if bool(LANE_KIND.search(k['type'])) == lane_lot]
-        kinds = by_lane or kinds
-        fits = [k for k in kinds if frontage_m is not None and k['provisions']['lot_frontage']['value'] <= frontage_m + 0.5]
+        fit = lambda some: [k for k in some if frontage_m is not None and k['provisions']['lot_frontage']['value'] <= frontage_m + 0.5]
+        # A lot too narrow for any column of its own sort takes the widest it reaches of the others.
+        fits = fit(by_lane) or fit(kinds)
         if fits:
             kind = max(fits, key=lambda k: k['provisions']['lot_frontage']['value'])
             stated += [(key, rule, f'Exception {exception}, "{kind["type"]}" column') for key, rule in kind['provisions'].items()]
@@ -131,7 +146,7 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
             if rule.get('applies_to') and not {base, designation} & set(rule['applies_to']):
                 continue
             resolved[key] = {**rule, 'from': said_by, 'overrides': resolved.get(key, {}).get('value')}
-    return resolved
+    return {key: _for_kind(rule, joined) for key, rule in resolved.items()}
 
 
 def _envelope(parcel, rotation_deg: float, sides: dict):
@@ -190,7 +205,12 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     through = bool(street and OPPOSITE[street] in streets)
     lane_lot = bool(street and OPPOSITE[street] in behind)
     frontage = dimensions['width_m' if street in 'NS' else 'depth_m'] if dimensions and street else None
-    standards = resolve(code, rules, frontage, lane_lot)
+    standards = resolve(code, rules, frontage, lane_lot, joined=bool(attached))
+    # "> 4 ha: 15.0 / < 4 ha: 12.0" (the ORMA zone): a lot under the size named takes the second figure.
+    for key, rule in standards.items():
+        small = rule.get('small_lot')
+        if small and parcel is not None and parcel.area < small['below_ha'] * 10_000:
+            standards[key] = {**rule, 'value': small['value']}
     # A zone regulated by a setback from the street line (the City Centre zones) has no yards: its
     # street sides take that setback, and the by-law asks nothing of the other sides.
     street_line = standards.get('street_line_setback') if 'front_yard' not in standards else None

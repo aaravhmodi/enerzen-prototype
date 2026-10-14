@@ -633,3 +633,25 @@ def test_urban_reserve_lots_and_figures_that_set_some_lots_apart():
     assert lot_rules.apply_to_lot(lot, 'UT', rules, [street], dims)['basis'] == 'none_stated'
     found = lot_rules.apply_to_lot(lot, 'S3-7-X266', rules, [street], dims)['setbacks_by_side']
     assert found['S']['value'] == 4.5 and 'Fairport Road' in found['S']['note'] and 'note' not in found['N']
+
+
+def test_a_lot_takes_the_figures_for_its_own_kind_of_dwelling_and_its_own_size():
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot, street = box(0, 0, 20, 30), LineString([(-40, -9), (60, -9)])
+    dims = pickering_zoning.lot_dimensions(lot, [street])
+    yard = lambda value, **more: {'value': value, 'unit': 'm', **more}
+    side = yard(1.2, other_side=0.0, kind='detached dwellings', common_wall='no interior side yard along a common wall',
+                other_kinds=[yard(0.6, kind='semi detached dwellings')])
+    rules = {'zones': {'ORMA': {'front_yard': {'value': 15.0, 'unit': None, 'small_lot': {'below_ha': 4.0, 'value': 12.0}},
+                                'rear_yard': yard(15.0), 'interior_side_yard': yard(6.0)}},
+             'exceptions': {'X151': {'provisions': {'front_yard': yard(3.0), 'rear_yard': yard(7.5), 'interior_side_yard': side}}}}
+    sides = lambda **more: {s: v['value'] for s, v in lot_rules.apply_to_lot(lot, 'S2-X151', rules, [street], dims, **more)['setbacks_by_side'].items()}
+    assert sides() == {'S': 3.0, 'N': 7.5, 'E': 1.2, 'W': 0.0}  # detached: 1.2 one side, no minimum the other
+    assert sides(attached=['W']) == {'S': 3.0, 'N': 7.5, 'E': 0.6, 'W': 0.0}  # semi-detached: 0.6, and none at the common wall
+    found = lot_rules.apply_to_lot(lot, 'S2-X151', rules, [street], dims, attached=['W'])
+    assert 'semi detached dwellings' in found['standards']['interior_side_yard']['from']
+    # A 600 m2 lot in the ORMA zone is under four hectares.
+    assert lot_rules.apply_to_lot(lot, 'ORMA', rules, [street], dims)['setbacks_by_side']['S']['value'] == 12.0
+    big = box(0, 0, 300, 300)
+    assert lot_rules.apply_to_lot(big, 'ORMA', rules, [street], pickering_zoning.lot_dimensions(big, [street]))['setbacks_by_side']['S']['value'] == 15.0
