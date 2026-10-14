@@ -620,6 +620,12 @@ and O. Reg. 545/06. The API reads only that stored copy.
   garage at the rear") are for lots with a lane behind them and the others for
   lots without. The column is named beside each value, because the City's data
   does not say which kind of dwelling a lot holds.
+- **Several zones in one exception** — an exception often covers several zones,
+  each under its own 'Zone Requirements ("S-SD" Zone)' heading. A lot takes the
+  standards under its own zone's heading and not those of the first zone
+  listed. A yard given zone by zone ('on lands designated "S1-3": 4.0 metres')
+  goes to the zones named. A yard given by kind of dwelling ("for detached
+  dwellings: 1.2 metres...") is read for the first kind given, which is named.
 - **Merged cells** — a cell merged across several rows or columns (one yard for
   four zones, one standard for two kinds of lot) is read into every position it
   spans. A cell that is simply empty stays empty.
@@ -631,7 +637,8 @@ and O. Reg. 545/06. The API reads only that stored copy.
   lane-based lot.
 - **Common walls** — where the by-law asks for no side yard along a common wall
   (the notes under its semi-detached and street townhouse tables, and the newer
-  exceptions' own cells) and the City's building footprint carries on across
+  exceptions' own cells or prose, and table rows that are for semi-detached or
+  attached dwellings) and the City's building footprint carries on across
   that side's lot line, the side yard there is zero. The footprint has to cover
   at least 2 m2 of the strip from 0.5 m to 2.5 m beyond the lot line, since the
   footprints and the parcel fabric sit up to a metre apart. Such a side is not

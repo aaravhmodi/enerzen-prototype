@@ -71,8 +71,12 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
         section = rules.get('exceptions', {}).get(exception) or {}
         # The exception's own table of zones by row, where it has one, is its most specific word.
         by_zone = section.get('by_zone') or {}
+        # Where the exception sets its zones out one by one, a lot takes its own zone's standards and
+        # not the first zone's; the exception's standards as a whole are for an exception with one set.
+        sectioned = {designation, base} & set(section.get('zone_sections') or ())
+        general = {} if sectioned else section.get('provisions') or {}
         stated = [(key, rule, f'Exception {exception}') for key, rule in
-                  [*(section.get('provisions') or {}).items(), *(by_zone.get(designation) or by_zone.get(base) or {}).items()]]
+                  [*general.items(), *(by_zone.get(designation) or by_zone.get(base) or {}).items()]]
         # A newer exception gives one zone a column per kind of lot ("9.0 m single dwelling", "12.0 m
         # single dwelling", "semi-detached dwelling"). The lot takes the widest kind its own frontage
         # reaches, measured with half a metre's grace, and the column is named beside each value.
@@ -87,7 +91,7 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
             stated += [(key, rule, f'Exception {exception}, "{kind["type"]}" column') for key, rule in kind['provisions'].items()]
         for key, rule, said_by in stated:
             # 'on lands designated "S1" and "S2": 4.5 metres' is not this lot's standard in an S4 zone.
-            if rule.get('applies_to') and base not in rule['applies_to']:
+            if rule.get('applies_to') and not {base, designation} & set(rule['applies_to']):
                 continue
             resolved[key] = {**rule, 'from': said_by, 'overrides': resolved.get(key, {}).get('value')}
     return resolved

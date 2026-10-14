@@ -63,6 +63,15 @@ LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|mi
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 # 'Zone Requirements ("S-SD-SA-3")': which of an exception's zones the standards below are for.
 ZONE_HEADING = re.compile(r'Zone Requirements\s*\(\W*([A-Z][A-Z0-9/\-]*)')
+LIST_MARK = re.compile('^[ (]*[0-9ivx]{1,3}[)] +')  # "1) " or "(ii) " opening a line, never the "1." of 1.2
+BY_DWELLING = re.compile(r'\s*for\s+[\w\s,\-]*?dwellings?\s*:?\s*', re.I)
+JOINED_KIND = re.compile('semi-? ?detached|attached|townhouse', re.I)
+JOINED = re.compile(r'(?:[^.;\n]*\n)?[^.;\n]*(?:common wall|attached together|are attached|party wall)[^.;]*', re.I)
+ZONE_SECTION = re.compile(r'Zone Requirements\s*\(([^)]{1,160})\)')
+ZONE_BREAK = re.compile(r'(?:Uses? Permitted|Provisions|Zone Requirements)\s*\(')
+DESIGNATED = re.compile(r'\s*on lands designated\s+(.+?):', re.I)
+# A zone as an exception writes it, hyphens and all: S1-2, S-SD-SA, RH/MU, MD-H5.
+DESIGNATION = re.compile(r'[A-Z][A-Z0-9]*(?:[-/][A-Z0-9]+)*')
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
 
@@ -240,6 +249,7 @@ def rules_by_zone_row(table, source: dict) -> dict:
         if not symbol(row[column]):
             continue
         rules = out.setdefault(row[column].strip('()'), {})
+        joined = next((cell for cell in row[:column] if JOINED_KIND.search(cell)), None)
         for c, (label, cell) in enumerate(zip(labels, row)):
             if c == column or not cell:
                 continue
@@ -265,6 +275,11 @@ def rules_by_zone_row(table, source: dict) -> dict:
             if on_street:  # "1.2 metres unless side yard abuts street then minimum shall be 2.7 metres"
                 rules.setdefault('exterior_side_yard', {'value': float(on_street.group(1)), 'unit': 'm', 'raw': cell,
                                                         'bound': 'minimum', 'label': label, **source})
+        if joined and 'interior_side_yard' in rules:
+            # The row is for "Semi-detached Dwellings" or "Single Attached Dwellings", which meet their
+            # neighbour at the side lot line: the side yard is the open side's.
+            rules['interior_side_yard'].setdefault('common_wall', f'The by-law gives this side yard for "{joined}", '
+                                                                  'which are joined at the side lot line.')
     return {zone: rules for zone, rules in out.items() if rules}
 
 
@@ -349,14 +364,30 @@ def rules_from_text(text: str, source: dict) -> dict:
         first = re.search(r'[A-Za-z]', opening + line[len(before):])
         if not OPENS_THE_CLAUSE.fullmatch(opening) or not (first and first.group().isupper()):
             continue
-        named = None
+        named, others = None, []
         if LABEL_ONLY.fullmatch(after) and i + 1 < len(lines):
             # The label ends its line and the value opens the next: "INTERIOR SIDE YARD WIDTH:" then
             # "minimum 1.2 metres each side", or 'on lands designated "S1" and "S2": 4.5 metres', in
-            # which case the value is kept for the zones named and no others.
-            after = lines[i + 1]
-            named = re.match(r'\s*on lands designated\s+(.+?):', after, re.I)
-            line, after = f'{line} {after}', after[named.end():] if named else after
+            # which case the value is kept for the zones named and no others, and the lines below
+            # may give other zones theirs ('on lands designated "S1-3": 4.0 metres').
+            below, kind = lines[i + 1], BY_DWELLING.match(lines[i + 1])
+            if kind:
+                # "INTERIOR SIDE YARD WIDTH:" then "for detached dwellings: 1.2 metres one side..." and
+                # another line for semi-detached: the first kind of dwelling given is kept, and named.
+                after = below[kind.end():]
+                if not any(ch.isdigit() for ch in after) and i + 2 < len(lines):
+                    below, after = f'{below} {lines[i + 2]}', lines[i + 2]
+                line, after = f'{line} {below}', LIST_MARK.sub('', after)
+            else:
+                named = DESIGNATED.match(below)
+                for further in lines[i + 2:i + 8] if named else ():
+                    more = DESIGNATED.match(further)
+                    rest = further[more.end():] if more else ''
+                    if not (more and DIRECTLY_STATED.match(rest) and parse_value(rest)):
+                        break
+                    others.append({**parse_value(rest), 'bound': key[1], 'applies_to': zones_named(more.group(1)),
+                                   'label': ' '.join(f'{line} {further}'.split())[:200], **source})
+                line, after = f'{line} {below}', below[named.end():] if named else below
         if not DIRECTLY_STATED.match(after):
             continue
         value = parse_value(after)
@@ -365,8 +396,23 @@ def rules_from_text(text: str, source: dict) -> dict:
         if value and key[0] not in rules:
             rules[key[0]] = {**value, 'bound': key[1], 'label': ' '.join(line.split())[:200], **source}
             if named:
-                rules[key[0]]['applies_to'] = re.findall(ZONE_TOKEN, named.group(1).upper())
+                rules[key[0]]['applies_to'] = zones_named(named.group(1))
+            if others:
+                rules[key[0]]['other_zones'] = others
     return rules
+
+
+def zones_named(text: str) -> list[str]:
+    """The zones in '"S1", "S1-2" and "S-SD-SA" Zones', whole: S1, S1-2, S-SD-SA."""
+    return [zone for zone in DESIGNATION.findall(text.upper()) if zone not in ('AND', 'OR', 'ZONE', 'ZONES')]
+
+
+def _for_zone(rule: dict, zone: str) -> dict | None:
+    """The reading of a standard that is for this zone, where a standard is given zone by zone."""
+    for reading in [rule, *rule.get('other_zones', [])]:
+        if not reading.get('applies_to') or zone in reading['applies_to']:
+            return {k: v for k, v in reading.items() if k != 'other_zones'}
+    return None
 
 
 def exceptions_from_pages(pages: list[str], source: dict) -> dict:
@@ -385,12 +431,36 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
         entry = found.setdefault(code, {'heading': ' '.join(head.group(0).split())[:160], 'page': page,
                                         'provisions': {}, 'text': ' '.join(body.split())[:4000], **source})
         # Read page by page, so each standard cites the page it is on rather than the section's first.
-        begin, end = head.end(), head.end() + len(body)
-        for (start, number), (stop, _) in zip(offsets, offsets[1:] + [(len(text), None)]):
-            if max(start, begin) < min(stop, end):
-                part = text[max(start, begin):min(stop, end)]
-                for key, rule in rules_from_text(part, {**source, 'page': number}).items():
-                    entry['provisions'].setdefault(key, rule)
+        def read(begin, end):
+            for (start, number), (stop, _) in zip(offsets, offsets[1:] + [(len(text), None)]):
+                if max(start, begin) < min(stop, end):
+                    yield from rules_from_text(text[max(start, begin):min(stop, end)], {**source, 'page': number}).items()
+
+        def at_a_common_wall(span: str, side_yard: dict | None):
+            # "...where dwellings on abutting lots share a common wall, no interior side yard shall be
+            # required adjacent to that wall": kept with the side yard it qualifies.
+            said = next((' '.join(m.group(0).split()) for m in JOINED.finditer(span)
+                         if re.search(r'side yard|side lot line|no minimum|not required', m.group(0), re.I)), None)
+            if said and side_yard is not None:
+                side_yard.setdefault('common_wall', said[:300])
+
+        for key, rule in read(head.end(), head.end() + len(body)):
+            entry['provisions'].setdefault(key, rule)
+        at_a_common_wall(body, entry['provisions'].get('interior_side_yard'))
+        # An exception often covers several zones, each under its own 'Zone Requirements ("S-SD" Zone)'
+        # heading, running to the next zone's "Uses Permitted". Each zone keeps its own standards.
+        breaks = sorted(m.start() for m in ZONE_BREAK.finditer(body))
+        for section in ZONE_SECTION.finditer(body):
+            end = next((b for b in breaks if b > section.end()), len(body))
+            zones = zones_named(section.group(1))
+            entry.setdefault('zone_sections', []).extend(z for z in zones if z not in entry.get('zone_sections', []))
+            for key, rule in read(head.end() + section.end(), head.end() + end):
+                for zone in zones:
+                    mine = _for_zone(rule, zone)
+                    if mine:
+                        entry.setdefault('by_zone', {}).setdefault(zone, {}).setdefault(key, mine)
+            for zone in zones:
+                at_a_common_wall(body[section.end():end], entry.get('by_zone', {}).get(zone, {}).get('interior_side_yard'))
     return found
 
 
@@ -470,9 +540,8 @@ def extract(documents: list[dict], store: Path) -> dict:
                     current['provisions'].setdefault(key, rule)
         for code, by_zone in tabled.items():
             for zone, rules in by_zone.items() if code in exceptions else ():
-                kept = exceptions[code].setdefault('by_zone', {}).setdefault(zone, {})
-                for key, rule in rules.items():
-                    kept.setdefault(key, rule)
+                # The exception's table of zones by row is its most specific word, over its prose.
+                exceptions[code].setdefault('by_zone', {}).setdefault(zone, {}).update(rules)
         for code, by_type in typed.items():
             if code in exceptions:
                 exceptions[code].setdefault('by_lot_type', {}).update(by_type)

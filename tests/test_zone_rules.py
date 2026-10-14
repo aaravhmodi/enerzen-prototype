@@ -141,7 +141,7 @@ def test_a_value_on_the_line_after_its_label_and_the_zones_it_names():
             'INTERIOR SIDE YARD WIDTH:\nminimum 1.2 metres each side, or\n'
             'REAR YARD DEPTH (minimum):\nas shown on the site plan attached as Figure 1')
     rules = rules_from_text(text, {})
-    assert rules['front_yard']['value'] == 4.5 and rules['front_yard']['applies_to'] == ['S1', 'S1-2', 'AND', 'S3']
+    assert rules['front_yard']['value'] == 4.5 and rules['front_yard']['applies_to'] == ['S1', 'S1-2', 'S3']
     assert rules['interior_side_yard']['value'] == 1.2 and 'applies_to' not in rules['interior_side_yard']
     assert 'rear_yard' not in rules
     from engine.lot_rules import resolve
@@ -259,3 +259,43 @@ def test_merged_cells_take_the_text_of_the_cell_that_spans_them():
                                    ['S2', None, None], ['SD', None, None]])
     assert unmerged(table) == [['Symbol', 'Minimum Yards', 'Minimum Yards'], ['S1', '4.5 metres', '7.5 metres'],
                                ['S2', '4.5 metres', '7.5 metres'], ['SD', '4.5 metres', '7.5 metres']]
+
+
+def test_an_exception_with_several_zones_keeps_each_zones_own_standards():
+    # Exception 238: five zones under their own headings, and inside one of them a yard given zone by zone.
+    from scripts.zone_rules import exceptions_from_pages
+    from engine.lot_rules import resolve
+    page = ('Exception Zone 238 (By-law 2015-85)\n'
+            'Uses Permitted ("S1", "S1-2", S1-3" and "S3" zone)\nDetached dwelling\n'
+            'Zone Requirements ("S1", "S1-2", "S1-3" and "S3" Zones)\n'
+            'FRONT YARD DEPTH (minimum):\non lands designated "S1", \'\'S1-2\'\' and \'\'S3\'\':4.5 metres\n'
+            'on lands designated "S1-3":   4.0 metres\n'
+            'REAR YARD DEPTH (minimum):\non lands designated "S1" and "S3": 7.5 metres\n'
+            'on lands designated "S1-2" and "S1-3": see Figure 1 attached\n'
+            'Uses Permitted ("S-SD" Zone)\nSemi-detached dwelling\n'
+            'Zone Requirements (\'\'S-SD" Zone)\n'
+            'FRONT YARD DEPTH (minimum): 6.0 metres\nREAR YARD DEPTH (minimum): 9.0 metres\n')
+    rules = {'zones': {}, 'exceptions': exceptions_from_pages([page], {'file': 'f'})}
+    yards = lambda code: {k: v['value'] for k, v in resolve(code, rules).items()}
+    assert rules['exceptions']['X238']['zone_sections'] == ['S1', 'S1-2', 'S1-3', 'S3', 'S-SD']
+    assert yards('S1-X238') == {'front_yard': 4.5, 'rear_yard': 7.5} and yards('S1-3-X238') == {'front_yard': 4.0}
+    assert yards('S-SD-X238') == {'front_yard': 6.0, 'rear_yard': 9.0}  # not the first zone's 4.5 and 7.5
+
+
+def test_a_yard_given_by_kind_of_dwelling_and_the_wall_two_dwellings_share():
+    from scripts.zone_rules import exceptions_from_pages, rules_by_zone_row
+    page = ('Exception Zone 238 (By-law 2015-85)\nZone Requirements ("S-SD" Zone)\n'
+            'INTERIOR SIDE YARD WIDTH (minimum):\nfor detached dwellings: 1.2 metres one side no minimum the\nother side\n'
+            'for semi-detached dwellings: 1.2 metres except that no interior side yard shall be required\n'
+            'on the side where dwellings on adjacent lots are attached together\n'
+            'Zone Requirements ("S1" Zone)\nINTERIOR SIDE YARD WIDTH:\nfor single detached dwellings\n'
+            '1) minimum 1.5 metres one side, 0.6 metres other side, or\n')
+    zones = exceptions_from_pages([page], {'file': 'f'})['X238']['by_zone']
+    assert zones['S-SD']['interior_side_yard']['value'] == 1.2 and 'for detached dwellings' in zones['S-SD']['interior_side_yard']['label']
+    assert 'attached together' in zones['S-SD']['interior_side_yard']['common_wall']
+    assert zones['S1']['interior_side_yard']['value'] == 1.5 and 'common_wall' not in zones['S1']['interior_side_yard']
+    table = [['Zone', 'Symbol', 'Minimum Yards', ''], ['', '', 'Front', 'Side and\nFlankage'],
+             ['Single Detached\nDwelling', 'S1', '4.5 metres', '1.2 metres side 2.7 metres flankage'],
+             ['Semi-detached\nDwellings', 'SD', '4.5 metres', '1.2 metres side 2.7 metres flankage']]
+    rows = rules_by_zone_row(table, {})  # Exception 295
+    assert 'common_wall' not in rows['S1']['interior_side_yard'] and 'Semi-detached' in rows['SD']['interior_side_yard']['common_wall']
