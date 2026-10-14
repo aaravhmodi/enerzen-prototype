@@ -172,6 +172,14 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                 # footprint shows this dwelling joined to its neighbour on this side.
                 by_side[side].update(value=0.0, stated=rule['value'],
                                      note=f"Joined to the neighbouring dwelling on this side. {rule['common_wall']}")
+    # "1.2 metres one side, 0.6 metres other side": the by-law does not say which side is which, so the
+    # first open side takes the first figure and the second the other. The width left to build on is the
+    # same either way; only where it sits across the lot is not known.
+    both = (standards.get('interior_side_yard') or {}).get('other_side')
+    open_sides = [s for s in 'NESW' if by_side.get(s, {}).get('applies') == 'interior_side_yard' and 'stated' not in by_side[s]]
+    if both is not None and len(open_sides) == 2:
+        by_side[open_sides[1]].update(value=both, note='The by-law gives a different width for each side yard and does not '
+                                                       'say which side is which.')
     for key in SETBACKS + LOT_STANDARDS:
         if key not in standards and not (key == 'exterior_side_yard' and not flank):
             missing.append(key)
@@ -202,7 +210,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         'lane_lot': lane_lot, 'attached_sides': list(attached or ()),
         'setbacks_by_side': by_side,
         'standards': {k: {kk: v.get(kk) for kk in ('value', 'unit', 'bound', 'from', 'document', 'page', 'label',
-                                                   'overrides', 'file')}
+                                                   'overrides', 'file', 'other_side')}
                       for k, v in standards.items()},
         'missing': missing, 'lot_checks': checks,
         'buildable_area_m2': round(envelope.area, 1) if envelope is not None else None,

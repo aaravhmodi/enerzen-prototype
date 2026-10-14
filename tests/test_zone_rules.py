@@ -299,3 +299,30 @@ def test_a_yard_given_by_kind_of_dwelling_and_the_wall_two_dwellings_share():
              ['Semi-detached\nDwellings', 'SD', '4.5 metres', '1.2 metres side 2.7 metres flankage']]
     rows = rules_by_zone_row(table, {})  # Exception 295
     assert 'common_wall' not in rows['S1']['interior_side_yard'] and 'Semi-detached' in rows['SD']['interior_side_yard']['common_wall']
+
+
+def test_wordings_from_exceptions_239_139_210_231_and_184():
+    read = lambda text: rules_from_text(text, {})
+    # The label runs on over two lines before its value (X239).
+    side = read('INTERIOR SIDE YARD WIDTH FOR SINGLE DETACHED\nDWELLINGS:\nminimum 1.2 metres one side, 0.6 metres other side, or\n'
+                'no minimum one side so long as on the other side:')['interior_side_yard']
+    assert (side['value'], side['other_side']) == (1.2, 0.6) and 'SINGLE DETACHED DWELLINGS' in side['label']
+    # A kind of dwelling on its own line, then a numbered value; and a scan's "REARYARD" (X139).
+    found = read('INTERIOR SIDE YARD WIDTH (minimum):\ndetached dwelling residential use:\n'
+                 '1) 0.3 of a metre one side, and 1.2 metres on the other side;\nREARYARD DEPTH (minimum): 7.5 metres;')
+    assert (found['interior_side_yard']['value'], found['interior_side_yard']['other_side'], found['rear_yard']['value']) == (0.3, 1.2, 7.5)
+    # A yard given zone by zone, each zone's figure a line or more below its name (X210).
+    side = read('SIDE YARD WIDTH (minimum):\non the lands designated "S3":\n1) minimum 1.2 metres each side, or\n'
+                '2) no minimum one side so long as on the other side:\nI. at least 1.2 metres interior side yard width is provided to\n'
+                'the nearest wall of a private garage\non the lands designated "S4":\n1) minimum 1.5 metres each side\n'
+                'FLANKAGE SIDE YARD WIDTH (minimum): 2.7 metres')['interior_side_yard']
+    assert (side['value'], side['applies_to']) == (1.2, ['S3'])
+    assert [(other['value'], other['applies_to']) for other in side['other_zones']] == [(1.5, ['S4'])]
+    # The by-law's own slip, "FRONTAGE YARD DEPTH", is the front yard and not the lot's frontage (X231).
+    assert read('FRONTAGE YARD DEPTH (minimum):  4.5 metres') == {'front_yard': read('FRONT YARD DEPTH (minimum):  4.5 metres')['front_yard']
+                                                                  | {'label': 'FRONTAGE YARD DEPTH (minimum): 4.5 metres'}}
+    # A value for each kind of dwelling: the first kind is read (X184).
+    front = read('FRONT YARD DEPTH (minimum):\nsemi-detached dwelling: 4.5 metres\nmultiple dwelling - horizontal: 6.0 metres')['front_yard']
+    assert front['value'] == 4.5 and 'semi-detached dwelling' in front['label']
+    # Still not a standard: a figure, a definition, a sentence that only mentions the yard.
+    assert read('REAR YARD DEPTH (minimum):\nsee Figure 1 attached\nFRONT YARD DEPTH (minimum):\nas shown on Schedule 2') == {}

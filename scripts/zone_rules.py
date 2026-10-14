@@ -23,8 +23,8 @@ from pathlib import Path
 PROVISIONS = [
     ('exterior_side_yard', r'exterior\s+side\s+yard|flank(?:ag\s?e|ing)', 'minimum'),
     ('interior_side_yard', r'(interior\s+)?side\s+yard', 'minimum'),
-    ('front_yard', r'front\s+yard', 'minimum'),
-    ('rear_yard', r'rear\s+yard', 'minimum'),
+    ('front_yard', r'front(?:age)?\s+yard', 'minimum'),  # one exception has "FRONTAGE YARD DEPTH"
+    ('rear_yard', r'rear\s*yard', 'minimum'),  # "REARYARD" in a scan
     ('lot_frontage', r'(lot\s+)?frontage', 'minimum'),
     ('lot_area', r'lot\s+area', 'minimum'),
     ('building_height', r'(building\s+)?height', 'maximum'),
@@ -57,6 +57,11 @@ ABUTS_STREET = re.compile(r'abuts?\s+(?:a\s+)?street\D{0,40}?(\d+(?:\.\d+)?)\s*m
 # A table's footnote: "The minimum interior side yard shall be 0.0 m where the common wall of a
 # semi-detached dwelling abuts an interior side lot line being the adjoining wall of another..."
 COMMON_WALL_NOTE = re.compile(r'[^.]*interior side yard shall be 0(?:\.0)?\s*m\s+where the common wall[^.]*\.', re.I)
+# "1.2 metres one side, 0.6 metres other side", "0.3 of a metre one side, and 1.2 metres on the other
+# side", "1.2 m on one side and 0.6 m on the other side"; and "One side 1.8 m and other side 3.0 m".
+ONE_SIDE_AND_THE_OTHER = re.compile(r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?one side\W+(?:and\s+)?'
+                                    r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?other side', re.I)
+ONE_SIDE_FIRST = re.compile(r'one side\s*(\d+(?:\.\d+)?)\s*(?:metres?|m)\b\W+(?:and\s+)?(?:the\s+)?other side\s*(\d+(?:\.\d+)?)', re.I)
 LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
 LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max)\b\.?)*', re.I)
@@ -64,12 +69,17 @@ STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 # 'Zone Requirements ("S-SD-SA-3")': which of an exception's zones the standards below are for.
 ZONE_HEADING = re.compile(r'Zone Requirements\s*\(\W*([A-Z][A-Z0-9/\-]*)')
 LIST_MARK = re.compile('^[ (]*[0-9ivx]{1,3}[)] +')  # "1) " or "(ii) " opening a line, never the "1." of 1.2
+# What a label may run on with before its value: "WIDTH FOR SINGLE DETACHED" (/ "DWELLINGS:" / value).
+FOR_A_KIND = re.compile(r'[\s:,()\-–]*(?:width|depth)?\s*for\b', re.I)
+# A line, or the start of one, that names a kind of dwelling: "semi-detached dwelling:", "for detached
+# dwellings:", "multiple dwelling - horizontal:", "DWELLINGS:", "detached dwelling residential use:".
+A_KIND = re.compile(r'\s*(?:for\s+)?(?:[A-Za-z][\w,/\-]*\s+){0,6}?(?:dwellings?|units?)\b[^:\d]{0,45}(?::\s*|\s*$)', re.I)
 BY_DWELLING = re.compile(r'\s*for\s+[\w\s,\-]*?dwellings?\s*:?\s*', re.I)
 JOINED_KIND = re.compile('semi-? ?detached|attached|townhouse', re.I)
 JOINED = re.compile(r'(?:[^.;\n]*\n)?[^.;\n]*(?:common wall|attached together|are attached|party wall)[^.;]*', re.I)
 ZONE_SECTION = re.compile(r'Zone Requirements\s*\(([^)]{1,160})\)')
 ZONE_BREAK = re.compile(r'(?:Uses? Permitted|Provisions|Zone Requirements)\s*\(')
-DESIGNATED = re.compile(r'\s*on lands designated\s+(.+?):', re.I)
+DESIGNATED = re.compile(r'\s*on (?:the )?lands designated\s+(.+?):', re.I)
 # A zone as an exception writes it, hyphens and all: S1-2, S-SD-SA, RH/MU, MD-H5.
 DESIGNATION = re.compile(r'[A-Z][A-Z0-9]*(?:[-/][A-Z0-9]+)*')
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
@@ -98,7 +108,9 @@ def parse_value(cell):
     number = match.group(1)
     # "3,000" is three thousand; "7,5" is a decimal comma.
     number = number.replace(',', '' if re.fullmatch(r'\d{1,3},\d{3}', number) else '.')
-    return {'value': float(number), 'unit': UNITS.get(unit, unit or None), 'raw': text}
+    sides = ONE_SIDE_AND_THE_OTHER.search(text) or ONE_SIDE_FIRST.search(text)
+    both = {'other_side': float(sides.group(2))} if sides and sides.group(1) == number else {}
+    return {**both, 'value': float(number), 'unit': UNITS.get(unit, unit or None), 'raw': text}
 
 
 def _zone_cells(row):
@@ -364,42 +376,81 @@ def rules_from_text(text: str, source: dict) -> dict:
         first = re.search(r'[A-Za-z]', opening + line[len(before):])
         if not OPENS_THE_CLAUSE.fullmatch(opening) or not (first and first.group().isupper()):
             continue
-        named, others = None, []
-        if LABEL_ONLY.fullmatch(after) and i + 1 < len(lines):
-            # The label ends its line and the value opens the next: "INTERIOR SIDE YARD WIDTH:" then
-            # "minimum 1.2 metres each side", or 'on lands designated "S1" and "S2": 4.5 metres', in
-            # which case the value is kept for the zones named and no others, and the lines below
-            # may give other zones theirs ('on lands designated "S1-3": 4.0 metres').
-            below, kind = lines[i + 1], BY_DWELLING.match(lines[i + 1])
-            if kind:
-                # "INTERIOR SIDE YARD WIDTH:" then "for detached dwellings: 1.2 metres one side..." and
-                # another line for semi-detached: the first kind of dwelling given is kept, and named.
-                after = below[kind.end():]
-                if not any(ch.isdigit() for ch in after) and i + 2 < len(lines):
-                    below, after = f'{below} {lines[i + 2]}', lines[i + 2]
-                line, after = f'{line} {below}', LIST_MARK.sub('', after)
-            else:
-                named = DESIGNATED.match(below)
-                for further in lines[i + 2:i + 8] if named else ():
-                    more = DESIGNATED.match(further)
-                    rest = further[more.end():] if more else ''
-                    if not (more and DIRECTLY_STATED.match(rest) and parse_value(rest)):
-                        break
-                    others.append({**parse_value(rest), 'bound': key[1], 'applies_to': zones_named(more.group(1)),
-                                   'label': ' '.join(f'{line} {further}'.split())[:200], **source})
-                line, after = f'{line} {below}', below[named.end():] if named else below
+        named, others, where = None, [], i
+        if not DIRECTLY_STATED.match(after):
+            # The value is on a line below the label, under a line or two saying what it is for:
+            #   "INTERIOR SIDE YARD WIDTH:" / "minimum 1.2 metres each side"
+            #   "FRONT YARD DEPTH (minimum):" / 'on lands designated "S1" and "S2": 4.5 metres'
+            #   "SIDE YARD WIDTH (minimum):" / 'on the lands designated "S3":' / "1) minimum 1.2 metres each side"
+            #   "INTERIOR SIDE YARD WIDTH FOR SINGLE DETACHED" / "DWELLINGS:" / "minimum 1.2 metres one side"
+            #   "FRONT YARD DEPTH (minimum):" / "semi-detached dwelling: 4.5 metres"
+            # A yard given zone by zone is kept for the zones named, each with its own figure; one given
+            # by kind of dwelling is read for the first kind, which stays in the label.
+            below = _value_below(lines, i + 1) if LABEL_ONLY.fullmatch(after) or FOR_A_KIND.match(after) else None
+            if not below:
+                continue
+            said, after, named, at = below
+            where = at
+            while named:  # the other zones' figures, down to the next standard
+                more = _value_below(lines, at + 1, only_named=True)
+                if not more:
+                    break
+                theirs, rest, zones, at = more
+                if parse_value(rest):
+                    others.append({**parse_value(rest), 'bound': key[1], 'applies_to': zones,
+                                   'label': ' '.join(f'{line} {theirs}'.split())[:200], **source})
+            line = f'{line} {said}'
         if not DIRECTLY_STATED.match(after):
             continue
+        if re.search(r'one side\W*(?:and\W*)?$', after, re.I) and where + 1 < len(lines):
+            after = f"{after} {LIST_MARK.sub('', lines[where + 1])}"  # "0.3 metres one side" / "2) 1.2 metres other side"
         value = parse_value(after)
         if value and value['value'] > 60 and value['unit'] != 'm':
             continue  # a page or section number, not a yard: "FRONT YARD DEPTH (minimum): 164"
         if value and key[0] not in rules:
             rules[key[0]] = {**value, 'bound': key[1], 'label': ' '.join(line.split())[:200], **source}
             if named:
-                rules[key[0]]['applies_to'] = zones_named(named.group(1))
+                rules[key[0]]['applies_to'] = named
             if others:
                 rules[key[0]]['other_zones'] = others
     return rules
+
+
+def _is_a_label(line: str) -> bool:
+    """A line that opens a standard of its own: "FLANKAGE SIDE YARD WIDTH (minimum): 2.7 metres"."""
+    key = provision_key(line)
+    if not key or not STATES_ITS_OWN.search(line) or NOT_A_STANDARD.search(line):
+        return False
+    before = re.split(PROVISIONS[[p[0] for p in PROVISIONS].index(key[0])][1], line, maxsplit=1, flags=re.I)[0]
+    return bool(OPENS_THE_CLAUSE.fullmatch(re.split(r'[:;]', before)[-1])) and line.lstrip()[:1].isupper()
+
+
+def _value_below(lines: list, start: int, only_named: bool = False):
+    """(what the lines say, the text that opens with the value, zones named or None, line index).
+
+    From `start`, reads past the lines that only say what a value is for, to the value. With
+    only_named it looks further, as far as the next standard, for the next 'on lands designated' line.
+    """
+    said, zones = [], None
+    for at in range(start, min(start + (40 if only_named else 5), len(lines))):
+        line = lines[at]
+        designated = DESIGNATED.match(line)
+        if not line.strip() or (only_named and not designated and not said and not _is_a_label(line)):
+            continue
+        if _is_a_label(line):
+            return None
+        rest = LIST_MARK.sub('', line)
+        if designated:
+            zones, rest = zones_named(designated.group(1)), LIST_MARK.sub('', line[designated.end():])
+        else:
+            kind = A_KIND.match(line)
+            rest = LIST_MARK.sub('', line[kind.end():]) if kind else rest
+        said.append(line)
+        if DIRECTLY_STATED.match(rest):
+            return ' '.join(said), rest, zones, at
+        if any(ch.isdigit() for ch in rest):
+            return None  # some other sentence
+    return None
 
 
 def zones_named(text: str) -> list[str]:

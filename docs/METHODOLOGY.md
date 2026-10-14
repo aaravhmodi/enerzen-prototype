@@ -594,7 +594,11 @@ and O. Reg. 545/06. The API reads only that stored copy.
   Every value keeps its table or section and page. A standard the by-law text
   did not yield is reported as missing, never filled with a default.
 - **How a number is read** — the first number in a table cell, after footnote
-  marks are removed, so "one side 1.8 m and other side 3.0 m" is read as 1.8.
+  marks are removed. A side yard given as two widths ("one side 1.8 m and other
+  side 3.0 m", "1.2 metres one side, 0.6 metres other side") keeps both: a lot
+  with two open sides gets one figure on each. The by-law does not say which
+  side is which, so the buildable width is right and its position across the
+  lot is not known.
   Where a requirement is split over rows by use, the first case stated is kept.
   The Seaton zones give a row per building type; the first type listed is kept
   and named beside the value. In an exception's prose a yard counts only when

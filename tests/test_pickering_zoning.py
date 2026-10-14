@@ -579,3 +579,17 @@ def test_a_townhouse_on_a_rear_lane_fronts_its_street_and_has_no_yard_at_its_com
     alone = lot_rules.apply_to_lot(lot, 'MU-MD-3-X321', rules, [street], dims, [], [])
     assert alone['setbacks_by_side']['N']['value'] == 7.0 and alone['setbacks_by_side']['E']['value'] == 1.5
     assert pickering_zoning._is_lane({'NAME': 'Four Seasons', 'SUFFIX': 'Lane'}) and not pickering_zoning._is_lane({'NAME': 'Lane', 'SUFFIX': 'Road'})
+
+
+def test_a_side_yard_that_differs_from_one_side_to_the_other():
+    # R1C: "One side 1.8 m and other side 3.0 m". Both figures are applied; which side is which is not known.
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot, street = box(0, 0, 21, 36), LineString([(-40, -9), (60, -9)])
+    dims = pickering_zoning.lot_dimensions(lot, [street])
+    yard = lambda value, **more: {'value': value, 'unit': 'm', **more}
+    rules = {'zones': {'R1C': {'front_yard': yard(9.0), 'rear_yard': yard(7.5), 'interior_side_yard': yard(1.8, other_side=3.0)}},
+             'exceptions': {}}
+    found = lot_rules.apply_to_lot(lot, 'R1C', rules, [street], dims)
+    assert sorted(found['setbacks_by_side'][side]['value'] for side in 'EW') == [1.8, 3.0]
+    assert found['buildable_area_m2'] == pytest.approx((21 - 4.8) * (36 - 16.5), abs=0.5)

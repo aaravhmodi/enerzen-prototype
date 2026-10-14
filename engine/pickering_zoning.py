@@ -774,7 +774,7 @@ def lookup(latitude: float, longitude: float) -> dict:
 
 _ALL_LOTS_LOCK = threading.Lock()
 ALL_LOTS_COLUMNS = ['address', 'roll_number', 'pin', 'legal_description', 'zone_code', 'zone', 'exceptions',
-                    'street_side', 'corner_lot', 'front_yard_m', 'rear_yard_m', 'interior_side_yard_m',
+                    'street_side', 'corner_lot', 'front_yard_m', 'rear_yard_m', 'interior_side_yard_m', 'other_side_yard_m',
                     'exterior_side_yard_m', 'lot_frontage_min_m', 'lot_area_min_m2', 'max_height', 'max_coverage_pct',
                     'lot_width_m', 'lot_depth_m', 'lot_area_m2', 'buildable_area_m2', 'complete', 'missing',
                     'lane_lot', 'attached_sides', 'sources', 'latitude', 'longitude']
@@ -817,7 +817,8 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
                 'zone_code': code, 'zone': lot['zone'], 'exceptions': ' '.join(lot['exceptions']),
                 'street_side': lot['street_side'], 'corner_lot': lot['corner_lot'],
                 'front_yard_m': side.get('front_yard'), 'rear_yard_m': side.get('rear_yard'),
-                'interior_side_yard_m': side.get('interior_side_yard'),
+                'interior_side_yard_m': value('interior_side_yard') if 'interior_side_yard' in side else None,
+                'other_side_yard_m': (std.get('interior_side_yard') or {}).get('other_side'),
                 'exterior_side_yard_m': side.get('exterior_side_yard') if lot['corner_lot'] else None,
                 'lot_frontage_min_m': value('lot_frontage'), 'lot_area_min_m2': value('lot_area'),
                 'max_height': value('building_height'), 'max_coverage_pct': value('lot_coverage'),
