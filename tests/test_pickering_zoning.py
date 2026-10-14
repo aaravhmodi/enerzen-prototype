@@ -147,6 +147,12 @@ class FakeCity(BaseHTTPRequestHandler):
                 return self.send({'features': [f for f in REGION_FEATURES if f['attributes']['OBJECTID'] in wanted]})
             return self.send({'name': ['Map 1 - Regional Centres', 'Oak Ridges Moraine'][layer_id], 'type': 'Feature Layer',
                               'geometryType': 'esriGeometryPolygon', 'fields': []})
+        if path == '/wayback/cdx/search/cdx':  # the Wayback Machine has the withdrawn draft, not the missing page
+            header = ['urlkey', 'timestamp', 'original', 'mimetype', 'statuscode', 'digest', 'length']
+            kept = [['k', '20241202075255', q['url'], 'application/pdf', '200', 'd', '1']] if q['url'].endswith('/withdrawn.pdf') else []
+            return self.send([header, *kept])
+        if path.startswith('/wayback/web/20241202075255id_/'):
+            return self.send(self.pdf, 'application/pdf')
         if path == '/escribe/Meeting.aspx':
             return self.send(b'<a href="FileStream.ashx?DocumentId=1">By-law 8276/26</a>'
                              b'<a href="FileStream.ashx?DocumentId=2">By-law 8300/26</a>'
@@ -204,8 +210,9 @@ def store(tmp_path_factory):
     out = tmp_path_factory.mktemp('pickering')
     manifest = scrape(out, arcgis_roots=[f'{host}/arcgis/rest/services',
                                          {'url': f'{host}/region/rest/services/Open_Data', 'label': 'Region'}],
-                      document_pages=[f'{host}/site/zoning/', f'{host}/site/missing/'],
-                      fetch=Fetcher(delay=0, retries=1), log=lambda *_: None, escribe=f'{host}/escribe')
+                      document_pages=[f'{host}/site/zoning/', f'{host}/site/missing/', f'{host}/files/withdrawn.pdf'],
+                      fetch=Fetcher(delay=0, retries=1), log=lambda *_: None, escribe=f'{host}/escribe',
+                      archive=f'{host}/wayback')
     server.shutdown()
     return out, manifest
 
@@ -224,6 +231,7 @@ def test_scrape_downloads_every_layer_and_proves_it(store):
     assert parcels['features'] == parcels['expected'] == 2 and parcels['complete']  # the capped page was retried
     report = manifest['completeness']
     assert report['cited_bylaws'] == ['2511', '3036', '9999/21'] and report['missing_bylaws'] == ['9999/21']
+    assert report['superseded_bylaws_cited'] == 2  # the parent by-laws 8149/24 replaced need no copy of their own
     assert not report['incomplete_layers'] and not report['not_downloaded']
     assert report['complete'] is False  # the missing by-law and the dead page keep it honest
 
@@ -235,6 +243,9 @@ def test_scrape_follows_listing_pages_and_takes_every_pdf_on_planning_pages(stor
     assert {'files/2511.pdf', 'files/menu.pdf', 'site/zoning/?page=2', 'site/official-plan/'} <= set(docs)
     assert not any('parks' in u for u in docs)
     assert [e['url'].endswith('/site/missing/') for e in manifest['errors']] == [True]
+    # A document the City has taken down comes from the Wayback Machine's copy, which is recorded.
+    assert docs['files/withdrawn.pdf']['pages'] == 2
+    assert docs['files/withdrawn.pdf']['archived_copy'].endswith('/wayback/web/20241202075255id_/' + docs['files/withdrawn.pdf']['url'])
 
 
 def test_verify_catches_damage_and_failed_runs_keep_the_good_copy(store, tmp_path):

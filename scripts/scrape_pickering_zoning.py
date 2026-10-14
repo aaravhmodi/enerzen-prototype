@@ -84,6 +84,8 @@ ESCRIBE = 'https://pub-pickering.escribemeetings.com'
 # The City files its by-laws in Laserfiche: a link opens a viewer page, and this address returns the PDF behind it.
 WEBLINK = re.compile(r'(https://corporate\.pickering\.ca/WebLink)/DocView\.aspx\?id=(\d+)', re.I)
 ESCRIBE_SINCE = '2024-12-01'
+# Where a document the City has since taken down (the by-law review's drafts) is fetched from instead.
+WAYBACK = 'https://web.archive.org'
 ZONING_BYLAW_TEXT = re.compile(r'8149/24|zoning by-?law|amend\w* (by-?law|schedule)|zone (category|symbol)', re.I)
 DOCUMENT_LINK = re.compile(r'zoning|by-?law|official[-_ ]?plan|planning[-_ ]statement|greenbelt|moraine|seaton'
                            r'|heritage|secondary[-_ ]plan|site[-_ ]plan|complete[-_ ]application|060545', re.I)
@@ -343,9 +345,24 @@ def pdf_pages(path: Path, ocr: bool = True) -> tuple[list[str] | None, list[int]
         return pages, []
 
 
+def from_archive(fetch: Fetcher, url: str, archive: str = WAYBACK) -> tuple[bytes, str]:
+    """The Wayback Machine's latest good copy of a page the City has taken down, and its address."""
+    rows = json.loads(fetch.get(f'{archive}/cdx/search/cdx?' + urlencode(
+        {'url': url, 'output': 'json', 'filter': 'statuscode:200', 'limit': '-1'})) or b'[]')
+    if len(rows) < 2:  # the first row is the column names
+        raise LookupError(f'{url} has no archived copy')
+    timestamp, original = rows[-1][1], rows[-1][2]
+    # id_ asks for the bytes as captured, without the archive's toolbar written into them.
+    copy = f'{archive}/web/{timestamp}id_/{original}'
+    return fetch.get(copy), copy
+
+
 def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list, ocr: bool = True,
-                      docs_dir: Path | None = None) -> list[dict]:
-    """Save each listed page, the relevant pages it links to, and every PDF they link to."""
+                      docs_dir: Path | None = None, archive: str | None = WAYBACK) -> list[dict]:
+    """Save each listed page, the relevant pages it links to, and every PDF they link to.
+
+    A link the City has taken down (404 or 410) is fetched from `archive` instead, where it was captured.
+    """
     docs_dir = docs_dir or out / 'documents'
     docs_dir.mkdir(parents=True, exist_ok=True)
     queue, seen, documents = [(url, 'seed page', 0) for url in pages], set(), []
@@ -354,8 +371,17 @@ def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list,
         if url in seen:
             continue
         seen.add(url)
+        archived = None
         try:
             body = fetch.get(url)
+        except HTTPError as exc:
+            try:
+                if exc.code not in (404, 410) or not archive:
+                    raise exc
+                body, archived = from_archive(fetch, url, archive)
+            except Exception:
+                errors.append({'url': url, 'error': repr(exc)})
+                continue
         except Exception as exc:
             errors.append({'url': url, 'error': repr(exc)})
             continue
@@ -365,6 +391,8 @@ def collect_documents(fetch: Fetcher, out: Path, pages: list[str], errors: list,
         path.write_bytes(body)
         entry = {'url': url, 'title': title, 'file': str(path.relative_to(out)), 'kind': 'pdf' if is_pdf else 'html',
                  'sha256': hashlib.sha256(body).hexdigest(), 'bytes': len(body)}
+        if archived:
+            entry['archived_copy'] = archived
         if is_pdf:
             text, ocr_pages = pdf_pages(path, ocr)
             if text is not None:
@@ -511,7 +539,10 @@ def completeness(out: Path, catalog: list, layers: list, documents: list, errors
     mapped_exceptions = {f'X{int(n)}' for code in mapped_zones for n in re.findall(r'\bX\s?(\d+)\b', code.upper())}
     labels = ' '.join(f"{d['title']} {d['url']}" for d in documents)
     texts = ' '.join(Path(d['file']).name for d in documents)
-    missing_bylaws = sorted(n for n in cited if not re.search(rf'(?<!\d){re.escape(n)}(?!\d)', f'{labels} {texts}'))
+    # By-law 8149/24 replaced the parent by-laws and folded every amendment to them into its exception
+    # zones (whose texts are checked below), so only an amendment passed after it must be on file itself.
+    in_force = {n for n in cited if int(n.split('/')[0]) > 8149}
+    missing_bylaws = sorted(n for n in in_force if not re.search(rf'(?<!\d){re.escape(n)}(?!\d)', f'{labels} {texts}'))
     report = {
         'catalog_layers': len(catalog),
         'not_downloaded': [{'name': l.get('name'), 'url': l['url'], 'reason': l.get('error', 'skipped')}
@@ -520,6 +551,7 @@ def completeness(out: Path, catalog: list, layers: list, documents: list, errors
                                'expected': l['expected'], 'server_count': l['server_count']}
                               for l in layers if not l['complete']],
         'cited_bylaws': sorted(cited), 'missing_bylaws': missing_bylaws,
+        'superseded_bylaws_cited': len(cited - in_force),
         'mapped_zones': len(bases), 'zones_with_standards': len(bases & set(rules['zones'])),
         'zones_without_standards': sorted(bases - set(rules['zones'])),
         'exceptions_without_text': sorted(mapped_exceptions - set(rules['exceptions']),
@@ -543,7 +575,8 @@ def _write_json(path: Path, value):
 
 
 def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, all_layers=True,
-           fetch: Fetcher | None = None, log=print, ocr: bool = True, escribe: str | None = ESCRIBE) -> dict:
+           fetch: Fetcher | None = None, log=print, ocr: bool = True, escribe: str | None = ESCRIBE,
+           archive: str | None = WAYBACK) -> dict:
     """Download into a new snapshot folder, then point manifest.json at it.
 
     The API keeps serving the previous snapshot until the new manifest lands, and
@@ -589,7 +622,8 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
                            'sha256': hashlib.sha256((out / file).read_bytes()).hexdigest()})
 
     log('documents')
-    documents = collect_documents(fetch, out, document_pages, errors, ocr=ocr, docs_dir=out / snapshot / 'documents')
+    documents = collect_documents(fetch, out, document_pages, errors, ocr=ocr, docs_dir=out / snapshot / 'documents',
+                                  archive=archive)
     if escribe:
         log('council by-laws')
         documents += collect_council_bylaws(fetch, out, escribe, errors, ocr=ocr,
