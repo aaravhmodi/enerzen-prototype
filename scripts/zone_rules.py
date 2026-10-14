@@ -21,8 +21,8 @@ from pathlib import Path
 
 # Provision keys, the words that name them, and whether the by-law states a floor or a ceiling.
 PROVISIONS = [
-    ('exterior_side_yard', r'exterior\s+side\s+yard|flank(?:ag\s?e|ing)', 'minimum'),
-    ('interior_side_yard', r'(interior\s+)?side\s+yard', 'minimum'),
+    ('exterior_side_yard', r'exterior\s+side\W{1,3}yard|flank(?:ag\s?e|ing)', 'minimum'),
+    ('interior_side_yard', r'(interior\s+)?side\W{1,3}yard', 'minimum'),
     ('front_yard', r'front(?:age)?\s+yard', 'minimum'),  # one exception has "FRONTAGE YARD DEPTH"
     ('rear_yard', r'rear\s*yard', 'minimum'),  # "REARYARD" in a scan
     ('lot_frontage', r'(lot\s+)?frontage', 'minimum'),
@@ -44,11 +44,11 @@ ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
 NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.',
              'FLOOR', 'LAND', 'OPEN', 'UNIT', 'AREA', 'LOT', 'USE', 'USES', 'SPACE', 'YARD', 'PART', 'MAP'}
 # What may stand between a provision's name and its number: "DEPTH (minimum):", "width of", "shall be".
-DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max|of|shall|be|is|a)\b\.?)*\d',
+DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max|of|shall|be|is|a)\b\.?)*\d',
                              re.I)
 # A standard names a depth, a width or a minimum. "1) front yard: 0.6 metres" under "bay windows may
 # encroach as follows" is how far a window may reach into the yard.
-STATES_ITS_OWN = re.compile(r'\b(?:depth|width|setback|minimum|maximum|min|max)\b', re.I)
+STATES_ITS_OWN = re.compile(r'\b(?:depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max)\b', re.I)
 NOT_A_STANDARD = re.compile(r'encroach|project|shall mean', re.I)
 # What may come before a provision's name in its clause: an article, "minimum", a list mark.
 OPENS_THE_CLAUSE = re.compile(r'''(?:[\s,()\-–"'“”‘’•.]|\b(?:the|a|an|minimum|maximum|min|max|required)\b'''
@@ -64,7 +64,7 @@ ONE_SIDE_AND_THE_OTHER = re.compile(r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m
 ONE_SIDE_FIRST = re.compile(r'one side\s*(\d+(?:\.\d+)?)\s*(?:metres?|m)\b\W+(?:and\s+)?(?:the\s+)?other side\s*(\d+(?:\.\d+)?)', re.I)
 LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
-LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|width|setback|minimum|maximum|min|max)\b\.?)*', re.I)
+LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max)\b\.?)*', re.I)
 STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
 # 'Zone Requirements ("S-SD-SA-3")': which of an exception's zones the standards below are for.
 ZONE_HEADING = re.compile(r'Zone Requirements\s*\(\W*([A-Z][A-Z0-9/\-]*)')
@@ -79,7 +79,7 @@ JOINED_KIND = re.compile('semi-? ?detached|attached|townhouse', re.I)
 JOINED = re.compile(r'(?:[^.;\n]*\n)?[^.;\n]*(?:common wall|attached together|are attached|party wall)[^.;]*', re.I)
 ZONE_SECTION = re.compile(r'Zone Requirements\s*\(([^)]{1,160})\)')
 ZONE_BREAK = re.compile(r'(?:Uses? Permitted|Provisions|Zone Requirements)\s*\(')
-DESIGNATED = re.compile(r'\s*on (?:the )?lands designated\s+(.+?):', re.I)
+DESIGNATED = re.compile(r'\s*(?:on|within) (?:the )?lands designated\s+(.+?):', re.I)
 # A zone as an exception writes it, hyphens and all: S1-2, S-SD-SA, RH/MU, MD-H5.
 DESIGNATION = re.compile(r'[A-Z][A-Z0-9]*(?:[-/][A-Z0-9]+)*')
 EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)

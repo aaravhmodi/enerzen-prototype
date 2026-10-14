@@ -326,3 +326,12 @@ def test_wordings_from_exceptions_239_139_210_231_and_184():
     assert front['value'] == 4.5 and 'semi-detached dwelling' in front['label']
     # Still not a standard: a figure, a definition, a sentence that only mentions the yard.
     assert read('REAR YARD DEPTH (minimum):\nsee Figure 1 attached\nFRONT YARD DEPTH (minimum):\nas shown on Schedule 2') == {}
+
+
+def test_slips_in_the_scans_of_exceptions_217_219_and_330():
+    found = rules_from_text('INTERIOR SIDE YARD WIDTH (minima): 1.2 metres, except that\n'
+                            'FLANKAGE SIDE YARD WI0TH (minimum): 2. 7 metres\n'
+                            'REAR YARD DEPTH (minimum):\nwithin the lands designated \'\'S1\'\': 7.5 metres', {})
+    assert {k: v['value'] for k, v in found.items()} == {'interior_side_yard': 1.2, 'exterior_side_yard': 2.7, 'rear_yard': 7.5}
+    assert found['rear_yard']['applies_to'] == ['S1']
+    assert rules_from_text('INTERIOR SIDE. YARD WIDTH (minimum): 2.4 metres', {})['interior_side_yard']['value'] == 2.4
