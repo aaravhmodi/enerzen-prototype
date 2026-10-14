@@ -616,3 +616,20 @@ def test_city_centre_lots_and_lots_whose_setbacks_are_drawn():
     assert not found['complete'] and found['basis'] == 'figure' and found['basis_page'] == 407 and 'Figure 1' in found['basis_note']
     assert lot_rules.apply_to_lot(lot, 'MD-H6-X103', rules, [street], dims)['basis'] == 'partial'  # its own section, no drawing
     assert lot_rules.apply_to_lot(lot, None, rules, [street], dims)['basis'] == 'no_zone'
+
+
+def test_urban_reserve_lots_and_figures_that_set_some_lots_apart():
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot, street = box(0, 0, 20, 30), LineString([(-40, -9), (60, -9)])
+    dims = pickering_zoning.lot_dimensions(lot, [street])
+    yard = lambda value, **more: {'value': value, 'unit': 'm', **more}
+    rules = {'zones': {'A': {'front_yard': yard(12.0), 'rear_yard': yard(12.0), 'interior_side_yard': yard(3.0)}, 'UT': {}},
+             'exceptions': {'X266': {'provisions': {'front_yard': yard(4.5, varies='for lots fronting on Fairport Road: 7.5 metres for all other lots: 4.5 metres'),
+                                                    'rear_yard': yard(7.5), 'interior_side_yard': yard(1.2)}}}}
+    # By-law 8149/24, Table 13.3, note 1: the UR zone takes the Agriculture zone's requirements.
+    found = lot_rules.apply_to_lot(lot, 'UR', rules, [street], dims)
+    assert found['complete'] and found['setbacks_by_side']['S']['value'] == 12.0 and 'Table 13.3' in found['setbacks_by_side']['S']['from']
+    assert lot_rules.apply_to_lot(lot, 'UT', rules, [street], dims)['basis'] == 'none_stated'
+    found = lot_rules.apply_to_lot(lot, 'S3-7-X266', rules, [street], dims)['setbacks_by_side']
+    assert found['S']['value'] == 4.5 and 'Fairport Road' in found['S']['note'] and 'note' not in found['N']

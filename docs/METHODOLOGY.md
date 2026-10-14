@@ -645,6 +645,18 @@ and O. Reg. 545/06. The API reads only that stored copy.
 - **What a lot's setbacks rest on** — every lot carries one of: `yards`,
   `street_line`, `figure` (drawn), `partial` (the text gives some yards),
   `none_stated`, `no_street` and `no_zone`.
+- **Exception tables with a column per zone** — a newer exception sets its
+  zones side by side ('"R3" Zone', '"S3-7" Zone') with a lettered row per
+  standard. Each zone takes its own column, within that exception only.
+- **Some lots set apart** — "for lots fronting on Fairport Road: 7.5 metres /
+  for all other lots: 4.5 metres" is read as the figure for all other lots, and
+  the side carries a note quoting the lots the by-law sets apart. A yard that
+  varies by lot depth or frontage with no "all other lots" figure is left unread.
+- **A figure across a page break** — a standard named at the foot of a page
+  takes its figure from the top of the next, past the page's header and footer.
+- **Urban Reserve** — Table 13.3 gives the UR zone no figures of its own; its
+  note 1 applies the Agriculture zone's requirements, so UR lots take those.
+  The Utility zone (UT) has dashes in that table and stays without yards.
 - **Merged cells** — a cell merged across several rows or columns (one yard for
   four zones, one standard for two kinds of lot) is read into every position it
   spans. A cell that is simply empty stays empty.

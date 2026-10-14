@@ -355,3 +355,44 @@ def test_the_city_centre_table_and_setbacks_that_are_drawn():
     assert set(found['by_figure']) == {'*', 'RH-MU-2'} and found['by_figure']['RH-MU-2']['page'] == 2
     assert found['by_figure']['RH-MU-2']['text'].startswith('Building Location and Setbacks: Buildings and structures')
     assert DRAWN.search('Setbacks from streets & property boundaries as per Figure 2 - C1-7 inclusive')
+
+
+def test_the_other_ways_exceptions_word_a_yard():
+    from scripts.zone_rules import exceptions_from_pages, rules_by_zone_column, rules_from_text
+    yards = lambda text: {k: v['value'] for k, v in rules_from_text(text, {}).items()}
+    # Scan slips and short names.
+    assert yards('FRONT YARO DEPTH (minimum):  4.5 metres\nINTERIOR YARD WIDTH (minimum):     7.5 metres') == \
+        {'front_yard': 4.5, 'interior_side_yard': 7.5}
+    assert yards('FRONT YARD DEPTH· (minimum):  4.5 metres') == {'front_yard': 4.5}
+    # A figure for each zone, with or without a colon, and past a zone whose figure is not a width.
+    found = rules_from_text('SIDE YARD WIDTH (minimum):\non lands designated “S2-8”: 1.2 metres\non lands designated “S2-9”:\n'
+                            '1) north side yard 1.2 metres\n2) south side yard 4.5 metres\non lands designated “S4-2”   \n'
+                            '1) minimum 1.2 metres one side, 0.6 metres other side, or\n'
+                            'FRONT YARD DEPTH: (minimum)\non lands zoned "SA-12" 4.5 metres', {})
+    assert found['interior_side_yard']['applies_to'] == ['S2-8']
+    assert [(o['value'], o['other_side'], o['applies_to']) for o in found['interior_side_yard']['other_zones']] == [(1.2, 0.6, ['S4-2'])]
+    assert (found['front_yard']['value'], found['front_yard']['applies_to']) == (4.5, ['SA-12'])
+    # The standard restated as a sentence; and some lots set apart from all the others.
+    assert yards('Rear Yard Depth (minimum):\nthe minimum rear yard depth for all lots shall be 7.5 metres;') == {'rear_yard': 7.5}
+    found = rules_from_text('FRONT YARD DEPTH (minimum):\nfor lots fronting on Fairport Road: 7.5 metres\nfor all other lots: 4.5 metres\n'
+                            'Rear Yard Depth (minimum):\nfor lot depths less than or equal to 40.0 metres: 7.5 metres', {})
+    assert set(found) == {'front_yard'} and found['front_yard']['value'] == 4.5 and 'Fairport Road' in found['front_yard']['varies']
+    # One heading for both side yards; a list of encroachments is still not a standard.
+    assert yards('SIDE YARD WIDTHS (minimal):\ninterior side yard: 1.5 metres, except that no interior side yard shall\n'
+                 'flankage side yard:  3 metres\nbay windows may encroach as follows:\n1) front yard: 0.6 metres') == \
+        {'interior_side_yard': 1.5, 'exterior_side_yard': 3.0}
+    # A label at the foot of a page, its figure at the top of the next.
+    pages = ['Exception Zone 43\nZone Requirements ("R4-13" Zone)\nFRONT YARD DEPTH (minimum):\n164\n',
+             'Section 15 | Exceptions\nCity of Pickering\n4.5 metres, or\n7.5 metres for the area diagonally hatched on Figure 1\n'
+             'REAR YARD DEPTH (minimum): 7.5 metres\n']
+    found = exceptions_from_pages(pages, {})['X43']['by_zone']['R4-13']
+    assert {k: (v['value'], v['page']) for k, v in found.items()} == {'front_yard': (4.5, 1), 'rear_yard': (7.5, 2)}
+    # An exception's table with a column per zone.
+    table = [[None, None, '“R3” Zone', '“S3-7” Zone'], ['(c)', 'Front Yard Depth (minimum)', '7.5 metres', '4.5 metres'],
+             ['(e)', 'Side Yard Width (minimum)', '1.5 metres', 'minimum side yard depth of 1.2 metres on one side and 0.6 metres on the other side'],
+             ['(f)', 'Rear Yard Depth (minimum)', 'i) 7.5 metres ii) 6.0 metres for the lands in the hatched area', 'n/a'],
+             ['(j)', 'Lot Coverage of All Accessory Buildings', '15.0 square metres', '15.0 square metres']]
+    found = rules_by_zone_column(table, {'page': 489})
+    assert {k: v['value'] for k, v in found['R3'].items()} == {'front_yard': 7.5, 'interior_side_yard': 1.5, 'rear_yard': 7.5}
+    assert found['S3-7']['interior_side_yard']['other_side'] == 0.6 and 'rear_yard' not in found['S3-7']
+    assert rules_by_zone_column([['', 'R1A', 'R1B'], ['Minimum Front Yard (m)', '6', '7']], {}) == {}

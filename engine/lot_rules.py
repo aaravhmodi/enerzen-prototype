@@ -69,6 +69,10 @@ def _zone_table(base: str, designation: str, rules: dict) -> tuple[str, dict]:
         family = next((f for f, members in families.items() if zone in members), None)
         if family and zones.get(family):
             return zone, zones[family]
+    # By-law 8149/24, Table 13.3, note 1: "Detached dwellings and agricultural buildings and structures
+    # in the UR zone shall be subject to the applicable requirements of the Agriculture zone."
+    if base == 'UR' and zones.get('A'):
+        return 'A (which Table 13.3, note 1 applies to the UR zone)', zones['A']
     return base, {}
 
 
@@ -206,6 +210,8 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                                                  if k in rule} if rule else {'value': None})}
             if rule and key == 'exterior_side_yard' and 'exterior_side_yard' not in standards and not street_line:
                 by_side[side]['note'] = 'No exterior side yard stated; the interior side yard is shown.'
+            if rule and rule.get('varies'):
+                by_side[side]['note'] = f"The by-law sets some lots apart from this figure: {rule['varies']}"
             if unasked:
                 by_side[side]['note'] = ("The zone's table sets a setback from the street line and no side or rear yard; "
                                          'its building separation and height rules apply instead.')
