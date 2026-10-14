@@ -161,6 +161,24 @@ def test_each_lot_takes_its_own_row_of_a_seaton_table():
     dims = {'width_m': 10, 'depth_m': 30, 'rotation_deg': 0.0}
     found_lot = lot_rules.apply_to_lot(lot, 'SLD1', rules, [street], dims, neighbours={'SNHS': [heritage]})
     assert found_lot['setbacks_by_side']['N']['value'] == 5.0 and found_lot['setbacks_by_side']['S']['value'] == 3.0
+    # The table runs on to the next page without its title: its rows there are still SLD1's, under the
+    # heading open at the foot of the page before.
+    carry = {}
+    rules_from_table(table[:4], title, {'page': 180}, carry)
+    more, _ = rules_from_table([head, table[4]], 'Consolidated Zoning By-law - December 16, 2024 165', {'page': 181}, carry)
+    assert more['SLD1']['lot_frontage']['kind'] == 'Detached Dwelling – accessed from a lane with detached private garage'
+    assert more['SLD1']['rear_yard']['none_required']
+    # Table 14.25: the SSWM zone (printed "SSWMP") requires no yards; Section 14.8.2.2 caps other uses at 12.5 m.
+    open_space = [['Zone', 'Min. Front Yard', 'Max. Front Yard', 'Min. Rear Yard', 'Max. Coverage'],
+                  ['SOS', '3.0 m', '-', '7.5 m', '5%'], ['SSWMP', '-', '-', '-', '-']]
+    parks, _ = rules_from_table(open_space, '2. The maximum height of all other uses shall be 12.5 m.', {'page': 231})
+    assert parks['SSWM']['rear_yard']['none_required'] and 'lot_coverage' not in parks['SSWM']
+    assert parks['SOS']['building_height']['value'] == 12.5
+    # Section 14.9.2.1: an SUT lot takes the most restrictive standards of the zones beside it.
+    rules['zones'].update(parks)
+    utility = lot_rules.apply_to_lot(lot, 'SUT', rules, [street], dims, neighbours={'SLD1': [heritage], 'SOS': [heritage]})
+    assert utility['standards']['rear_yard']['value'] == 7.5 and utility['standards']['front_yard']['value'] == 3.0
+    assert 'Section 14.9.2.1' in utility['standards']['rear_yard']['from'] and utility['basis'] == 'yards'
     # The table has no lot coverage column: not regulated by the zone, which is not "not found".
     assert 'lot_coverage' not in found_lot['missing'] and '45%' in found_lot['not_regulated']['lot_coverage']
 

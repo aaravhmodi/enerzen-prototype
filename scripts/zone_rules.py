@@ -67,6 +67,10 @@ OTHER_MEASURE = re.compile(r'stepback|podium|tower|separation|balcon|amenity|act
 REFERENCE = re.compile(r'\b(?:schedule|figure|section|table|by-law|clause)s?\s+[\d.]+[\w()/-]*', re.I)
 ONE_SIDE_AND_THE_OTHER = re.compile(r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?one side\W+(?:and\s+)?'
                                     r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?other side', re.I)
+# Zone symbols the by-law misprints in a table: Table 14.25 has "SSWMP" for the SSWM zone it names above it.
+ZONE_MISPRINTS = {'SSWMP': 'SSWM'}
+# A height for every use a table's zones allow but the ones named before it (Section 14.8.2.2).
+OTHER_USES_HEIGHT = re.compile(r'maximum height of all other uses shall be (\d+(?:\.\d+)?)\s*m\b', re.I)
 # A Seaton table's "1.2 m & 0.6 m": the two interior side yards.
 BOTH_SIDES = re.compile(r'(\d+(?:\.\d+)?)\s*m\s*&\s*(\d+(?:\.\d+)?)\s*m\b', re.I)
 # A Seaton table's "6.0 m / 5.0 m adjacent to SNHS zone": a smaller figure where the lot abuts that zone.
@@ -181,8 +185,12 @@ def _title_zones(text: str) -> list[str]:
     return found
 
 
-def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
-    """{zone: {provision: rule}} from one table, and the numeric rows it could not place."""
+def rules_from_table(table, page_text: str, source: dict, carry: dict | None = None) -> tuple[dict, list]:
+    """{zone: {provision: rule}} from one table, and the numeric rows it could not place.
+
+    `carry` holds a table by building type open at the foot of the last page (its zones and the
+    building type heading over its last rows), so its continuation without a title is still read.
+    """
     rows = [list(r) for r in table if r and any(c not in (None, '') for c in r)]
     if len(rows) < 2:
         return {}, []
@@ -200,6 +208,9 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
                 rule.setdefault('other_kinds', []).append({**stated, 'kind': kind, 'bound': key[1],
                                                            'label': ' '.join(str(label).split()), **source})
             return
+        if kind and key and rule is None and value is None and key[1] == dict((k, b) for k, _, b in PROVISIONS)[key[0]]:
+            # The first building type's dash still answers for it: "none required", not "not read".
+            value = {'value': 0.0, 'unit': None, 'raw': '-', 'none_required': True}
         if key and OTHER_MEASURE.search(' '.join(str(label).split())):
             key = None  # "Minimum Main Wall Stepback for Buildings greater than 37.5 m in Height"
         if key and key == ('street_line_setback', 'maximum'):
@@ -244,26 +255,54 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
     first_col = _zone_cells([r[0] for r in rows[1:]])
     if sum(1 for z in first_col if z) >= 1 and any(provision_key(c or '') for c in rows[0][1:]):
         # Zones down the side, provisions across the top.
+        named = []
         for zone, row in zip(first_col, rows[1:]):
             if zone:
+                zone = ZONE_MISPRINTS.get(zone.strip('()'), zone.strip('()'))
+                named.append(zone)
                 for label, cell in zip(rows[0][1:], row[1:]):
-                    put(zone.strip('()'), label, cell)
+                    put(zone, label, cell)
+                    key = provision_key(label)
+                    # A dash for a minimum is "none required" (the SSWM and SNHS rows of Table 14.25 are all
+                    # dashes); a dash for a maximum sets no maximum, so it is left out.
+                    if key and key[1] == 'minimum' and parse_value(cell) is None and re.fullmatch(r'\s*[-–—]\s*', str(cell or '')):
+                        out.setdefault(zone, {}).setdefault(key[0], {'value': 0.0, 'unit': None, 'raw': '-', 'none_required': True,
+                                                                     'bound': 'minimum', 'label': ' '.join(str(label).split()), **source})
+        # "The maximum height of all other uses shall be 12.5 m" under the table (Section 14.8.2.2).
+        height = OTHER_USES_HEIGHT.search(' '.join(page_text.split()))
+        for zone in named if height else ():
+            out.setdefault(zone, {}).setdefault('building_height', {
+                'value': float(height.group(1)), 'unit': 'm', 'raw': height.group(0), 'bound': 'maximum',
+                'label': ' '.join(height.group(0).split()), **source})
         return out, unparsed
     zones = _title_zones(page_text)
-    if zones and sum(1 for c in rows[0][1:] if provision_key(c or '')) >= 2:
+    by_type = sum(1 for c in rows[0][1:] if provision_key(c or '')) >= 2
+    continued = not zones and by_type and carry is not None and carry.get('zones') \
+        and source.get('page', 0) - carry.get('page', -9) <= 1
+    if continued:
+        zones = carry['zones']
+    if zones and by_type:
         # One zone's table by building type (the Seaton zones): provisions across the top, a row per
         # building type. The first building type listed is the standard as read, its name in the label,
         # and every other row is kept beside it for a lot of that type (lot_rules picks the row).
-        group = ''
+        group = carry.get('group', '') if continued else ''
         for row in rows[1:]:
             name = ' '.join(str(row[0] or '').split())
             if not any(parse_value(c) for c in row[1:]):
-                group = name
+                # A heading names a dwelling or building; "private garage" alone is the tail of a row
+                # split over a page break, and the heading over it still stands.
+                if re.search(r'dwelling|building|home', name, re.I):
+                    group = name
                 continue
-            kind = ' '.join(re.sub(r'\(\d+\)', '', f'{group} {name}').split())  # without footnote marks: "lane(4)"
+            # A row naming its own dwelling ("Duplex Dwelling") stands alone; "with attached private
+            # garage" belongs to the dwelling heading over it. Footnote marks go: "lane(4)".
+            own = re.search(r'dwelling', name, re.I) and not re.match(r'with\b', name, re.I)
+            kind = ' '.join(re.sub(r'\(\d+\)', '', name if own else f'{group} {name}').split())
             for label, cell in zip(rows[0][1:], row[1:]):
                 for zone in zones:
                     put(zone, label, cell, f'– {kind}', kind)
+        if carry is not None:
+            carry.update(zones=zones, group=group, page=source.get('page'))
         return out, unparsed
     if zones and sum(1 for r in rows if provision_key(r[0] or '')) >= 2:
         # One zone's table: provision | value (| more columns for the same zone's variants).
@@ -719,6 +758,7 @@ def extract(documents: list[dict], store: Path) -> dict:
         if pdfplumber and path.exists():
             try:
                 with pdfplumber.open(path) as pdf:
+                    carry = {}  # a table by building type running over a page break
                     for number, page in enumerate(pdf.pages, 1):
                         stored = pages[number - 1] if number <= len(pages) else None
                         # Tables are read only where a page states a yard or lot standard. A zoning
@@ -731,11 +771,20 @@ def extract(documents: list[dict], store: Path) -> dict:
                         zoned = page.search(ZONE_HEADING.pattern, regex=True) if tables else []
                         for table in tables:
                             cells, where = unmerged(table), {**source, 'page': number}
-                            found, missed = rules_from_table(cells, page_text, where)
+                            found, missed = rules_from_table(cells, page_text, where, carry)
                             unparsed += missed
                             for zone, rules in found.items():
                                 for key, rule in rules.items():
-                                    zones.setdefault(zone, {}).setdefault(key, rule)
+                                    kept = zones.setdefault(zone, {}).setdefault(key, rule)
+                                    if kept is not rule and kept.get('kind') and rule.get('kind') and kept['bound'] == rule['bound']:
+                                        # A table by building type continued over a page break: its
+                                        # later rows join the rows read on the page before.
+                                        have = {kept['kind'], *(k['kind'] for k in kept.get('other_kinds', []))}
+                                        for row in [rule, *rule.get('other_kinds', [])]:
+                                            if row['kind'] not in have:
+                                                kept.setdefault('other_kinds', []).append(
+                                                    {k: v for k, v in row.items() if k != 'other_kinds'})
+                                                have.add(row['kind'])
                             # A table of zones by row belongs to the exception it sits in: the last
                             # heading above it on the page, or the section open at the top of the page.
                             code, named = opened[number - 1] if number <= len(opened) else (None, None)

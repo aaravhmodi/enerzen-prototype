@@ -30,6 +30,8 @@ NOT_IN_TABLE = {
     'lot_coverage': "The zone's table sets no lot coverage. Where an additional dwelling unit is in an accessory "
                     'building, all buildings on the lot may cover at most 45% of it (By-law 8149/24, Section 14.2.9.1, p. 161).',
 }
+# Zones whose standards are their neighbours': By-law 8149/24, Section 14.9.2.1.
+TAKES_ADJACENT = {'SUT': 'Section 14.9.2.1: the most restrictive provisions of any zone adjacent to the SUT zone'}
 # Roads this close to the lot boundary count as fronting it.
 FRONTING_M = 15.0
 
@@ -122,6 +124,24 @@ def _for_kind(rule: dict, joined: bool) -> dict:
         return rule
     kept = {k: rule[k] for k in ('common_wall', 'overrides') if k in rule}
     return {**kept, **mine, 'from': f"{rule['from']}, for \"{mine['kind']}\""}
+
+
+def _most_restrictive(tables: list[dict], said: str) -> dict:
+    """Each standard at its most restrictive across the given zones' standards: the largest minimum and
+    the smallest maximum, in the same unit; a dash ("none required") restricts nothing."""
+    found = {}
+    for table in tables:
+        for key, rule in table.items():
+            if rule.get('value') is None or rule.get('none_required'):
+                continue
+            have = found.get(key)
+            if have is not None and have.get('unit') != rule.get('unit'):
+                continue
+            tighter = have is None or (rule['value'] < have['value'] if rule.get('bound') == 'maximum'
+                                       else rule['value'] > have['value'])
+            if tighter:
+                found[key] = {**rule, 'from': f"{rule.get('from')}, by {said}"}
+    return found
 
 
 def _dwelling(kind: str) -> str:
@@ -266,6 +286,8 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     lane_lot = bool(street and OPPOSITE[street] in behind)
     frontage = dimensions['width_m' if street in 'NS' else 'depth_m'] if dimensions and street else None
     standards = resolve(code, rules, frontage, lane_lot, joined=bool(attached))
+    if base in TAKES_ADJACENT and not standards and neighbours:
+        standards = _most_restrictive([resolve(zone, rules) for zone in neighbours if zone != base], TAKES_ADJACENT[base])
     # "> 4 ha: 15.0 / < 4 ha: 12.0" (the ORMA zone): a lot under the size named takes the second figure.
     for key, rule in standards.items():
         small = rule.get('small_lot')

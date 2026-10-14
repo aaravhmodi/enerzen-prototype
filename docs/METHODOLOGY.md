@@ -614,8 +614,19 @@ and O. Reg. 545/06. The API reads only that stored copy.
   Open Space" column is read as landscaped area, not as a front yard. These
   tables have no lot coverage column, so a Seaton lot's coverage is reported as
   not regulated by the zone rather than not found, with Section 14.2.9.1's 45%
-  cap where an additional dwelling unit is in an accessory building. In an
-  exception's prose a yard counts only when
+  cap where an additional dwelling unit is in an accessory building. A table
+  that runs over a page break without its title keeps its zone and the
+  building type heading open at the foot of the page, and a row split over the
+  break ("private garage" alone at the top of the page) does not open a new
+  heading. Table 14.25 prints the SSWM zone as "SSWMP"; its row, like SNHS's,
+  is all dashes, read as no yards required, and Section 14.8.2.2's 12.5 m height
+  for "all other uses" applies to the zones of that table. An SUT lot takes the
+  most restrictive standards of the zones it abuts (Section 14.9.2.1): the
+  largest minimum and the smallest maximum. Where the City's parcel has no legal
+  description, one is built from the registered plan of its subdivision (Major
+  Residential Developments) and the geographic township lot and concession
+  (Ontario's lot fabric), and says so; PINs are not in the City's public data.
+  In an exception's prose a yard counts only when
   it is written as a heading that opens its clause, names a depth, width or
   minimum, and is followed directly by its number, on the same line or the
   next ("REAR YARD DEPTH (minimum): 7.5 metres"). A lower-case list item under
