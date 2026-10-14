@@ -701,3 +701,19 @@ def test_a_lot_takes_the_figures_for_its_own_kind_of_dwelling_and_its_own_size()
     assert lot_rules.apply_to_lot(lot, 'ORMA', rules, [street], dims)['setbacks_by_side']['S']['value'] == 12.0
     big = box(0, 0, 300, 300)
     assert lot_rules.apply_to_lot(big, 'ORMA', rules, [street], pickering_zoning.lot_dimensions(big, [street]))['setbacks_by_side']['S']['value'] == 15.0
+
+
+def test_a_parcel_without_a_legal_description_gets_one_from_the_city_layers():
+    from shapely.geometry import box
+    square = lambda: {'type': 'Polygon', 'coordinates': [[[-79.2, 43.8], [-79.0, 43.8], [-79.0, 43.9], [-79.2, 43.9], [-79.2, 43.8]]]}
+    fabric = pickering_zoning.Layer({'name': 'Lot Fabric Improved', 'category': 'parcels'}, {'features': [
+        {'properties': {'LOT_IDENT': 'LOT 27', 'CONCESSION_IDENT': 'CON 3', 'GEOGRAPHIC_TOWNSHIP_NAME': 'PICKERING'},
+         'geometry': square()}]})
+    plans = pickering_zoning.Layer({'name': 'Major Residential Developments', 'category': None}, {'features': [
+        {'properties': {'PLAN_NO': '40M-2600', 'SUBDIVISIO': 'SP-2009-13'}, 'geometry': square()}]})
+    x, y = -79.1 * pickering_zoning.SCALE[0], 43.85 * pickering_zoning.SCALE[1]
+    lot = box(x - 5, y - 5, x + 5, y + 5)
+    assert pickering_zoning._legal_description([fabric, plans], lot, {}) == (
+        "Registered Plan 40M-2600; Part of Lot 27, Concession 3, Geographic Township of Pickering "
+        "(from the City's subdivision and lot fabric layers)")
+    assert pickering_zoning._legal_description([fabric, plans], lot, {'LEGAL_DESC': 'PLAN 40M-1 LOT 2'}) == 'PLAN 40M-1 LOT 2'

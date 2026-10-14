@@ -257,6 +257,32 @@ def _pick(attrs: dict, *patterns) -> str | None:
     return None
 
 
+def _legal_description(layers, geom, attrs: dict) -> str | None:
+    """The parcel's own legal description, or, where the City's parcel has none, one built from its
+    layers: the registered plan of the subdivision the lot is in (Major Residential Developments) and
+    the geographic township lot and concession (Ontario's lot fabric), said to be built that way."""
+    own = _pick(attrs, r'legal|plan|lot|conc')
+    if own or geom is None:
+        return own
+    point, plan, township = geom.representative_point(), None, None
+    for layer in layers:
+        first = layer.features[0][0] if layer.tree is not None and layer.features else {}
+        if not ({'PLAN_NO', 'LOT_IDENT'} & set(first)):
+            continue
+        for i in layer.tree.query(point):
+            a, shape = layer.features[layer._indexed[int(i)]]
+            if not shape.contains(point):
+                continue
+            if plan is None and a.get('PLAN_NO'):
+                plan = f"Registered Plan {a['PLAN_NO']}"
+            if township is None and a.get('LOT_IDENT') and a.get('CONCESSION_IDENT'):
+                concession = re.sub(r'^CON\b\.?', 'Concession', str(a['CONCESSION_IDENT']).strip(), flags=re.I)
+                township = (f"Part of {str(a['LOT_IDENT']).strip().title()}, {concession.title()}, Geographic Township "
+                            f"of {str(a.get('GEOGRAPHIC_TOWNSHIP_NAME') or 'Pickering').title()}")
+    parts = [p for p in (plan, township) if p]
+    return f"{'; '.join(parts)} (from the City's subdivision and lot fabric layers)" if parts else None
+
+
 def _to_wgs84(geom):
     return shapely.transform(geom, lambda xy: xy / SCALE)
 
@@ -714,7 +740,7 @@ def lookup(latitude: float, longitude: float) -> dict:
         property_id = {
             'address': _pick(a, r'addr|civic') or (addresses and _pick(addresses[0]['attributes'], r'addr|civic')),
             'roll_number': _pick(a, r'roll|arn'), 'pin': _pick(a, r'\bpin\b|^pin'),
-            'legal_description': _pick(a, r'legal|plan|lot|conc'),
+            'legal_description': _legal_description(layers, parcel['_geom'], a),
             'area_m2': round(parcel['_geom'].area, 1), 'perimeter_m': round(parcel['_geom'].length, 1),
             'dimensions': dimensions,
             'layer': parcel['layer'], 'source_url': parcel['source_url'], 'attributes': a,
@@ -837,7 +863,7 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
             point = geom.representative_point()
             rows.append({
                 'address': _pick(attrs, r'addr|civic'), 'roll_number': _pick(attrs, r'roll|arn'),
-                'pin': _pick(attrs, r'\bpin\b|^pin'), 'legal_description': _pick(attrs, r'legal|plan|lot|conc'),
+                'pin': _pick(attrs, r'\bpin\b|^pin'), 'legal_description': _legal_description(layers, geom, attrs),
                 'zone_code': code, 'zone': lot['zone'], 'exceptions': ' '.join(lot['exceptions']),
                 'street_side': lot['street_side'], 'corner_lot': lot['corner_lot'],
                 'front_yard_m': side.get('front_yard'), 'rear_yard_m': side.get('rear_yard'),
