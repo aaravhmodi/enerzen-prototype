@@ -89,8 +89,9 @@ JOINED_KIND = re.compile('semi-? ?detached|attached|townhouse', re.I)
 JOINED = re.compile(r'(?:[^.;\n]*\n)?[^.;\n]*(?:common wall|attached together|are attached|party wall)[^.;]*', re.I)
 # "Buildings and structures shall be located entirely within the building envelope shown on Figure 1";
 # "Setbacks from streets & property boundaries as per Figure 2".
-DRAWN = re.compile(r'(?=[^.;]{0,260}\b(?:Figure|Schedule)\s*\d)(?=[^.;]{0,200}\b(?:envelope|build-to|setbacks?|yards?)\b)'
-                   r'\b(?:No building|Buildings?|Setbacks?|Front yards?|Building envelope)\b[^.;]{0,240}?'
+# "The performance standards and provisions as set out on Figure 1 hereto shall apply".
+DRAWN = re.compile(r'(?=[^.;]{0,260}\b(?:Figure|Schedule)\s*\d)(?=[^.;]{0,200}\b(?:envelope|build-to|setbacks?|yards?|performance standards)\b)'
+                   r'\b(?:No building|Buildings?|Setbacks?|Front yards?|Building envelope|The performance standards)\b[^.;]{0,240}?'
                    r'\b(?:shown|illustrated|identified|as per|set out|indicated)\b[^.;]{0,60}?\b(?:Figure|Schedule)\s*\d+[^.;]{0,60}',
                    re.I)
 ZONE_SECTION = re.compile(r'Zone Requirements\s*\(([^)]{1,160})\)')
@@ -424,6 +425,7 @@ def rules_from_text(text: str, source: dict) -> dict:
     """
     rules = {}
     text = re.sub(r'(?<=\d)\.\s(?=\d\s*(?:m\b|metres?))', '.', text)  # scanned by-laws: "2. 7 metres"
+    text = re.sub(r'(?<=\d)\s\.(?=\d\s*(?:m\b|metres?))', '.', text)  # and "1 .2 metres"
     text = re.sub(r'(?i)\b(side)\.(\s+yard)', r'\1\2', text)  # and "INTERIOR SIDE. YARD WIDTH"
     lines, leads, previous = [], [], ''
     for row in text.split('\n'):

@@ -418,3 +418,11 @@ def test_a_yard_for_each_kind_of_dwelling_and_for_each_size_of_lot():
     orma = rules_from_table(table, '', {})[0]['ORMA']
     assert (orma['front_yard']['value'], orma['front_yard']['small_lot']) == (15.0, {'below_ha': 4.0, 'value': 12.0})
     assert orma['lot_area']['unit'] == 'ha'
+
+
+def test_a_scan_that_spaces_a_decimal_point_and_a_site_whose_standards_are_on_its_figure():
+    from scripts.zone_rules import DRAWN, rules_from_text
+    found = rules_from_text('INTERIOR SIDE YARD WIDTH:\nfor single detached dwellings:\n1.2 metres one side, 0.6 metres other side\n'
+                            'for all other semi-detached dwellings:\n1 .2 metres one side, 0.6 metres other side, or', {})
+    assert found['interior_side_yard']['other_kinds'][0]['value'] == 1.2
+    assert DRAWN.search('The performance standards and provisions as set out on Figure 1 hereto shall apply to the area')
