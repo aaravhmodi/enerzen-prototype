@@ -177,6 +177,8 @@ def test_an_exception_table_with_a_row_per_zone_two_heading_rows_and_merged_cell
         ['Single\nDetached\nDwelling', 'S2', '13.4 metres\n15 metres\ncorner lot', '450 square\nmetres', '', '', '', ''],
         ['Semi-detached\nDwellings', 'SD', '18 metres', '275 square\nmetres', '', '', '', ''],
     ]
+    for row in table[3:]:  # the yards are one cell merged down all the zones, as unmerged() returns it
+        row[4:7] = table[2][4:7]
     found = rules_by_zone_row(table, {'page': 374})
     values = lambda zone: {k: v['value'] for k, v in found[zone].items()}
     assert values('S1') == {'lot_frontage': 15.0, 'lot_area': 510.0, 'front_yard': 4.5, 'interior_side_yard': 1.2,
@@ -241,5 +243,18 @@ def test_the_common_wall_and_a_side_yard_on_a_street():
     table = [['Zone', 'Symbol', 'Minimum Lot\nFrontage', 'Minimum Yards', '', ''], ['', '', '', 'Front', 'Side', 'Rear'],
              ['Detached', 'S1', '15 metres', '4.5 metres', '1.2 metres unless side yard abuts street then minimum shall be 2.7 metres', '7.5 metres'],
              ['Detached', 'S2', '13.4 metres', '', '', '']]
+    table[3][3:] = table[2][3:]  # merged down
     s2 = rules_by_zone_row(table, {})['S2']  # Exception 215
     assert (s2['interior_side_yard']['value'], s2['exterior_side_yard']['value']) == (1.2, 2.7)
+
+
+def test_merged_cells_take_the_text_of_the_cell_that_spans_them():
+    from types import SimpleNamespace as Part
+    from scripts.zone_rules import unmerged
+    part = lambda x0, top, x1, bottom: Part(bbox=(x0, top, x1, bottom))
+    # Two columns, three rows; the second column is one cell three rows deep, and one cell is just empty.
+    table = Part(columns=[part(0, 0, 10, 30), part(10, 0, 20, 30)],
+                 rows=[part(0, 0, 20, 10), part(0, 10, 20, 20), part(0, 20, 20, 30)],
+                 cells=[(0, 0, 10, 10), (10, 0, 20, 30), (0, 10, 10, 20), (0, 20, 10, 30)],
+                 extract=lambda: [['S1', '4.5 metres'], ['S2', None], ['', None]])
+    assert unmerged(table) == [['S1', '4.5 metres'], ['S2', '4.5 metres'], ['', '4.5 metres']]

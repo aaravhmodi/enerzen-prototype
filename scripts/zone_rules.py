@@ -184,13 +184,37 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
     return out, unparsed
 
 
+def unmerged(table) -> list[list]:
+    """A found table's text, with a merged cell's text repeated in every position the cell spans.
+
+    The PDF reader puts a merged cell's text in its first position and None in the rest, which is how a
+    yard shared by four zones, or a standard shared by two kinds of lot, reads as missing. A cell that
+    is simply empty comes back as '' and stays empty.
+    """
+    rows = table.extract()
+    try:
+        across, down = [c.bbox for c in table.columns], [r.bbox for r in table.rows]
+    except Exception:
+        return rows
+    for r, row in enumerate(rows):
+        for c, cell in enumerate(row):
+            if cell is None and r < len(down) and c < len(across):
+                x, y = (across[c][0] + across[c][2]) / 2, (down[r][1] + down[r][3]) / 2
+                span = next((b for b in table.cells if b[0] <= x <= b[2] and b[1] <= y <= b[3]), None)
+                if span:
+                    first_row = next(i for i, b in enumerate(down) if b[3] > span[1] + 0.5)
+                    first_col = next(i for i, b in enumerate(across) if b[2] > span[0] + 0.5)
+                    row[c] = rows[first_row][first_col]
+    return rows
+
+
 def rules_by_zone_row(table, source: dict) -> dict:
     """{zone: {provision: rule}} from a table with a row per zone and the zone's symbol in a column of
     its own, as the older exception zones set out their standards ("Figure 1").
 
     Such a table has a heading two rows deep ("Minimum Yards" over "Front", "Side and Flankage",
-    "Rear"), and cells merged down a column read as blank below the first row, so a blank cell takes
-    the value above it.
+    "Rear") and yards merged down the column for several zones; unmerged() has put each merged
+    cell's text in every row it covers.
     """
     rows = [[' '.join(str(c or '').split()) for c in r] for r in table if r and any(r)]
     width = max(map(len, rows), default=0)
@@ -215,13 +239,12 @@ def rules_by_zone_row(table, source: dict) -> dict:
         if len(parts) > 1 and re.search(r'\byards?\b', parts[0], re.I) and not re.search(r'yard', parts[-1], re.I):
             label = f'{parts[0]}: {parts[-1]} yard'  # "Minimum Yards: Front yard"
         labels.append(label)
-    out, above = {}, [''] * width
+    out = {}
     for row in rows[first:]:
-        above = [cell or kept for cell, kept in zip(row, above)]
         if not symbol(row[column]):
             continue
         rules = out.setdefault(row[column].strip('()'), {})
-        for c, (label, cell) in enumerate(zip(labels, above)):
+        for c, (label, cell) in enumerate(zip(labels, row)):
             if c == column or not cell:
                 continue
             if re.search(r'side.*flankage', label, re.I):
@@ -406,7 +429,7 @@ def extract(documents: list[dict], store: Path) -> dict:
                         heads = page.search(r'Exception\s+Zone\s+(\d{1,4})', regex=True) if tables else []
                         zoned = page.search(ZONE_HEADING.pattern, regex=True) if tables else []
                         for table in tables:
-                            cells, where = table.extract(), {**source, 'page': number}
+                            cells, where = unmerged(table), {**source, 'page': number}
                             found, missed = rules_from_table(cells, page_text, where)
                             unparsed += missed
                             for zone, rules in found.items():
