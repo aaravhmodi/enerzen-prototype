@@ -126,6 +126,45 @@ def test_one_zone_table_by_building_type_keeps_the_first_type():
     assert 'Detached Dwelling with attached private garage' in found['SLD1']['front_yard']['label']
 
 
+def test_each_lot_takes_its_own_row_of_a_seaton_table():
+    """By-law 8149/24, Table 14.5 (SLD1): a row per kind of dwelling and access, each kept, and a lot
+    takes the row for its own dwelling, its lane and its frontage."""
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    head = ['Building\nRequirement', 'Min. Lot\nArea', 'Min. Lot\nFrontage', 'Min.\nFront\nYard', 'Max.\nFront\nYard',
+            'Min.\nInterior\nSide\nYard', 'Min. Rear\nYard', 'Min. Front\nYard\nLandscaped\nOpen Space']
+    table = [head,
+             ['Detached\nDwelling –\naccessed\nfrom a street', '', '', '', '', '', '', ''],
+             ['with attached\nprivate\ngarage', '225.0 m2', '9.0 m', '3.0 m(3)', '-', '1.2 m &\n0.6 m',
+              '6.0 m /\n5.0 m\nadjacent\nto SNHS\nzone', '25%'],
+             ['Detached\nDwelling –\naccessed\nfrom a lane(4)', '', '', '', '', '', '', ''],
+             ['with\ndetached\nprivate\ngarage', '210.0 m2', '8.5 m', '3.0 m', '4.5 m', '1.2 m &\n0.6 m', '-', '50%'],
+             ['Semi-\ndetached\nDwelling –\naccessed\nfrom a street', '', '', '', '', '', '', ''],
+             ['with attached\nprivate\ngarage', '185.0 m2\n/ unit', '7.5 m /\nunit', '3.0 m(3)', '-', '0.9 m(2)',
+              '6.0 m /\n5.0 m\nadjacent\nto SNHS\nzone', '22%']]
+    title = 'Table 14.5: Lot and Building Requirements for the Seaton Low Density Type 1 (SLD1) Zone'
+    found, _ = rules_from_table(table, title, {'page': 180})
+    sld1 = found['SLD1']
+    assert sld1['interior_side_yard']['other_side'] == 0.6 and sld1['landscaped_area']['value'] == 25.0
+    assert sld1['rear_yard']['next_to'] == {'zone': 'SNHS', 'value': 5.0}
+    rules = {'zones': found, 'exceptions': {}}
+    detached = lot_rules.resolve('SLD1', rules, frontage_m=10.0)
+    assert (detached['lot_frontage']['value'], detached['interior_side_yard']['other_side']) == (9.0, 0.6)
+    semi = lot_rules.resolve('SLD1', rules, frontage_m=7.6, joined=True)
+    assert (semi['lot_frontage']['value'], semi['interior_side_yard']['value'], semi['lot_area']['value']) == (7.5, 0.9, 185.0)
+    assert 'other_side' not in semi['interior_side_yard'] and semi['landscaped_area']['value'] == 22.0
+    lane = lot_rules.resolve('SLD1', rules, frontage_m=9.0, lane_lot=True)
+    assert lane['rear_yard']['none_required'] and lane['rear_yard']['value'] == 0.0 and lane['lot_area']['value'] == 210.0
+    assert 'accessed from a lane with detached private garage" row' in lane['front_yard']['from']
+    # A street lot whose rear lot line abuts the SNHS zone takes 5.0 m there; its front stays 3.0 m.
+    lot, street, heritage = box(0, 0, 10, 30), LineString([(-20, -9), (30, -9)]), box(-5, 30.5, 15, 60)
+    dims = {'width_m': 10, 'depth_m': 30, 'rotation_deg': 0.0}
+    found_lot = lot_rules.apply_to_lot(lot, 'SLD1', rules, [street], dims, neighbours={'SNHS': [heritage]})
+    assert found_lot['setbacks_by_side']['N']['value'] == 5.0 and found_lot['setbacks_by_side']['S']['value'] == 3.0
+    # The table has no lot coverage column: not regulated by the zone, which is not "not found".
+    assert 'lot_coverage' not in found_lot['missing'] and '45%' in found_lot['not_regulated']['lot_coverage']
+
+
 def test_prose_takes_only_a_number_that_follows_the_provision_name():
     text = ('"Front Yard Depth" shall mean the shortest horizontal di1nension of a front yard\n'
             'no accessory building shall be erected in the rear yard and shall not be less than 1.0 metres from\n'

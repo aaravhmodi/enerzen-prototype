@@ -600,8 +600,22 @@ and O. Reg. 545/06. The API reads only that stored copy.
   side is which, so the buildable width is right and its position across the
   lot is not known.
   Where a requirement is split over rows by use, the first case stated is kept.
-  The Seaton zones give a row per building type; the first type listed is kept
-  and named beside the value. In an exception's prose a yard counts only when
+  The Seaton zones give a row per building type and access (detached or
+  semi-detached; from a street or a rear lane; attached or detached garage).
+  Every row is kept, and a lot takes its own: the joined or detached rows by
+  whether the City's footprint shows its dwelling joined to a neighbour (read
+  from the dwelling type, so "detached dwelling with attached garage" is
+  detached), the lane rows when a lane runs behind it, and of those the first
+  listed whose minimum frontage the lot reaches, with half a metre's grace. A
+  dash in a row is "none required" (a lane lot has no minimum rear yard) and is
+  shown as 0 with a note. "1.2 m & 0.6 m" is read as two side yards, and
+  "6.0 m / 5.0 m adjacent to SNHS zone" gives 5.0 m on a side where the lot
+  abuts that zone (within 1 m of its boundary). The "Min. Front Yard Landscaped
+  Open Space" column is read as landscaped area, not as a front yard. These
+  tables have no lot coverage column, so a Seaton lot's coverage is reported as
+  not regulated by the zone rather than not found, with Section 14.2.9.1's 45%
+  cap where an additional dwelling unit is in an accessory building. In an
+  exception's prose a yard counts only when
   it is written as a heading that opens its clause, names a depth, width or
   minimum, and is followed directly by its number, on the same line or the
   next ("REAR YARD DEPTH (minimum): 7.5 metres"). A lower-case list item under

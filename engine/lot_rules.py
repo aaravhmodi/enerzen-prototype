@@ -25,6 +25,11 @@ JOINED_KIND = re.compile(r'semi|\battached|multiple|townhouse|horizontal', re.I)
 SETBACKS = ('front_yard', 'rear_yard', 'interior_side_yard', 'exterior_side_yard')
 LOT_STANDARDS = ('lot_frontage', 'lot_area', 'lot_coverage', 'building_height', 'landscaped_area')
 OPPOSITE = {'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E'}
+# What the by-law says of a standard a Seaton zone's table has no column for.
+NOT_IN_TABLE = {
+    'lot_coverage': "The zone's table sets no lot coverage. Where an additional dwelling unit is in an accessory "
+                    'building, all buildings on the lot may cover at most 45% of it (By-law 8149/24, Section 14.2.9.1, p. 161).',
+}
 # Roads this close to the lot boundary count as fronting it.
 FRONTING_M = 15.0
 
@@ -119,6 +124,38 @@ def _for_kind(rule: dict, joined: bool) -> dict:
     return {**kept, **mine, 'from': f"{rule['from']}, for \"{mine['kind']}\""}
 
 
+def _dwelling(kind: str) -> str:
+    """The kind of dwelling a Seaton row names, without its garage: "Detached Dwelling … with attached
+    private garage" is a detached dwelling."""
+    return re.split(r'\s+with\s+', kind, maxsplit=1)[0]
+
+
+def _table_row(table: dict, frontage_m: float | None, lane_lot: bool, joined: bool) -> str | None:
+    """The row of a zone table set out by building type (the Seaton zones) that fits this lot: its kind of
+    dwelling (joined to a neighbour or not), whether it is reached from a rear lane, and the first row
+    listed whose minimum frontage the lot reaches, with half a metre's grace. None for other tables."""
+    source = table.get('lot_frontage') if (table.get('lot_frontage') or {}).get('other_kinds') else \
+        next((r for r in table.values() if r.get('other_kinds')), None)
+    rows = [r for r in [source or {}, *(source or {}).get('other_kinds', [])] if r.get('kind')]
+    if len(rows) < 2:
+        return None
+    rows = [r for r in rows if bool(JOINED_KIND.search(_dwelling(r['kind']))) == joined] or rows
+    rows = [r for r in rows if bool(LANE_KIND.search(r['kind'])) == lane_lot] or rows
+    if source is not table.get('lot_frontage') or frontage_m is None:
+        return rows[0]['kind']
+    fits = [r for r in rows if r['value'] <= frontage_m + 0.5]
+    return (fits[0] if fits else min(rows, key=lambda r: r['value']))['kind']
+
+
+def _in_row(rule: dict, row: str | None) -> dict:
+    """A standard as its table sets it for the lot's row; the rule as read where the table has no rows."""
+    if row is None:
+        return rule
+    mine = next((k for k in [rule, *rule.get('other_kinds', [])] if k.get('kind') == row), rule)
+    kept = {k: rule[k] for k in ('common_wall',) if k in rule}
+    return {**kept, **{k: v for k, v in mine.items() if k != 'other_kinds'}}
+
+
 def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane_lot: bool = False,
             joined: bool = False) -> dict:
     """Each standard for a zone code: the zone table's value, replaced by any exception's."""
@@ -129,8 +166,10 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
     designation = re.sub(r'[-\s(]*X\s?\d+\)?', '', code.upper()).strip('- ')
     resolved = {}
     zone, table = _zone_table(base, designation, rules)
+    row = _table_row(table, frontage_m, lane_lot, joined)
     for key, rule in table.items():
-        resolved[key] = {**rule, 'from': f'Zone {zone} table'}
+        resolved[key] = {**_in_row(rule, row), 'from': f'Zone {zone} table' + (f', "{row}" row' if row else ''),
+                         **({'row': row} if row else {})}
     for exception in exceptions:
         section = rules.get('exceptions', {}).get(exception) or {}
         # The exception's own table of zones by row, where it has one, is its most specific word.
@@ -200,11 +239,12 @@ def attached_sides(parcel, rotation_deg: float, footprints: list) -> list[str]:
 
 
 def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions: dict | None,
-                 lanes: list | None = None, attached: list | None = None) -> dict:
+                 lanes: list | None = None, attached: list | None = None, neighbours: dict | None = None) -> dict:
     """The lot's setbacks by side, the lot standards, checks of the lot itself, and the buildable area.
 
     `lanes` are the centrelines of rear lanes, kept apart from `roads`: a lot fronts on its street,
     and a lane behind it marks a lane-based lot. `attached` is attached_sides() for the lot.
+    `neighbours` are the zones the lot abuts, {zone: [their shapes]}, for a yard set apart beside one.
     """
     base, exceptions = split_zone(code) if code else (None, [])
     rotation = (dimensions or {}).get('rotation_deg', 0.0)
@@ -255,6 +295,14 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
             if unasked:
                 by_side[side]['note'] = ("The zone's table sets a setback from the street line and no side or rear yard; "
                                          'its building separation and height rules apply instead.')
+            if rule and rule.get('none_required'):
+                by_side[side]['note'] = "The zone's table sets no minimum for this kind of lot (a dash in the table)."
+            # "6.0 m / 5.0 m adjacent to SNHS zone": the smaller figure on a side where the lot abuts that zone.
+            near = (rule or {}).get('next_to')
+            if near and parcel is not None and side in {_side_of(parcel.centroid, g, rotation)
+                                                        for g in (neighbours or {}).get(near['zone'], [])}:
+                by_side[side].update(value=near['value'],
+                                     note=f"Abuts the {near['zone']} zone on this side: {rule.get('raw', '')}.")
             if rule and key == 'interior_side_yard' and rule.get('common_wall') and side in (attached or ()):
                 # The by-law asks for no side yard along a common wall, and the City's building
                 # footprint shows this dwelling joined to its neighbour on this side.
@@ -268,8 +316,13 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     if both is not None and len(open_sides) == 2:
         by_side[open_sides[1]].update(value=both, note='The by-law gives a different width for each side yard and does not '
                                                        'say which side is which.')
+    # A table set out by building type (the Seaton zones) has a column for each standard it sets; one it
+    # has no column for is not regulated by the zone, which is not the same as not found.
+    by_type = any(rule.get('row') for rule in standards.values())
+    not_regulated = {key: NOT_IN_TABLE.get(key, "The zone's table sets no such standard.")
+                     for key in LOT_STANDARDS if by_type and key not in standards}
     for key in SETBACKS + LOT_STANDARDS:
-        if key not in standards and not (key == 'exterior_side_yard' and not flank) and not (street_line and key in SETBACKS):
+        if key not in standards and key not in not_regulated and not (key == 'exterior_side_yard' and not flank)                 and not (street_line and key in SETBACKS):
             missing.append(key)
     # What the lot's setbacks rest on, so a lot without yards still says why and where to look.
     complete = bool(by_side) and all(v['value'] is not None for v in by_side.values())
@@ -317,7 +370,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         'standards': {k: {kk: v.get(kk) for kk in ('value', 'unit', 'bound', 'from', 'document', 'page', 'label',
                                                    'overrides', 'file', 'other_side')}
                       for k, v in standards.items()},
-        'missing': missing, 'lot_checks': checks,
+        'missing': missing, 'not_regulated': not_regulated, 'lot_checks': checks,
         'buildable_area_m2': round(envelope.area, 1) if envelope is not None else None,
         'max_coverage_m2': round(parcel.area * coverage['value'] / 100, 1)
         if coverage and coverage.get('unit') == '%' and parcel is not None else None,

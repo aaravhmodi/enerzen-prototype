@@ -21,6 +21,8 @@ from pathlib import Path
 
 # Provision keys, the words that name them, and whether the by-law states a floor or a ceiling.
 PROVISIONS = [
+    # First: the Seaton tables' "Min. Front Yard Landscaped Open Space" is a share of the yard, not a yard.
+    ('landscaped_area', r'landscap', 'minimum'),
     ('exterior_side_yard', r'exterior\s+side\W{1,3}yard|flank(?:ag\s?e|ing)', 'minimum'),
     ('interior_side_yard', r'(interior\s+)?side\W{1,3}yard|interior\s+yard\s+width', 'minimum'),
     ('front_yard', r'front(?:age)?\s+yar[do]', 'minimum'),  # "FRONTAGE YARD DEPTH"; a scan's "FRONT YARO"
@@ -29,7 +31,6 @@ PROVISIONS = [
     ('lot_area', r'lot\s+area', 'minimum'),
     ('building_height', r'(building\s+)?height', 'maximum'),
     ('lot_coverage', r'(lot\s+)?coverage', 'maximum'),
-    ('landscaped_area', r'landscap', 'minimum'),
     ('dwelling_depth', r'dwelling\s+depth|building\s+depth', 'maximum'),
     # The City Centre zones have no yards: a building stands 1.0 to 4.0 m from the street line.
     ('street_line_setback', r'building\s+setback\s+from\s+(?:the\s+)?street\s+line', 'minimum'),
@@ -66,6 +67,10 @@ OTHER_MEASURE = re.compile(r'stepback|podium|tower|separation|balcon|amenity|act
 REFERENCE = re.compile(r'\b(?:schedule|figure|section|table|by-law|clause)s?\s+[\d.]+[\w()/-]*', re.I)
 ONE_SIDE_AND_THE_OTHER = re.compile(r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?one side\W+(?:and\s+)?'
                                     r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?other side', re.I)
+# A Seaton table's "1.2 m & 0.6 m": the two interior side yards.
+BOTH_SIDES = re.compile(r'(\d+(?:\.\d+)?)\s*m\s*&\s*(\d+(?:\.\d+)?)\s*m\b', re.I)
+# A Seaton table's "6.0 m / 5.0 m adjacent to SNHS zone": a smaller figure where the lot abuts that zone.
+NEXT_TO_ZONE = re.compile(r'/\s*(\d+(?:\.\d+)?)\s*m\s+adjacent\s+to\s+(?:an?\s+|the\s+)?([A-Z][A-Z0-9-]*)\s+zone', re.I)
 ONE_SIDE_FIRST = re.compile(r'one side\s*(\d+(?:\.\d+)?)\s*(?:metres?|m)\b\W+(?:and\s+)?(?:the\s+)?other side\s*(\d+(?:\.\d+)?)', re.I)
 LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
@@ -148,9 +153,11 @@ def parse_value(cell):
     number = match.group(1)
     # "3,000" is three thousand; "7,5" is a decimal comma.
     number = number.replace(',', '' if re.fullmatch(r'\d{1,3},\d{3}', number) else '.')
-    sides = ONE_SIDE_AND_THE_OTHER.search(text) or ONE_SIDE_FIRST.search(text)
+    sides = ONE_SIDE_AND_THE_OTHER.search(text) or ONE_SIDE_FIRST.search(text) or BOTH_SIDES.search(text)
     both = {'other_side': float(sides.group(2))} if sides and sides.group(1) == number else {}
-    return {**both, 'value': float(number), 'unit': UNITS.get(unit, unit or None), 'raw': text}
+    near = NEXT_TO_ZONE.search(text)
+    next_to = {'next_to': {'zone': near.group(2).upper(), 'value': float(near.group(1))}} if near else {}
+    return {**both, **next_to, 'value': float(number), 'unit': UNITS.get(unit, unit or None), 'raw': text}
 
 
 def _zone_cells(row):
@@ -181,10 +188,18 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
         return {}, []
     out, unparsed = {}, []
 
-    def put(zone, label, cell, note=''):
+    def put(zone, label, cell, note='', kind=None):
         key = provision_key(label)
         label = f'{label} {note}'
         value = parse_value(cell)
+        rule = out.get(zone, {}).get(key[0]) if key else None
+        if kind and rule is not None and rule.get('kind') and rule['bound'] == key[1]:
+            # A later building type in a Seaton table: kept beside the first, and a dash is "none required".
+            if rule['kind'] != kind and not any(k['kind'] == kind for k in rule.get('other_kinds', [])):
+                stated = value or {'value': 0.0, 'unit': rule.get('unit'), 'raw': '-', 'none_required': True}
+                rule.setdefault('other_kinds', []).append({**stated, 'kind': kind, 'bound': key[1],
+                                                           'label': ' '.join(str(label).split()), **source})
+            return
         if key and OTHER_MEASURE.search(' '.join(str(label).split())):
             key = None  # "Minimum Main Wall Stepback for Buildings greater than 37.5 m in Height"
         if key and key == ('street_line_setback', 'maximum'):
@@ -195,7 +210,8 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
             return  # "Active At Grade Frontages: 40% of the first storey" is not a lot's frontage
         if key and value:
             out.setdefault(zone, {}).setdefault(key[0], {**value, 'bound': key[1],
-                                                         'label': ' '.join(str(label).split()), **source})
+                                                         'label': ' '.join(str(label).split()), **source,
+                                                         **({'kind': kind} if kind else {})})
         elif value and not key:
             unparsed.append({'zone': zone, 'label': ' '.join(str(label or '').split()), 'cell': value['raw'], **source})
 
@@ -236,16 +252,18 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
     zones = _title_zones(page_text)
     if zones and sum(1 for c in rows[0][1:] if provision_key(c or '')) >= 2:
         # One zone's table by building type (the Seaton zones): provisions across the top, a row per
-        # building type. The first building type listed is kept, and its name goes in the label.
+        # building type. The first building type listed is the standard as read, its name in the label,
+        # and every other row is kept beside it for a lot of that type (lot_rules picks the row).
         group = ''
         for row in rows[1:]:
             name = ' '.join(str(row[0] or '').split())
             if not any(parse_value(c) for c in row[1:]):
                 group = name
                 continue
+            kind = ' '.join(re.sub(r'\(\d+\)', '', f'{group} {name}').split())  # without footnote marks: "lane(4)"
             for label, cell in zip(rows[0][1:], row[1:]):
                 for zone in zones:
-                    put(zone, label, cell, f'– {group} {name}')
+                    put(zone, label, cell, f'– {kind}', kind)
         return out, unparsed
     if zones and sum(1 for r in rows if provision_key(r[0] or '')) >= 2:
         # One zone's table: provision | value (| more columns for the same zone's variants).

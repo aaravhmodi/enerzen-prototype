@@ -80,6 +80,8 @@ export type LotStandards = {
   setbacks_by_side: Record<string, Rule & { applies: string }>;
   standards: Record<string, Rule>;
   missing: string[];
+  // Standards the zone's table has no column for (the Seaton zones), with what the by-law says instead.
+  not_regulated?: Record<string, string>;
   lot_checks: { standard: string; required: number; lot: number; ok: boolean; from: string; page?: number }[];
   buildable_area_m2: number | null;
   max_coverage_m2: number | null;

@@ -173,6 +173,11 @@ export default function LotSetbacks({ lot }: { lot: LotStandards }) {
           Not found in the stored by-law for this zone: {lot.missing.map((m) => NAMES[m] ?? m).join(", ")}.
         </p>
       )}
+      {Object.entries(lot.not_regulated ?? {}).map(([key, note]) => (
+        <p key={key} className="zr-muted">
+          {NAMES[key] ?? key}: {note}
+        </p>
+      ))}
       {lot.exceptions_without_text.length > 0 && (
         <p className="zr-bad">
           Exception {lot.exceptions_without_text.join(", ")} applies to this lot but its section isn&apos;t stored, so

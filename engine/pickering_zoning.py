@@ -181,7 +181,23 @@ def _apply_rules(layers, geom, code, rules) -> tuple[dict, dict | None]:
     streets, lanes = _streets_and_lanes(layers, geom, lot_rules.FRONTING_M + 100) if geom is not None else ([], [])
     dims = lot_dimensions(geom, streets or lanes)
     attached = lot_rules.attached_sides(geom, dims['rotation_deg'], _footprints(layers, geom)) if dims else []
-    return lot_rules.apply_to_lot(geom, code, rules, streets, dims, lanes, attached), dims
+    return lot_rules.apply_to_lot(geom, code, rules, streets, dims, lanes, attached, _neighbour_zones(layers, geom)), dims
+
+
+def _neighbour_zones(layers, geom) -> dict:
+    """The zones a lot abuts (within a metre of its boundary, other than the zone it sits in), each
+    with the shapes it has there, so a yard the by-law sets apart beside one zone finds its side."""
+    found = {}
+    if geom is None:
+        return found
+    edge, inside = geom.buffer(1.0), geom.representative_point()
+    for layer in (l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None):
+        for i in layer.tree.query(edge):
+            attrs, zone_geom = layer.features[layer._indexed[int(i)]]
+            code = _zone_code(attrs)
+            if code and zone_geom.intersects(edge) and not zone_geom.contains(inside):
+                found.setdefault(lot_rules.split_zone(code)[0], []).append(zone_geom)
+    return found
 
 
 def _street_layers(layers) -> list:
