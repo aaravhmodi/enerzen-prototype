@@ -365,11 +365,11 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     if dimensions and street:
         frontage = dimensions['width_m'] if street in 'NS' else dimensions['depth_m']
         rule = standards.get('lot_frontage')
-        if rule and rule.get('unit') in ('m', None):
+        if rule and rule.get('unit') in ('m', None) and not rule.get('none_required'):
             checks.append({'standard': 'lot_frontage', 'required': rule['value'], 'lot': round(frontage, 1),
                            'ok': frontage >= rule['value'] - 0.05, 'from': rule['from'], 'page': rule.get('page')})
     rule = standards.get('lot_area')
-    if rule and parcel is not None:
+    if rule and parcel is not None and not rule.get('none_required'):
         required = rule['value'] * (10_000 if rule.get('unit') == 'ha' else 1)
         checks.append({'standard': 'lot_area', 'required': required, 'lot': round(parcel.area, 1),
                        'ok': parcel.area >= required - 0.5, 'from': rule['from'], 'page': rule.get('page')})

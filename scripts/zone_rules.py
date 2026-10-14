@@ -204,11 +204,12 @@ def rules_from_table(table, page_text: str, source: dict, carry: dict | None = N
         if kind and rule is not None and rule.get('kind') and rule['bound'] == key[1]:
             # A later building type in a Seaton table: kept beside the first, and a dash is "none required".
             if rule['kind'] != kind and not any(k['kind'] == kind for k in rule.get('other_kinds', [])):
-                stated = value or {'value': 0.0, 'unit': rule.get('unit'), 'raw': '-', 'none_required': True}
+                # A dash: no minimum is 0; no maximum has no value.
+                stated = value or {'value': 0.0 if key[1] == 'minimum' else None, 'unit': None, 'raw': '-', 'none_required': True}
                 rule.setdefault('other_kinds', []).append({**stated, 'kind': kind, 'bound': key[1],
                                                            'label': ' '.join(str(label).split()), **source})
             return
-        if kind and key and rule is None and value is None and key[1] == dict((k, b) for k, _, b in PROVISIONS)[key[0]]:
+        if kind and key and rule is None and value is None and key[1] == 'minimum' == dict((k, b) for k, _, b in PROVISIONS)[key[0]]:
             # The first building type's dash still answers for it: "none required", not "not read".
             value = {'value': 0.0, 'unit': None, 'raw': '-', 'none_required': True}
         if key and OTHER_MEASURE.search(' '.join(str(label).split())):
