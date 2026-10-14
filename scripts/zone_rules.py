@@ -31,6 +31,8 @@ PROVISIONS = [
     ('lot_coverage', r'(lot\s+)?coverage', 'maximum'),
     ('landscaped_area', r'landscap', 'minimum'),
     ('dwelling_depth', r'dwelling\s+depth|building\s+depth', 'maximum'),
+    # The City Centre zones have no yards: a building stands 1.0 to 4.0 m from the street line.
+    ('street_line_setback', r'building\s+setback\s+from\s+(?:the\s+)?street\s+line', 'minimum'),
     ('garage_projection', r'garage\s+projection|projection\s+of\s+(an?\s+)?(attached\s+)?garage', 'maximum'),
 ]
 UNITS = {'m': 'm', 'metre': 'm', 'metres': 'm', 'meter': 'm', 'meters': 'm', 'm2': 'm2', 'm²': 'm2', 'sq m': 'm2',
@@ -44,7 +46,7 @@ ZONE = re.compile(rf'^\(?{ZONE_TOKEN}\)?$')
 NOT_ZONES = {'M', 'MIN', 'MAX', 'N/A', 'NA', 'TABLE', 'ZONE', 'ZONES', 'SEE', 'NOTE', 'AND', 'OR', 'THE', 'HA', 'A.',
              'FLOOR', 'LAND', 'OPEN', 'UNIT', 'AREA', 'LOT', 'USE', 'USES', 'SPACE', 'YARD', 'PART', 'MAP'}
 # What may stand between a provision's name and its number: "DEPTH (minimum):", "width of", "shall be".
-DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max|of|shall|be|is|a)\b\.?)*\d',
+DIRECTLY_STATED = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max|per|dwelling|unit|of|shall|be|is|a)\b\.?)*\d',
                              re.I)
 # A standard names a depth, a width or a minimum. "1) front yard: 0.6 metres" under "bay windows may
 # encroach as follows" is how far a window may reach into the yard.
@@ -59,13 +61,16 @@ ABUTS_STREET = re.compile(r'abuts?\s+(?:a\s+)?street\D{0,40}?(\d+(?:\.\d+)?)\s*m
 COMMON_WALL_NOTE = re.compile(r'[^.]*interior side yard shall be 0(?:\.0)?\s*m\s+where the common wall[^.]*\.', re.I)
 # "1.2 metres one side, 0.6 metres other side", "0.3 of a metre one side, and 1.2 metres on the other
 # side", "1.2 m on one side and 0.6 m on the other side"; and "One side 1.8 m and other side 3.0 m".
+OTHER_MEASURE = re.compile(r'stepback|podium|tower|separation|balcon|amenity|active at grade|adjacent to|below grade|'
+                           r'floor plate|continuous length|angular', re.I)
+REFERENCE = re.compile(r'\b(?:schedule|figure|section|table|by-law|clause)s?\s+[\d.]+[\w()/-]*', re.I)
 ONE_SIDE_AND_THE_OTHER = re.compile(r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?one side\W+(?:and\s+)?'
                                     r'(\d+(?:\.\d+)?)\s*(?:of a\s+)?(?:metres?|m)\b[^.;:]{0,25}?other side', re.I)
 ONE_SIDE_FIRST = re.compile(r'one side\s*(\d+(?:\.\d+)?)\s*(?:metres?|m)\b\W+(?:and\s+)?(?:the\s+)?other side\s*(\d+(?:\.\d+)?)', re.I)
 LENGTH = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|metre s|meters?|m\b)', re.I)
 SIDE_AND_FLANKAGE = re.compile(r'(\d+(?:\.\d+)?)\s*(?:metres?|m)\s*(side|flankage)', re.I)
-LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max)\b\.?)*', re.I)
-STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag', re.I)
+LABEL_ONLY = re.compile(r'(?:[\s:,()\-–]|\b(?:side|yard|depth|wi\w{2}h|setback|minim(?:um|a)|maximum|min|max|per|dwelling|unit)\b\.?)*', re.I)
+STATES_A_STANDARD = re.compile(r'yard|frontage|lot\s+area|flankag|setback\s+from\s+street\s+line', re.I)
 # 'Zone Requirements ("S-SD-SA-3")': which of an exception's zones the standards below are for.
 ZONE_HEADING = re.compile(r'Zone Requirements\s*\(\W*([A-Z][A-Z0-9/\-]*)')
 LIST_MARK = re.compile('^[ (]*[0-9ivx]{1,3}[)] +')  # "1) " or "(ii) " opening a line, never the "1." of 1.2
@@ -77,6 +82,12 @@ A_KIND = re.compile(r'\s*(?:for\s+)?(?:[A-Za-z][\w,/\-]*\s+){0,6}?(?:dwellings?|
 BY_DWELLING = re.compile(r'\s*for\s+[\w\s,\-]*?dwellings?\s*:?\s*', re.I)
 JOINED_KIND = re.compile('semi-? ?detached|attached|townhouse', re.I)
 JOINED = re.compile(r'(?:[^.;\n]*\n)?[^.;\n]*(?:common wall|attached together|are attached|party wall)[^.;]*', re.I)
+# "Buildings and structures shall be located entirely within the building envelope shown on Figure 1";
+# "Setbacks from streets & property boundaries as per Figure 2".
+DRAWN = re.compile(r'(?=[^.;]{0,260}\b(?:Figure|Schedule)\s*\d)(?=[^.;]{0,200}\b(?:envelope|build-to|setbacks?|yards?)\b)'
+                   r'\b(?:No building|Buildings?|Setbacks?|Front yards?|Building envelope)\b[^.;]{0,240}?'
+                   r'\b(?:shown|illustrated|identified|as per|set out|indicated)\b[^.;]{0,60}?\b(?:Figure|Schedule)\s*\d+[^.;]{0,60}',
+                   re.I)
 ZONE_SECTION = re.compile(r'Zone Requirements\s*\(([^)]{1,160})\)')
 ZONE_BREAK = re.compile(r'(?:Uses? Permitted|Provisions|Zone Requirements)\s*\(')
 DESIGNATED = re.compile(r'\s*(?:on|within) (?:the )?lands designated\s+(.+?):', re.I)
@@ -101,6 +112,8 @@ def parse_value(cell):
     text = re.sub(r'\(\d+\)', '', ' '.join(str(cell or '').split())).strip()
     if not text or re.fullmatch(r'[-–—]|n/?a|not permitted|none', text, re.I):
         return None
+    # "As shown on Schedule 5" and "see Section 4.23" name a place in the by-law, not an amount.
+    text = REFERENCE.sub('', text)
     match = VALUE.search(text)
     if not match:
         return None
@@ -117,7 +130,9 @@ def _zone_cells(row):
     zones = []
     for cell in row:
         token = ' '.join(str(cell or '').split()).upper()
-        zones.append(token if ZONE.match(token) and token.strip('()') not in NOT_ZONES else None)
+        family = re.fullmatch(r'([A-Z]{1,5}) ZONES', token)  # "CC Zones": one column for all of them
+        zones.append(f'{family.group(1)}*' if family else
+                     token if ZONE.match(token) and token.strip('()') not in NOT_ZONES else None)
     return zones
 
 
@@ -143,6 +158,12 @@ def rules_from_table(table, page_text: str, source: dict) -> tuple[dict, list]:
         key = provision_key(label)
         label = f'{label} {note}'
         value = parse_value(cell)
+        if key and OTHER_MEASURE.search(' '.join(str(label).split())):
+            key = None  # "Minimum Main Wall Stepback for Buildings greater than 37.5 m in Height"
+        if key and key == ('street_line_setback', 'maximum'):
+            key = ('street_line_setback_max', 'maximum')
+        if key and value and key[0] == 'lot_frontage' and value['unit'] == '%':
+            return  # "Active At Grade Frontages: 40% of the first storey" is not a lot's frontage
         if key and value:
             out.setdefault(zone, {}).setdefault(key[0], {**value, 'bound': key[1],
                                                          'label': ' '.join(str(label).split()), **source})
@@ -497,9 +518,20 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
             if said and side_yard is not None:
                 side_yard.setdefault('common_wall', said[:300])
 
+        def drawn(begin, end):
+            # Where the by-law gives a zone's setbacks on a drawing: what it says, and the page.
+            for (start, number), (stop, _) in zip(offsets, offsets[1:] + [(len(text), None)]):
+                if max(start, begin) < min(stop, end):
+                    said = DRAWN.search(' '.join(text[max(start, begin):min(stop, end)].split()))
+                    if said:
+                        return {'text': said.group(0).strip()[:300], 'page': number, **source}
+            return None
+
         for key, rule in read(head.end(), head.end() + len(body)):
             entry['provisions'].setdefault(key, rule)
         at_a_common_wall(body, entry['provisions'].get('interior_side_yard'))
+        if drawn(head.end(), head.end() + len(body)):
+            entry.setdefault('by_figure', {})['*'] = drawn(head.end(), head.end() + len(body))
         # An exception often covers several zones, each under its own 'Zone Requirements ("S-SD" Zone)'
         # heading, running to the next zone's "Uses Permitted". Each zone keeps its own standards.
         breaks = sorted(m.start() for m in ZONE_BREAK.finditer(body))
@@ -514,6 +546,8 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
                         entry.setdefault('by_zone', {}).setdefault(zone, {}).setdefault(key, mine)
             for zone in zones:
                 at_a_common_wall(body[section.end():end], entry.get('by_zone', {}).get(zone, {}).get('interior_side_yard'))
+                if drawn(head.end() + section.end(), head.end() + end):
+                    entry.setdefault('by_figure', {})[zone] = drawn(head.end() + section.end(), head.end() + end)
     return found
 
 
@@ -523,7 +557,7 @@ def extract(documents: list[dict], store: Path) -> dict:
         import pdfplumber
     except ImportError:
         pdfplumber = None
-    zones, exceptions, unparsed, read = {}, {}, [], []
+    zones, exceptions, unparsed, read, established = {}, {}, [], [], set()
     # The consolidated by-law is read first, so its tables win over an older by-law naming the same zone.
     for doc in sorted(documents, key=lambda d: '8149' not in str(d.get('title'))):
         label = f"{doc.get('title', '')} {doc.get('url', '')}"
@@ -534,6 +568,11 @@ def extract(documents: list[dict], store: Path) -> dict:
         source = {'document': doc.get('title'), 'file': doc['file'], 'url': doc.get('url')}
         read.append(doc['file'])
         opened, tabled, typed, running = _open_sections(pages), {}, {}, None
+        if '8149' in str(doc.get('title')):
+            # The zones the by-law establishes, from its Table 2.1 and the page after it.
+            at = next((i for i, page in enumerate(pages) if 'Establishment of Zones' in page and 'Zoning Symbol' in page), None)
+            for page in pages[at:at + 3] if at is not None else ():
+                established |= {z for z in re.findall(rf'\b{ZONE_TOKEN}\b', page) if z not in NOT_ZONES and len(z) > 1}
         if pdfplumber and path.exists():
             try:
                 with pdfplumber.open(path) as pdf:
@@ -598,7 +637,9 @@ def extract(documents: list[dict], store: Path) -> dict:
         for code, by_type in typed.items():
             if code in exceptions:
                 exceptions[code].setdefault('by_lot_type', {}).update(by_type)
-    return {'zones': zones, 'exceptions': exceptions, 'unparsed': unparsed[:500], 'documents_read': read,
+    families = {family: sorted(z for z in established if z.startswith(family[:-1]) and z != family[:-1])
+                for family in zones if family.endswith('*')}
+    return {'zones': zones, 'exceptions': exceptions, 'families': families, 'unparsed': unparsed[:500], 'documents_read': read,
             'table_reader': 'pdfplumber' if pdfplumber else None}
 
 

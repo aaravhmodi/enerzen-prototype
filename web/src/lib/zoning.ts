@@ -84,6 +84,11 @@ export type LotStandards = {
   max_coverage_m2: number | null;
   complete: boolean;
   approximate: boolean;
+  // What the setbacks rest on: yards, a street-line setback, a drawing in the by-law, or nothing stated.
+  basis?: "yards" | "street_line" | "figure" | "no_zone" | "no_street" | "partial" | "none_stated";
+  basis_note?: string | null;
+  basis_page?: number | null;
+  basis_document?: string | null;
 };
 
 export type Provision = {

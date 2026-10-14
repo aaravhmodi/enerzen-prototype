@@ -630,6 +630,21 @@ and O. Reg. 545/06. The API reads only that stored copy.
   listed. A yard given zone by zone ('on lands designated "S1-3": 4.0 metres')
   goes to the zones named. A yard given by kind of dwelling ("for detached
   dwellings: 1.2 metres...") is read for the first kind given, which is named.
+- **Zones without yards** — the City Centre zones (CC1, CC2, CCR1, CCR2, CCC,
+  CCOS, CCNHS: the zones By-law 8149/24 lists under City Centre) share one
+  column of Table 8.6, which sets a building setback from the street line (1.0 m
+  minimum, 4.0 m maximum) and no yards. A lot's street sides take the 1.0 m; its
+  other sides are 0 with a note that the table asks for no side or rear yard and
+  that its building separation and height rules apply instead.
+- **Setbacks that are drawn** — some exceptions give a zone's setbacks on a
+  drawing: "within the building envelope shown on Figure 1", "setbacks from
+  streets and property boundaries as per Figure 2". These are site plans for a
+  whole complex, dimensioned from the site's edge, so they give no yards for a
+  lot inside it. Such a lot's yards stay empty, and the review quotes what the
+  by-law says and the page it says it on.
+- **What a lot's setbacks rest on** — every lot carries one of: `yards`,
+  `street_line`, `figure` (drawn), `partial` (the text gives some yards),
+  `none_stated`, `no_street` and `no_zone`.
 - **Merged cells** — a cell merged across several rows or columns (one yard for
   four zones, one standard for two kinds of lot) is read into every position it
   spans. A cell that is simply empty stays empty.

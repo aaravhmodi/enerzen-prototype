@@ -777,7 +777,7 @@ ALL_LOTS_COLUMNS = ['address', 'roll_number', 'pin', 'legal_description', 'zone_
                     'street_side', 'corner_lot', 'front_yard_m', 'rear_yard_m', 'interior_side_yard_m', 'other_side_yard_m',
                     'exterior_side_yard_m', 'lot_frontage_min_m', 'lot_area_min_m2', 'max_height', 'max_coverage_pct',
                     'lot_width_m', 'lot_depth_m', 'lot_area_m2', 'buildable_area_m2', 'complete', 'missing',
-                    'lane_lot', 'attached_sides', 'sources', 'latitude', 'longitude']
+                    'lane_lot', 'attached_sides', 'basis', 'basis_note', 'basis_page', 'sources', 'latitude', 'longitude']
 
 
 def _primary_zone(zoning_layers, geom):
@@ -826,6 +826,7 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
                 'lot_area_m2': round(geom.area, 1), 'buildable_area_m2': lot['buildable_area_m2'],
                 'complete': lot['complete'], 'missing': ' '.join(lot['missing']),
                 'lane_lot': lot['lane_lot'], 'attached_sides': ' '.join(lot['attached_sides']),
+                'basis': lot['basis'], 'basis_note': lot['basis_note'], 'basis_page': lot['basis_page'],
                 'sources': '; '.join(sorted({f"{v.get('from')} p.{v.get('page')}" for v in std.values()
                                              if v.get('from')})),
                 'latitude': round(point.y / M_PER_DEG_LAT, 7), 'longitude': round(point.x / M_PER_DEG_LON, 7),
@@ -852,7 +853,10 @@ def setbacks_coverage() -> dict:
         entry['complete'] += bool(row['complete'])
         for key in (row['missing'] or '').split():
             entry['missing'][key] = entry['missing'].get(key, 0) + 1
-    return {'lots': len(rows), 'complete': sum(1 for r in rows if r['complete']),
+    basis = {}
+    for row in rows:
+        basis[row['basis']] = basis.get(row['basis'], 0) + 1
+    return {'lots': len(rows), 'complete': sum(1 for r in rows if r['complete']), 'by_basis': basis,
             'corner_lots': sum(1 for r in rows if r['corner_lot']),
             'without_zone': sum(1 for r in rows if not r['zone']),
             'without_street': sum(1 for r in rows if not r['street_side']),

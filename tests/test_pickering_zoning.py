@@ -593,3 +593,26 @@ def test_a_side_yard_that_differs_from_one_side_to_the_other():
     found = lot_rules.apply_to_lot(lot, 'R1C', rules, [street], dims)
     assert sorted(found['setbacks_by_side'][side]['value'] for side in 'EW') == [1.8, 3.0]
     assert found['buildable_area_m2'] == pytest.approx((21 - 4.8) * (36 - 16.5), abs=0.5)
+
+
+def test_city_centre_lots_and_lots_whose_setbacks_are_drawn():
+    from shapely.geometry import LineString, box
+    from engine import lot_rules
+    lot, street = box(0, 0, 20, 30), LineString([(-40, -9), (60, -9)])
+    dims = pickering_zoning.lot_dimensions(lot, [street])
+    line = {'value': 1.0, 'unit': None, 'page': 118, 'document': 'By-law 8149/24', 'label': 'Minimum Building Setback from Street Line (m)'}
+    drawn = {'text': 'Buildings and structures shall be located entirely within the building envelope shown on Figure 1', 'page': 407}
+    rules = {'zones': {'CC*': {'street_line_setback': line}}, 'families': {'CC*': ['CC1', 'CC2', 'CCR1', 'CCR2']},
+             'exceptions': {'X103': {'provisions': {}, 'zone_sections': ['RH-MU-2', 'MD-H6'], 'by_figure': {'RH-MU-2': drawn},
+                                     'by_zone': {'MD-H6': {'front_yard': {'value': 3.0, 'unit': 'm'}}}}}}
+    # By-law 8149/24, Table 8.6: 1.0 m from the street line, and no side or rear yard.
+    for code in ('CCR2', 'CC 2-X387', 'CC Res 1-X386'):
+        found = lot_rules.apply_to_lot(lot, code, rules, [street], dims)
+        assert {s: v['value'] for s, v in found['setbacks_by_side'].items()} == {'S': 1.0, 'N': 0.0, 'E': 0.0, 'W': 0.0}, code
+        assert found['complete'] and found['basis'] == 'street_line' and found['basis_page'] == 118 and not found['missing'][:1] == ['front_yard']
+    assert lot_rules.apply_to_lot(lot, 'CCA-2-X221', rules, [street], dims)['basis'] == 'none_stated'  # not a City Centre zone
+    # Exception 103: the RH-MU-2 zone's buildings go inside an envelope drawn on Figure 1.
+    found = lot_rules.apply_to_lot(lot, 'RH-MU-2-X103', rules, [street], dims)
+    assert not found['complete'] and found['basis'] == 'figure' and found['basis_page'] == 407 and 'Figure 1' in found['basis_note']
+    assert lot_rules.apply_to_lot(lot, 'MD-H6-X103', rules, [street], dims)['basis'] == 'partial'  # its own section, no drawing
+    assert lot_rules.apply_to_lot(lot, None, rules, [street], dims)['basis'] == 'no_zone'

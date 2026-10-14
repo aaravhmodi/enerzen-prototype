@@ -335,3 +335,23 @@ def test_slips_in_the_scans_of_exceptions_217_219_and_330():
     assert {k: v['value'] for k, v in found.items()} == {'interior_side_yard': 1.2, 'exterior_side_yard': 2.7, 'rear_yard': 7.5}
     assert found['rear_yard']['applies_to'] == ['S1']
     assert rules_from_text('INTERIOR SIDE. YARD WIDTH (minimum): 2.4 metres', {})['interior_side_yard']['value'] == 2.4
+
+
+def test_the_city_centre_table_and_setbacks_that_are_drawn():
+    from scripts.zone_rules import DRAWN, exceptions_from_pages
+    # Table 8.6: one column for all the City Centre zones; a street-line setback and no yards.
+    table = [['Requirement', 'CC Zones'], ['Minimum Building Height (m)', 'As shown on Schedule 5'],
+             ['Minimum Building Setback from\nStreet Line (m)', '1.0'], ['Maximum Building Setback\nfrom Street Line (m)', '4.0 (1)(2)'],
+             ['Minimum Main Wall Stepback for\nBuildings greater than 37.5 m in\nHeight (m)', 'Minimum main wall stepback - 3.0 m'],
+             ['Buildings Requiring Active At\nGrade Frontages', 'Minimum – 40% of the first storey'], ['', 'Minimum ground floor height – 4.5 m']]
+    found, _ = rules_from_table(table, '', {'page': 118})
+    assert {k: v['value'] for k, v in found['CC*'].items()} == {'street_line_setback': 1.0, 'street_line_setback_max': 4.0}
+    assert parse_value('As shown on Schedule 5') is None and parse_value('7.5 m, see Section 4.23')['value'] == 7.5
+    # Exceptions whose setbacks are a drawing: kept as what the by-law says and the page it says it on.
+    page = ('Exception Zone 103 (By-law 6705-06)\nZone Requirements ("RH-MU-2" Zone)\nBuilding Location and Setbacks:\n'
+            'Buildings and structures shall be located entirely within the building\nenvelope shown on Figure 1.\n'
+            'Zone Requirements ("MD-H6" Zone)\nFront Yard Depth (minimum): 3.0 metres\nBuilding Height (maximum): as shown on Figure 2\n')
+    found = exceptions_from_pages(['', page], {'file': 'f'})['X103']
+    assert set(found['by_figure']) == {'*', 'RH-MU-2'} and found['by_figure']['RH-MU-2']['page'] == 2
+    assert found['by_figure']['RH-MU-2']['text'].startswith('Building Location and Setbacks: Buildings and structures')
+    assert DRAWN.search('Setbacks from streets & property boundaries as per Figure 2 - C1-7 inclusive')

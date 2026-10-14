@@ -57,6 +57,38 @@ def street_sides(parcel, roads: list, rotation_deg: float = 0.0) -> list[str]:
     return sides
 
 
+def _zone_table(base: str, designation: str, rules: dict) -> tuple[str, dict]:
+    """(zone, its table): the zone's own table, or the one the by-law gives a whole family of zones
+    ("CC Zones") where it lists this zone in that family. The map writes CC2 as "CC 2" and CCR1 as
+    "CC Res 1"."""
+    zones, families = rules.get('zones', {}), rules.get('families') or {}
+    spelled = designation.replace(' ', '')
+    for zone in dict.fromkeys((base, spelled, spelled.replace('RES', 'R'))):
+        if zones.get(zone):
+            return zone, zones[zone]
+        family = next((f for f, members in families.items() if zone in members), None)
+        if family and zones.get(family):
+            return zone, zones[family]
+    return base, {}
+
+
+def drawn_rule(code: str | None, rules: dict) -> dict | None:
+    """Where the by-law gives a lot's setbacks on a drawing ("within the building envelope shown on
+    Figure 1"): what it says and the page, for the lot's own zone in its exception."""
+    if not code:
+        return None
+    base, exceptions = split_zone(code)
+    designation = re.sub(r'[-\s(]*X\s?\d+\)?', '', code.upper()).strip('- ')
+    for exception in exceptions:
+        section = rules.get('exceptions', {}).get(exception) or {}
+        drawn = section.get('by_figure') or {}
+        sectioned = {designation, base} & set(section.get('zone_sections') or ())
+        found = drawn.get(designation) or drawn.get(base) or (None if sectioned else drawn.get('*'))
+        if found:
+            return {**found, 'exception': exception}
+    return None
+
+
 def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane_lot: bool = False) -> dict:
     """Each standard for a zone code: the zone table's value, replaced by any exception's."""
     if not code:
@@ -65,8 +97,9 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
     # The zone as the exception names it: "S-SD-SA-3" for a lot mapped "S-SD-SA-3-X332".
     designation = re.sub(r'[-\s(]*X\s?\d+\)?', '', code.upper()).strip('- ')
     resolved = {}
-    for key, rule in (rules.get('zones', {}).get(base) or {}).items():
-        resolved[key] = {**rule, 'from': f'Zone {base} table'}
+    zone, table = _zone_table(base, designation, rules)
+    for key, rule in table.items():
+        resolved[key] = {**rule, 'from': f'Zone {zone} table'}
     for exception in exceptions:
         section = rules.get('exceptions', {}).get(exception) or {}
         # The exception's own table of zones by row, where it has one, is its most specific word.
@@ -154,6 +187,9 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     lane_lot = bool(street and OPPOSITE[street] in behind)
     frontage = dimensions['width_m' if street in 'NS' else 'depth_m'] if dimensions and street else None
     standards = resolve(code, rules, frontage, lane_lot)
+    # A zone regulated by a setback from the street line (the City Centre zones) has no yards: its
+    # street sides take that setback, and the by-law asks nothing of the other sides.
+    street_line = standards.get('street_line_setback') if 'front_yard' not in standards else None
 
     by_side, missing = {}, []
     if street:
@@ -163,10 +199,16 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                    'exterior_side_yard' if side == flank else 'interior_side_yard')
             # Without an exterior side yard in the by-law, the flank falls back to the interior one, said so.
             rule = standards.get(key) or (standards.get('interior_side_yard') if key == 'exterior_side_yard' else None)
+            unasked = bool(street_line) and rule is None and key in ('rear_yard', 'interior_side_yard')
+            if street_line and rule is None:
+                rule = {**street_line, 'value': 0.0} if unasked else street_line
             by_side[side] = {'applies': key, **({k: rule[k] for k in ('value', 'unit', 'from', 'document', 'file', 'page', 'label')
                                                  if k in rule} if rule else {'value': None})}
-            if rule and key == 'exterior_side_yard' and 'exterior_side_yard' not in standards:
+            if rule and key == 'exterior_side_yard' and 'exterior_side_yard' not in standards and not street_line:
                 by_side[side]['note'] = 'No exterior side yard stated; the interior side yard is shown.'
+            if unasked:
+                by_side[side]['note'] = ("The zone's table sets a setback from the street line and no side or rear yard; "
+                                         'its building separation and height rules apply instead.')
             if rule and key == 'interior_side_yard' and rule.get('common_wall') and side in (attached or ()):
                 # The by-law asks for no side yard along a common wall, and the City's building
                 # footprint shows this dwelling joined to its neighbour on this side.
@@ -181,8 +223,22 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         by_side[open_sides[1]].update(value=both, note='The by-law gives a different width for each side yard and does not '
                                                        'say which side is which.')
     for key in SETBACKS + LOT_STANDARDS:
-        if key not in standards and not (key == 'exterior_side_yard' and not flank):
+        if key not in standards and not (key == 'exterior_side_yard' and not flank) and not (street_line and key in SETBACKS):
             missing.append(key)
+    # What the lot's setbacks rest on, so a lot without yards still says why and where to look.
+    complete = bool(by_side) and all(v['value'] is not None for v in by_side.values())
+    drawn = None if complete else drawn_rule(code, rules)
+    basis = ('street_line' if street_line and complete else 'yards' if complete else 'figure' if drawn else
+             'no_zone' if not code else 'no_street' if not street else
+             'partial' if any(k in standards for k in SETBACKS) else 'none_stated')
+    notes = {
+        'street_line': "The zone's table sets a setback from the street line and no side or rear yard.",
+        'figure': (drawn or {}).get('text'),
+        'no_zone': "No zoning polygon covers this lot in the City's zoning layer.",
+        'no_street': 'No street centreline lies within 15 m of this lot, so its front could not be placed.',
+        'partial': 'The by-law text gives some of this lot\'s yards; the others are listed as missing.',
+        'none_stated': 'The by-law states no yards for this zone in words or in a table that could be read.',
+    }
 
     checks = []
     if dimensions and street:
@@ -208,6 +264,8 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         'exceptions_without_text': [x for x in exceptions if x not in rules.get('exceptions', {})],
         'street_side': street, 'flank_side': flank, 'corner_lot': bool(flank), 'through_lot': through,
         'lane_lot': lane_lot, 'attached_sides': list(attached or ()),
+        'basis': basis, 'basis_note': notes.get(basis), 'basis_page': (drawn or street_line or {}).get('page') if basis in ('figure', 'street_line') else None,
+        'basis_document': (drawn or street_line or {}).get('document') if basis in ('figure', 'street_line') else None,
         'setbacks_by_side': by_side,
         'standards': {k: {kk: v.get(kk) for kk in ('value', 'unit', 'bound', 'from', 'document', 'page', 'label',
                                                    'overrides', 'file', 'other_side')}
@@ -217,6 +275,6 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         'max_coverage_m2': round(parcel.area * coverage['value'] / 100, 1)
         if coverage and coverage.get('unit') == '%' and parcel is not None else None,
         '_envelope': envelope,
-        'complete': bool(by_side) and all(v['value'] is not None for v in by_side.values()),
+        'complete': complete,
         'approximate': bool(dimensions and dimensions.get('rectangularity', 1) < 0.9),
     }

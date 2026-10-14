@@ -65,9 +65,20 @@ export default function LotSetbacks({ lot }: { lot: LotStandards }) {
           {lot.through_lot ? " · through lot" : ""}
         </p>
         <span className={lot.complete ? "zr-ok" : "zr-bad"}>
-          {lot.complete ? "Every setback from the by-law" : "Some setbacks not found in the by-law"}
+          {lot.complete
+            ? "Every setback from the by-law"
+            : lot.basis === "figure"
+              ? "Setbacks are drawn on a figure in the by-law"
+              : "Some setbacks not found in the by-law"}
         </span>
       </div>
+      {lot.basis_note && (
+        <p className="zr-muted">
+          {lot.basis === "figure" ? "The by-law says: " : ""}
+          {lot.basis_note}
+          {lot.basis_page ? ` (${lot.basis_document ?? "by-law"}, page ${lot.basis_page})` : ""}
+        </p>
+      )}
       {sides.length > 0 ? (
         <div className="zr-setbacks-body">
           <Diagram lot={lot} />
