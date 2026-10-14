@@ -354,6 +354,7 @@ def rules_from_text(text: str, source: dict) -> dict:
     """
     rules = {}
     text = re.sub(r'(?<=\d)\.\s(?=\d\s*(?:m\b|metres?))', '.', text)  # scanned by-laws: "2. 7 metres"
+    text = re.sub(r'(?i)\b(side)\.(\s+yard)', r'\1\2', text)  # and "INTERIOR SIDE. YARD WIDTH"
     lines, leads, previous = [], [], ''
     for row in text.split('\n'):
         # A row that carries on the sentence above it is judged with that row's words in front of it.
@@ -404,7 +405,8 @@ def rules_from_text(text: str, source: dict) -> dict:
             continue
         if re.search(r'one side\W*(?:and\W*)?$', after, re.I) and where + 1 < len(lines):
             after = f"{after} {LIST_MARK.sub('', lines[where + 1])}"  # "0.3 metres one side" / "2) 1.2 metres other side"
-        value = parse_value(after)
+        # From the figure itself: a scan's "WI0TH (minimum): 2.7 metres" has a digit in its label.
+        value = parse_value(after[DIRECTLY_STATED.match(after).end() - 1:])
         if value and value['value'] > 60 and value['unit'] != 'm':
             continue  # a page or section number, not a yard: "FRONT YARD DEPTH (minimum): 164"
         if value and key[0] not in rules:
