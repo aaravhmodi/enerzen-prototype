@@ -141,6 +141,10 @@ class Fetcher:
             except HTTPError as exc:
                 if (exc.code < 500 and exc.code != 429) or attempt == self.retries - 1:
                     raise
+                if exc.code == 429:  # rate-limited: wait as long as the server asks, not a second or two
+                    retry_after = exc.headers.get('Retry-After', '')
+                    time.sleep(int(retry_after) if retry_after.isdigit() else 30 * (attempt + 1))
+                    continue
             except (URLError, TimeoutError):
                 if attempt == self.retries - 1:
                     raise
@@ -403,9 +407,8 @@ def council_meetings(fetch: Fetcher, base: str, since: str) -> list[str]:
         with urlopen(request, timeout=fetch.timeout) as response:
             meetings = json.load(response).get('d') or []
         for meeting in meetings:
-            url = meeting.get('Url') or meeting.get('url') or ''
-            if not url and meeting.get('ID'):
-                url = f"Meeting.aspx?Id={meeting['ID']}&Agenda=Agenda&lang=English"
+            # The calendar's own Url (MeetingsCalendarView.aspx/Meeting?Id=...) answers 404; the agenda page is this.
+            url = f"Meeting.aspx?Id={meeting['ID']}&Agenda=Agenda&lang=English" if meeting.get('ID') else                 meeting.get('Url') or meeting.get('url') or ''
             if url:
                 urls.append(urljoin(base + '/', url))
     except Exception:

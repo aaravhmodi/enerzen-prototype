@@ -114,8 +114,9 @@ class FakeCity(BaseHTTPRequestHandler):
         body = self.rfile.read(length).decode()
         if self.path.endswith('/GetCalendarMeetings'):
             assert json.loads(body)['calendarStartDate'] == '2024-12-01'
-            return self.send({'d': [{'ID': 'm1', 'Url': 'Meeting.aspx?Id=m1&Agenda=Agenda&lang=English'},
-                                    {'ID': 'm1', 'Url': 'Meeting.aspx?Id=m1&Agenda=PostMinutes&lang=English'}]})
+            # As the City's eScribe answers: a Url that 404s, so the agenda page is built from the ID.
+            return self.send({'d': [{'ID': 'm1', 'Url': f'http://{self.headers["Host"]}/escribe/MeetingsCalendarView.aspx/Meeting?Id=m1'},
+                                    {'ID': 'm1', 'Url': f'http://{self.headers["Host"]}/escribe/MeetingsCalendarView.aspx/Meeting?Id=m1'}]})
         self.route(parse_qs(body))
 
     def do_GET(self):
