@@ -192,19 +192,15 @@ def unmerged(table) -> list[list]:
     is simply empty comes back as '' and stays empty.
     """
     rows = table.extract()
-    try:
-        across, down = [c.bbox for c in table.columns], [r.bbox for r in table.rows]
-    except Exception:
-        return rows
+    # The reader lays cells out by their left and top edges, so those edges number the columns and rows.
+    lefts, tops = sorted({cell[0] for cell in table.cells}), sorted({cell[1] for cell in table.cells})
     for r, row in enumerate(rows):
         for c, cell in enumerate(row):
-            if cell is None and r < len(down) and c < len(across):
-                x, y = (across[c][0] + across[c][2]) / 2, (down[r][1] + down[r][3]) / 2
-                span = next((b for b in table.cells if b[0] <= x <= b[2] and b[1] <= y <= b[3]), None)
+            if cell is None and r < len(tops) and c < len(lefts):
+                x, y = lefts[c] + 0.5, tops[r] + 0.5
+                span = next((b for b in table.cells if b[0] <= x < b[2] and b[1] <= y < b[3]), None)
                 if span:
-                    first_row = next(i for i, b in enumerate(down) if b[3] > span[1] + 0.5)
-                    first_col = next(i for i, b in enumerate(across) if b[2] > span[0] + 0.5)
-                    row[c] = rows[first_row][first_col]
+                    row[c] = rows[tops.index(span[1])][lefts.index(span[0])]
     return rows
 
 

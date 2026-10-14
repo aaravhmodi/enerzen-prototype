@@ -249,12 +249,13 @@ def test_the_common_wall_and_a_side_yard_on_a_street():
 
 
 def test_merged_cells_take_the_text_of_the_cell_that_spans_them():
-    from types import SimpleNamespace as Part
+    from types import SimpleNamespace as Table
     from scripts.zone_rules import unmerged
-    part = lambda x0, top, x1, bottom: Part(bbox=(x0, top, x1, bottom))
-    # Two columns, three rows; the second column is one cell three rows deep, and one cell is just empty.
-    table = Part(columns=[part(0, 0, 10, 30), part(10, 0, 20, 30)],
-                 rows=[part(0, 0, 20, 10), part(0, 10, 20, 20), part(0, 20, 20, 30)],
-                 cells=[(0, 0, 10, 10), (10, 0, 20, 30), (0, 10, 10, 20), (0, 20, 10, 30)],
-                 extract=lambda: [['S1', '4.5 metres'], ['S2', None], ['', None]])
-    assert unmerged(table) == [['S1', '4.5 metres'], ['S2', '4.5 metres'], ['', '4.5 metres']]
+    # Exception 295 in small: a heading across two columns, and each yard one cell down three zones.
+    table = Table(cells=[(0, 0, 10, 10), (10, 0, 30, 10),                       # 'Symbol' | 'Minimum Yards' across two
+                         (0, 10, 10, 20), (10, 10, 20, 40), (20, 10, 30, 40),   # 'S1' | front, three rows deep | rear, three rows deep
+                         (0, 20, 10, 30), (0, 30, 10, 40)],                     # 'S2', 'SD'
+                  extract=lambda: [['Symbol', 'Minimum Yards', None], ['S1', '4.5 metres', '7.5 metres'],
+                                   ['S2', None, None], ['SD', None, None]])
+    assert unmerged(table) == [['Symbol', 'Minimum Yards', 'Minimum Yards'], ['S1', '4.5 metres', '7.5 metres'],
+                               ['S2', '4.5 metres', '7.5 metres'], ['SD', '4.5 metres', '7.5 metres']]
