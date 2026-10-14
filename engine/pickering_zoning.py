@@ -22,6 +22,7 @@ from shapely.geometry import Point, mapping
 from engine import lot_rules
 
 DEFAULT_STORE = Path(__file__).parent.parent / 'data' / 'municipal' / 'pickering'
+FIGURE_SETBACKS = Path(__file__).parent.parent / 'data' / 'pickering_figure_setbacks.json'
 
 # Geometry is kept in local metres around Pickering (equirectangular; error is
 # well under 1% across the city) so areas and distances read in m.
@@ -119,7 +120,12 @@ def _rules(store: str, stamp: str, file: str | None) -> dict:
     path = Path(store) / file if file else None
     if path is None or not path.exists():
         return {'zones': {}, 'exceptions': {}, 'missing_file': True}
-    return json.loads(path.read_text(encoding='utf-8'))
+    rules = json.loads(path.read_text(encoding='utf-8'))
+    # The setbacks an exception draws instead of stating, read by eye from its figure; the by-law text only points at them.
+    for exception, figures in json.loads(FIGURE_SETBACKS.read_text(encoding='utf-8')).items():
+        if exception in rules['exceptions']:
+            rules['exceptions'][exception]['figures'] = figures
+    return rules
 
 
 def zone_rules() -> dict:
@@ -777,7 +783,8 @@ ALL_LOTS_COLUMNS = ['address', 'roll_number', 'pin', 'legal_description', 'zone_
                     'street_side', 'corner_lot', 'front_yard_m', 'rear_yard_m', 'interior_side_yard_m', 'other_side_yard_m',
                     'exterior_side_yard_m', 'lot_frontage_min_m', 'lot_area_min_m2', 'max_height', 'max_coverage_pct',
                     'lot_width_m', 'lot_depth_m', 'lot_area_m2', 'buildable_area_m2', 'complete', 'missing',
-                    'lane_lot', 'attached_sides', 'basis', 'basis_note', 'basis_page', 'sources', 'latitude', 'longitude']
+                    'lane_lot', 'attached_sides', 'basis', 'basis_note', 'basis_page', 'figure_setbacks', 'sources',
+                    'latitude', 'longitude']
 
 
 def _primary_zone(zoning_layers, geom):
@@ -827,6 +834,10 @@ def _all_lots(store: str, stamp: str) -> list[dict]:
                 'complete': lot['complete'], 'missing': ' '.join(lot['missing']),
                 'lane_lot': lot['lane_lot'], 'attached_sides': ' '.join(lot['attached_sides']),
                 'basis': lot['basis'], 'basis_note': lot['basis_note'], 'basis_page': lot['basis_page'],
+                'figure_setbacks': ' | '.join(
+                    f"{f['figure']}{' (' + f['applies_to'] + ')' if f.get('applies_to') else ''}: "
+                    + '; '.join(f"{s['value_m']} m from {s['from']}" for s in f['setbacks'])
+                    for f in lot['figure_setbacks'] if f['setbacks']),
                 'sources': '; '.join(sorted({f"{v.get('from')} p.{v.get('page')}" for v in std.values()
                                              if v.get('from')})),
                 'latitude': round(point.y / M_PER_DEG_LAT, 7), 'longitude': round(point.x / M_PER_DEG_LON, 7),

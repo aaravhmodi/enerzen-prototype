@@ -641,7 +641,18 @@ and O. Reg. 545/06. The API reads only that stored copy.
   streets and property boundaries as per Figure 2". These are site plans for a
   whole complex, dimensioned from the site's edge, so they give no yards for a
   lot inside it. Such a lot's yards stay empty, and the review quotes what the
-  by-law says and the page it says it on.
+  by-law says and the page it says it on. The drawings in all 65 such exceptions
+  (84 pages, most of them scanned 1970s–1990s schedules, some marked "not to
+  scale") were read by eye into `data/pickering_figure_setbacks.json`: for each
+  figure, the smallest distance it marks from each named street or lot line, in
+  the drawing's own unit, with a note for build-to-zones and steps. The review
+  lists these beside the quotation, in metres (feet × 0.3048), with the figure
+  and page, and says they were read by eye. They are not turned into yards,
+  since they measure from the edge of the whole site. Three exceptions (X211,
+  X289, X295) call a table of yards by zone their "Figure 1"; those yards (front
+  4.5 m, side 1.2 m or 1.0 m, flankage 2.7 m or 2.4 m, rear 7.5 m) are a lot's
+  own, so they fill its yards, cited to the figure, and anything the exception's
+  text states still overrides them.
 - **What a lot's setbacks rest on** — every lot carries one of: `yards`,
   `street_line`, `figure` (drawn), `partial` (the text gives some yards),
   `none_stated`, `no_street` and `no_zone`.

@@ -79,6 +79,20 @@ export default function LotSetbacks({ lot }: { lot: LotStandards }) {
           {lot.basis_page ? ` (${lot.basis_document ?? "by-law"}, page ${lot.basis_page})` : ""}
         </p>
       )}
+      {lot.figure_setbacks?.map((f) => (
+        <div key={`${f.exception}-${f.page}-${f.applies_to ?? ""}`} className="zr-muted">
+          <p>
+            Read from {f.figure}
+            {f.applies_to ? `, ${f.applies_to}` : ""} ({f.document}, page {f.page}):{" "}
+            {f.setbacks.map((s) => `${fmt(s.value_m, "m")} from ${s.from}`).join("; ")}
+            {f.setbacks.some((s) => s.stated.endsWith("ft")) ? " (drawn in feet)" : ""}.
+          </p>
+          {f.note && <p>{f.note}</p>}
+        </div>
+      ))}
+      {lot.figure_setbacks && lot.figure_setbacks.length > 0 && (
+        <p className="zr-muted">These distances were read by eye from the drawing; check the figure before relying on one.</p>
+      )}
       {sides.length > 0 ? (
         <div className="zr-setbacks-body">
           <Diagram lot={lot} />

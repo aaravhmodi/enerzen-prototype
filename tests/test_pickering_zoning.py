@@ -617,6 +617,18 @@ def test_city_centre_lots_and_lots_whose_setbacks_are_drawn():
     assert not found['complete'] and found['basis'] == 'figure' and found['basis_page'] == 407 and 'Figure 1' in found['basis_note']
     assert lot_rules.apply_to_lot(lot, 'MD-H6-X103', rules, [street], dims)['basis'] == 'partial'  # its own section, no drawing
     assert lot_rules.apply_to_lot(lot, None, rules, [street], dims)['basis'] == 'no_zone'
+    # The figure's distances, read off the drawing, come with the lot, feet turned to metres.
+    rules['exceptions']['X103']['figures'] = [{'figure': 'Figure 1', 'document': 'Exception Zones X1 to X215', 'page': 415,
+                                              'unit': 'ft', 'setbacks': [['Bayly Street', 20]]}]
+    drawn_figure = lot_rules.apply_to_lot(lot, 'RH-MU-2-X103', rules, [street], dims)['figure_setbacks']
+    assert drawn_figure[0]['page'] == 415 and drawn_figure[0]['setbacks'] == [{'from': 'Bayly Street', 'value_m': 6.1, 'stated': '20 ft'}]
+    # A figure that is a table of yards by zone gives the lot its yards, cited to the figure.
+    rules['exceptions']['X295'] = {'provisions': {}, 'figures': [{
+        'figure': 'Figure 1', 'document': 'Exception Zones X216 to X437', 'page': 374, 'unit': 'm', 'setbacks': [],
+        'yards': {'S1': {'front_yard': 4.5, 'interior_side_yard': 1.2, 'exterior_side_yard': 2.7, 'rear_yard': 7.5}}}]}
+    found = lot_rules.apply_to_lot(lot, 'S1-X295', rules, [street], dims)
+    assert {s: v['value'] for s, v in found['setbacks_by_side'].items()} == {'S': 4.5, 'N': 7.5, 'E': 1.2, 'W': 1.2}
+    assert found['basis'] == 'yards' and found['standards']['front_yard']['from'] == 'Exception X295, Figure 1'
 
 
 def test_urban_reserve_lots_and_figures_that_set_some_lots_apart():

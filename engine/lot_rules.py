@@ -95,6 +95,19 @@ def drawn_rule(code: str | None, rules: dict) -> dict | None:
     return None
 
 
+def figure_setbacks(exceptions: list[str], rules: dict) -> list[dict]:
+    """The setbacks each of the lot's exceptions draws on a figure instead of stating, as read off the
+    drawing by eye (data/pickering_figure_setbacks.json), each from a named street or lot line, in metres."""
+    figures = []
+    for exception in exceptions:
+        for figure in (rules.get('exceptions', {}).get(exception) or {}).get('figures', []):
+            per_unit = 0.3048 if figure['unit'] == 'ft' else 1.0
+            figures.append({'exception': exception, **{k: figure.get(k) for k in ('figure', 'document', 'page', 'applies_to', 'note')},
+                            'setbacks': [{'from': line, 'value_m': round(value * per_unit, 1),
+                                          'stated': f"{value:g} {figure['unit']}"} for line, value in figure['setbacks']]})
+    return figures
+
+
 def _for_kind(rule: dict, joined: bool) -> dict:
     """Where the by-law gives a standard for each kind of dwelling ("for detached dwellings", "for
     semi-detached dwellings"), the figure for the lot's own kind: joined to its neighbour, or not."""
@@ -126,8 +139,15 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
         # not the first zone's; the exception's standards as a whole are for an exception with one set.
         sectioned = {designation, base} & set(section.get('zone_sections') or ())
         general = {} if sectioned else section.get('provisions') or {}
-        stated = [(key, rule, f'Exception {exception}') for key, rule in
-                  [*general.items(), *(by_zone.get(designation) or by_zone.get(base) or {}).items()]]
+        # A figure that is a table of yards by zone (read from the drawing; see figure_setbacks) gives
+        # the yards the text leaves to it, and anything the text states still has the last word.
+        drawn = [(key, {'value': value, 'unit': 'm', 'document': figure['document'], 'page': figure['page']},
+                  f"Exception {exception}, {figure['figure']}")
+                 for figure in section.get('figures', [])
+                 for key, value in ((figure.get('yards') or {}).get(designation) or
+                                    (figure.get('yards') or {}).get(base) or {}).items()]
+        stated = drawn + [(key, rule, f'Exception {exception}') for key, rule in
+                          [*general.items(), *(by_zone.get(designation) or by_zone.get(base) or {}).items()]]
         # A newer exception gives one zone a column per kind of lot ("9.0 m single dwelling", "12.0 m
         # single dwelling", "semi-detached dwelling"). The lot takes the widest kind its own frontage
         # reaches, measured with half a metre's grace, and the column is named beside each value.
@@ -292,6 +312,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
         'lane_lot': lane_lot, 'attached_sides': list(attached or ()),
         'basis': basis, 'basis_note': notes.get(basis), 'basis_page': (drawn or street_line or {}).get('page') if basis in ('figure', 'street_line') else None,
         'basis_document': (drawn or street_line or {}).get('document') if basis in ('figure', 'street_line') else None,
+        'figure_setbacks': figure_setbacks(exceptions, rules) if basis == 'figure' else [],
         'setbacks_by_side': by_side,
         'standards': {k: {kk: v.get(kk) for kk in ('value', 'unit', 'bound', 'from', 'document', 'page', 'label',
                                                    'overrides', 'file', 'other_side')}

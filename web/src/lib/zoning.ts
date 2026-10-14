@@ -90,6 +90,16 @@ export type LotStandards = {
   basis_note?: string | null;
   basis_page?: number | null;
   basis_document?: string | null;
+  // Where the setbacks are drawn: each line's distance as read off the figure, in metres.
+  figure_setbacks?: {
+    exception: string;
+    figure: string;
+    document: string;
+    page: number;
+    applies_to?: string | null;
+    note?: string | null;
+    setbacks: { from: string; value_m: number; stated: string }[];
+  }[];
 };
 
 export type Provision = {

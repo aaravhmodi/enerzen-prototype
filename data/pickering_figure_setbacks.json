@@ -1,0 +1,2120 @@
+{
+ "_about": "Setbacks read by eye from the drawings in By-law 8149/24's exception zones, where the by-law says buildings go within an envelope 'as shown on Figure 1'. Each value is the smallest distance the drawing marks from that line, in the drawing's own unit. Many drawings are scanned 1970s schedules marked 'not to scale'; check the figure before relying on a number.",
+ "X103": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 415,
+   "applies_to": "RH/MU-2, Parts 1 and 2",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Bayly Street",
+     4.0
+    ],
+    [
+     "St. Martins Drive",
+     4.0
+    ],
+    [
+     "south lot line (MD-H6 zone)",
+     4.0
+    ],
+    [
+     "east lot line (top of bank)",
+     4.0
+    ]
+   ],
+   "note": "A build-to-zone, marked 3.0 m, runs along Bayly Street and St. Martins Drive."
+  }
+ ],
+ "X93": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 372,
+   "applies_to": "Parcel 1, north of Radom Street",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "St. Martins Drive",
+     30
+    ],
+    [
+     "Radom Street",
+     20
+    ],
+    [
+     "north lot line",
+     30
+    ],
+    [
+     "east lot line",
+     25
+    ]
+   ]
+  },
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 372,
+   "applies_to": "Parcel 2, south of Radom Street",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Radom Street",
+     20
+    ],
+    [
+     "west lot line (St. Martins Drive allowance)",
+     15
+    ],
+    [
+     "south and south-east lot lines",
+     25
+    ]
+   ],
+   "note": "The drawing also sets distances between buildings (12 to 65 ft)."
+  }
+ ],
+ "X298": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 393,
+   "applies_to": "RH/MU",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Pickering Parkway",
+     3.0
+    ],
+    [
+     "north lot line (Block D, Plan M-1024)",
+     3.0
+    ],
+    [
+     "Brock Road",
+     14.0
+    ],
+    [
+     "Highway 401",
+     14.0
+    ]
+   ],
+   "note": "A build-to-zone 3.0 m to 7.0 m from Pickering Parkway."
+  }
+ ],
+ "X334": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 607,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "William Jackson Drive",
+     2.0
+    ],
+    [
+     "Street 'A'",
+     3.0
+    ],
+    [
+     "north lot line",
+     3.0
+    ],
+    [
+     "south lot line",
+     6.0
+    ]
+   ],
+   "note": "Build-to-zones along the streets. North of Street 'A' the envelope steps back to 10.0 m from the north lot line east of the first building, and is 3.0 m from William Jackson Drive."
+  }
+ ],
+ "X195": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 875,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     3.0
+    ],
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "Royal Road",
+     8.0
+    ],
+    [
+     "south-east lot lines (Kingston Road lands)",
+     3.0
+    ],
+    [
+     "south lot line",
+     7.5
+    ]
+   ],
+   "note": "19.0 m from Royal Road at the north end. The figure notes that section 5(2)(b)(ii) of By-law 3036 sets the RH/MU-5 setbacks despite anything else."
+  }
+ ],
+ "X141": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 606,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Kingston Road",
+     3.0
+    ],
+    [
+     "north lot lines",
+     12.0
+    ],
+    [
+     "Bluebird Crescent",
+     12.0
+    ],
+    [
+     "west lot line",
+     15.0
+    ],
+    [
+     "east lot line",
+     9.0
+    ],
+    [
+     "the block between the two envelopes",
+     3.0
+    ]
+   ],
+   "note": "Two envelopes; the eastern one is 9.0 m from the block that separates them."
+  }
+ ],
+ "X297": [
+  {
+   "figure": "Figure 2 - C1",
+   "document": "Exception Zones X216 to X437",
+   "page": 383,
+   "applies_to": "Items 1 and 2",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     20
+    ],
+    [
+     "Rosefield Road",
+     20
+    ],
+    [
+     "east lot lines",
+     20
+    ],
+    [
+     "south lot lines",
+     10
+    ]
+   ],
+   "note": "15 ft from the south lot line of Item 2 at Fieldlight Boulevard."
+  },
+  {
+   "figure": "Figure 2 - C2",
+   "document": "Exception Zones X216 to X437",
+   "page": 384,
+   "applies_to": "Item 3",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Everton Street",
+     20
+    ],
+    [
+     "Rosefield Road",
+     20
+    ],
+    [
+     "Fieldlight Boulevard",
+     20
+    ],
+    [
+     "Memory Lane",
+     20
+    ]
+   ],
+   "note": "10 ft at the north-west and south-west corners."
+  },
+  {
+   "figure": "Figure 2 - C3",
+   "document": "Exception Zones X216 to X437",
+   "page": 385,
+   "applies_to": "Items 4 and 5",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Fieldlight Boulevard",
+     20
+    ],
+    [
+     "Faylee Crescent side lot line",
+     10
+    ],
+    [
+     "east lot line",
+     10
+    ],
+    [
+     "south lot line",
+     20
+    ],
+    [
+     "west lot line (Item 5)",
+     20
+    ],
+    [
+     "north and south lot lines (Item 5)",
+     10
+    ]
+   ],
+   "note": "35 ft from the curve of Fieldlight Boulevard at Item 4."
+  },
+  {
+   "figure": "Figure 2 - C4",
+   "document": "Exception Zones X216 to X437",
+   "page": 386,
+   "applies_to": "Item 6",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     30
+    ],
+    [
+     "Glenanna Road",
+     40
+    ],
+    [
+     "Fieldlight Boulevard",
+     20
+    ],
+    [
+     "north lot line",
+     10
+    ]
+   ],
+   "note": "40 ft from Liverpool Road except the south-west building, 30 ft."
+  },
+  {
+   "figure": "Figure 2 - C5",
+   "document": "Exception Zones X216 to X437",
+   "page": 387,
+   "applies_to": "Item 7",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Fieldlight Boulevard",
+     15
+    ],
+    [
+     "Glenanna Road",
+     20
+    ],
+    [
+     "Brands Court",
+     20
+    ],
+    [
+     "west and south lot lines",
+     10
+    ]
+   ]
+  },
+  {
+   "figure": "Figure 2 - C7",
+   "document": "Exception Zones X216 to X437",
+   "page": 388,
+   "applies_to": "Item 9",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     70
+    ],
+    [
+     "Glenanna Road",
+     45
+    ],
+    [
+     "west lot line",
+     80
+    ],
+    [
+     "Kingston Road side lot line",
+     10
+    ]
+   ],
+   "note": "25 ft from the diagonal lot line for most of its length. Item 8 was replaced by the City Centre by-law 7553/17."
+  }
+ ],
+ "X300": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X216 to X437",
+   "page": 400,
+   "applies_to": "A50 (apartments, south)",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Brockwest Avenue",
+     80
+    ],
+    [
+     "Brock Road",
+     45
+    ],
+    [
+     "south lot line",
+     25
+    ],
+    [
+     "north lot line (LC zone)",
+     35
+    ]
+   ],
+   "note": "125 ft and 160 ft from Brockwest Avenue for the taller parts (5 1/2 and 9 storeys)."
+  },
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X216 to X437",
+   "page": 400,
+   "applies_to": "LC (commercial, north)",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Brockwest Avenue",
+     25
+    ],
+    [
+     "Brock Road",
+     60
+    ],
+    [
+     "north lot line",
+     100
+    ]
+   ]
+  }
+ ],
+ "X299": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X216 to X437",
+   "page": 396,
+   "applies_to": "Item 1",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Kingston Road (Highway 2)",
+     45
+    ],
+    [
+     "Brock Road",
+     35
+    ],
+    [
+     "Denmar Road",
+     25
+    ],
+    [
+     "Brockwest Avenue",
+     25
+    ],
+    [
+     "Item 3 lot lines",
+     5
+    ]
+   ],
+   "note": "25 ft at the corners on Kingston Road; 15 ft from Item 3 in places."
+  },
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X216 to X437",
+   "page": 396,
+   "applies_to": "Item 2",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Denmar Road and Brockwest Avenue",
+     20
+    ],
+    [
+     "Geta Circle",
+     15
+    ],
+    [
+     "west lot line",
+     20
+    ],
+    [
+     "north lot line",
+     20
+    ]
+   ],
+   "note": "25 ft from Brockwest Avenue at its south end."
+  }
+ ],
+ "X9": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X1 to X215",
+   "page": 43,
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Whites Road",
+     35
+    ],
+    [
+     "north lot line",
+     35
+    ],
+    [
+     "Eyer Drive",
+     30
+    ],
+    [
+     "south lot line",
+     25
+    ],
+    [
+     "east lot line south of Eyer Drive",
+     25
+    ]
+   ],
+   "note": "60 ft from the lot line at the jog by Eyer Drive."
+  }
+ ],
+ "X292": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 361,
+   "applies_to": "LCA-6",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Pine Grove Avenue",
+     3.5
+    ],
+    [
+     "Westcreek Drive",
+     3.5
+    ],
+    [
+     "south lot line (Plan 40M-1508)",
+     6.0
+    ]
+   ],
+   "note": "7.5 m from the south lot line for most of its length; no distance is marked from Altona Road. Cross-hatched areas carry the height limits of section 5.(2)(b)8."
+  }
+ ],
+ "X274": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 276,
+   "applies_to": "MD-H1",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Kingston Road (Highway No. 2)",
+     3.0
+    ],
+    [
+     "Southview Drive",
+     4.5
+    ],
+    [
+     "lot lines with the R3 and S1 lots",
+     2.5
+    ],
+    [
+     "east lot line",
+     7.5
+    ],
+    [
+     "south lot line",
+     3.0
+    ]
+   ],
+   "note": "A build-to-zone 3.0 m to 7.5 m from Kingston Road; 7.5 m from the other interior lot lines."
+  }
+ ],
+ "X134": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X1 to X215",
+   "page": 575,
+   "applies_to": "RMM-4",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Sheppard Avenue",
+     2.0
+    ],
+    [
+     "Whites Road",
+     3.5
+    ],
+    [
+     "south lot line",
+     6.0
+    ],
+    [
+     "east lot line (OS-HL zone)",
+     0.0
+    ]
+   ],
+   "note": "Build-to-zones 2.0 m to 3.0 m from Sheppard Avenue and 3.5 m to 4.5 m from Whites Road. Figure 1 shows the height areas."
+  }
+ ],
+ "X321": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 520,
+   "applies_to": "MU-MD-4",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "north lot line",
+     5.0
+    ],
+    [
+     "Palmer's Sawmill Road",
+     5.0
+    ],
+    [
+     "west lot line (MU-MD-3 zone)",
+     5.0
+    ]
+   ],
+   "note": "A build-to-zone 3 m from Brock Road; 2 m at the corner rounding."
+  }
+ ],
+ "X213": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X1 to X215",
+   "page": 948,
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     15
+    ],
+    [
+     "Rosefield Road",
+     20
+    ],
+    [
+     "south lot line",
+     25
+    ],
+    [
+     "east lot line",
+     15
+    ],
+    [
+     "lot lines of the corner lot",
+     15
+    ]
+   ],
+   "note": "35 ft from Finch Avenue for most of its length, and 25 ft from the east lot line except at one building. The page is printed sideways."
+  }
+ ],
+ "X1": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 2,
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Oklahoma Road",
+     20
+    ],
+    [
+     "Hillcrest Road side lot line",
+     35
+    ],
+    [
+     "east lot line",
+     30
+    ],
+    [
+     "south lot line",
+     30
+    ]
+   ],
+   "note": "30 ft from Oklahoma Road except at the corners, 20 ft. The page is printed sideways."
+  }
+ ],
+ "X98": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 383,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Bayly Street",
+     6.0
+    ],
+    [
+     "West Shore Boulevard",
+     4.5
+    ],
+    [
+     "south lot lines (Block L)",
+     2.0
+    ],
+    [
+     "east lot line (Block J)",
+     7.5
+    ]
+   ],
+   "note": "7.0 m landscaped strip along Bayly Street; 7.5 m from the south lot line for most of its length, stepping to 5.0 m, 2.5 m and 2.0 m."
+  }
+ ],
+ "X168": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 724,
+   "applies_to": "MD-H4",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Altona Road",
+     2.4
+    ],
+    [
+     "north lot line",
+     7.5
+    ],
+    [
+     "west lot lines",
+     1.2
+    ],
+    [
+     "(H)MU-11 zone",
+     6.0
+    ],
+    [
+     "top of bank (OS-HL-1)",
+     8.0
+    ]
+   ],
+   "note": "10.0 m and 11.0 m from the west lot lines for most of their length."
+  },
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 724,
+   "applies_to": "(H)MU-11",
+   "unit": "m",
+   "setbacks": [
+    [
+     "MD-H4 zone",
+     6.0
+    ]
+   ],
+   "note": "A build-to-zone along Altona Road and Kingston Road."
+  }
+ ],
+ "X277": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 301,
+   "applies_to": "RM2-1",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Street 'A' (Strouds Lane)",
+     4.5
+    ],
+    [
+     "Street 'B'",
+     4.5
+    ],
+    [
+     "street corners",
+     2.7
+    ],
+    [
+     "rear lot lines",
+     7.5
+    ],
+    [
+     "side lot lines",
+     2.7
+    ]
+   ]
+  },
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X216 to X437",
+   "page": 302,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Rosebank Road",
+     7.5
+    ],
+    [
+     "Strouds Lane",
+     7.5
+    ],
+    [
+     "Street D",
+     7.5
+    ],
+    [
+     "west lot lines",
+     20.0
+    ],
+    [
+     "between the two blocks",
+     3.0
+    ]
+   ],
+   "note": "56 m from the west lot line of the southern block."
+  }
+ ],
+ "X116": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 477,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     1.0
+    ],
+    [
+     "Altona Road",
+     1.0
+    ],
+    [
+     "west lot line",
+     7.0
+    ],
+    [
+     "south lot line",
+     3.0
+    ]
+   ],
+   "note": "Build-to-zones 1.0 m to 3.0 m from Finch Avenue and Altona Road; 2.0 m from Finch Avenue at the west end."
+  }
+ ],
+ "X100": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 397,
+   "applies_to": "MU-13, MU-14 and O2-2",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     3.0
+    ],
+    [
+     "north lot line",
+     1.5
+    ],
+    [
+     "south lot line",
+     1.5
+    ],
+    [
+     "east lot line",
+     3.0
+    ]
+   ]
+  }
+ ],
+ "X208": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 927,
+   "applies_to": "MD-Q",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Street 'A'",
+     15.0
+    ],
+    [
+     "Valleyview Drive",
+     4.0
+    ],
+    [
+     "south lot line",
+     4.0
+    ],
+    [
+     "west lot line",
+     3.0
+    ]
+   ]
+  }
+ ],
+ "X209": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 930,
+   "applies_to": "MD-Q",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Valleyview Drive",
+     15.0
+    ],
+    [
+     "north lot line",
+     1.8
+    ],
+    [
+     "east lot line",
+     10.0
+    ],
+    [
+     "south lot line",
+     1.8
+    ]
+   ],
+   "note": "10.0 m from the north lot line at its east end."
+  }
+ ],
+ "X290": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 347,
+   "applies_to": "RM1-4",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Glendale Drive",
+     4.5
+    ],
+    [
+     "north lot line",
+     7.5
+    ],
+    [
+     "south lot line",
+     7.5
+    ],
+    [
+     "east lot lines",
+     2.5
+    ]
+   ],
+   "note": "4.5 m from the east lot line for most of its length; 7.5 m and 5.0 m at the jog."
+  }
+ ],
+ "X185": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 828,
+   "applies_to": "RM2-2 (Detail 1)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Strouds Lane",
+     2.7
+    ],
+    [
+     "west lot line",
+     7.5
+    ],
+    [
+     "east lot line",
+     1.5
+    ],
+    [
+     "south lot line",
+     7.5
+    ]
+   ]
+  },
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 828,
+   "applies_to": "RM2-1 (Detail 2)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "north lot line",
+     4.5
+    ],
+    [
+     "west lot line",
+     2.7
+    ],
+    [
+     "east lot line (Block 16)",
+     7.5
+    ]
+   ]
+  }
+ ],
+ "X170": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 732,
+   "applies_to": "R(RH-NH)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Valley Farm Road",
+     11.0
+    ],
+    [
+     "north lot line",
+     8.0
+    ],
+    [
+     "east lot line",
+     20.0
+    ],
+    [
+     "south lot line",
+     8.0
+    ]
+   ],
+   "note": "14.0 m from Valley Farm Road for the northern building; 25.0 m at the south-west corner."
+  }
+ ],
+ "X320": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 509,
+   "applies_to": "Parcels A, B and C",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "Street 'A'",
+     3.0
+    ],
+    [
+     "north lot lines",
+     1.5
+    ],
+    [
+     "hydro easement",
+     1.5
+    ],
+    [
+     "south lot line of Parcel C",
+     6.0
+    ]
+   ],
+   "note": "Build-to-zones 3.0 m to 5.0 m from Brock Road and Street 'A'."
+  }
+ ],
+ "X325": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 551,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Dersan Street",
+     3.0
+    ],
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "Four Seasons Lane",
+     3.0
+    ],
+    [
+     "south lot line",
+     6.5
+    ]
+   ],
+   "note": "A build-to-zone along Brock Road."
+  }
+ ],
+ "X6": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 28,
+   "applies_to": "(H)O3B-2",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     3.0
+    ],
+    [
+     "north lot line",
+     3.0
+    ],
+    [
+     "Regional floodline",
+     3.5
+    ]
+   ],
+   "note": "Hatched areas carry other provisions of the exception."
+  }
+ ],
+ "X13": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 56,
+   "applies_to": "I(C)-R(SC)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "north lot line",
+     7.5
+    ],
+    [
+     "east lot line",
+     7.5
+    ],
+    [
+     "west lot line",
+     7.5
+    ]
+   ],
+   "note": "The south side is the M.T.R.C.A. regulation line and the O2 zone."
+  }
+ ],
+ "X36": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 132,
+   "applies_to": "MC-8",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     15.3
+    ],
+    [
+     "north lot line",
+     4.5
+    ],
+    [
+     "south lot line",
+     3.9
+    ],
+    [
+     "east lot line",
+     38.0
+    ]
+   ]
+  }
+ ],
+ "X44": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 171,
+   "applies_to": "M1-1(S)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Granite Court",
+     12.0
+    ],
+    [
+     "Rosebank Road side lot line",
+     3.0
+    ],
+    [
+     "north-west lot line",
+     14.0
+    ],
+    [
+     "north-east lot line",
+     4.5
+    ]
+   ],
+   "note": "4.5 m at the ends of the south and north-west lot lines."
+  }
+ ],
+ "X61": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X1 to X215",
+   "page": 232,
+   "applies_to": "MC-21",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Bayly Street",
+     3.0
+    ],
+    [
+     "Dillingham Road",
+     3.0
+    ],
+    [
+     "west lot line",
+     3.0
+    ],
+    [
+     "east lot line",
+     3.0
+    ]
+   ],
+   "note": "A build-to-zone along Bayly Street. Figure 1 shows the areas each use is allowed in."
+  }
+ ],
+ "X74": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 311,
+   "applies_to": "CA(F)-1",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Bayly Street",
+     3.0
+    ],
+    [
+     "Toy Avenue",
+     3.0
+    ],
+    [
+     "west lot line",
+     4.0
+    ],
+    [
+     "north lot lines",
+     3.0
+    ]
+   ],
+   "note": "Build-to-zones along Bayly Street and Toy Avenue, 40% of their length to be built."
+  }
+ ],
+ "X196": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 879,
+   "applies_to": "I(C)-ES",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     24.0
+    ],
+    [
+     "west lot line",
+     15.0
+    ],
+    [
+     "east lot line",
+     20.0
+    ],
+    [
+     "north lot lines",
+     20.0
+    ]
+   ]
+  }
+ ],
+ "X22": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 95,
+   "applies_to": "MC-10",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Plummer Street",
+     16.0
+    ],
+    [
+     "Salk Road",
+     16.0
+    ],
+    [
+     "south lot line",
+     6.5
+    ],
+    [
+     "east lot line",
+     11.0
+    ]
+   ]
+  }
+ ],
+ "X28": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 110,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     21.6
+    ],
+    [
+     "Plummer Street",
+     16.3
+    ],
+    [
+     "west lot line",
+     13.3
+    ],
+    [
+     "north lot line",
+     8.0
+    ]
+   ]
+  }
+ ],
+ "X37": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 136,
+   "applies_to": "C17-R",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Marksbury Road",
+     5.5
+    ],
+    [
+     "north lot line",
+     1.8
+    ],
+    [
+     "east lot line",
+     4.0
+    ],
+    [
+     "south lot line",
+     15.7
+    ]
+   ]
+  }
+ ],
+ "X57": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 213,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Church Street and Clements Road",
+     6.0
+    ],
+    [
+     "north lot line",
+     6.0
+    ],
+    [
+     "west lot line",
+     20.0
+    ]
+   ],
+   "note": "The building is to be between 6.0 m and 8.0 m from the curved street line. The cross-hatched area is for outdoor storage."
+  }
+ ],
+ "X59": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 218,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Quigley Street",
+     15.5
+    ],
+    [
+     "east lot line",
+     9.5
+    ],
+    [
+     "west lot line",
+     9.5
+    ]
+   ],
+   "note": "A build-to-zone 5.0 m deep behind the 15.5 m setback."
+  }
+ ],
+ "X65": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 252,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Bayly Street",
+     2.0
+    ],
+    [
+     "Brock Road",
+     2.0
+    ],
+    [
+     "west lot line",
+     2.0
+    ],
+    [
+     "south lot line",
+     2.0
+    ]
+   ],
+   "note": "A build-to-zone 5.0 m deep along both streets."
+  }
+ ],
+ "X99": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 388,
+   "applies_to": "LCA-10",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Krosno Boulevard",
+     12.0
+    ],
+    [
+     "Liverpool Road",
+     12.0
+    ],
+    [
+     "south lot line",
+     4.5
+    ],
+    [
+     "west lot line",
+     4.5
+    ]
+   ]
+  }
+ ],
+ "X101": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 401,
+   "applies_to": "CO-DS",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     3.0
+    ],
+    [
+     "north lot line",
+     1.5
+    ],
+    [
+     "south lot line",
+     1.5
+    ],
+    [
+     "east lot line",
+     7.5
+    ]
+   ],
+   "note": "A build-to-zone 2.0 m deep behind the Liverpool Road setback."
+  }
+ ],
+ "X102": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 404,
+   "applies_to": "CO",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     3.0
+    ],
+    [
+     "north lot line",
+     1.5
+    ],
+    [
+     "south lot line",
+     1.5
+    ],
+    [
+     "east lot line",
+     7.5
+    ]
+   ],
+   "note": "A build-to-zone 2.0 m deep behind the Liverpool Road setback; 5.0 m from the north lot line at the build-to-zone."
+  }
+ ],
+ "X138": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 591,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     3.0
+    ],
+    [
+     "hydro corridor",
+     1.5
+    ],
+    [
+     "east lot line",
+     15.0
+    ]
+   ],
+   "note": "No building within 23.5 m of the west end of the Finch Avenue lot line."
+  }
+ ],
+ "X171": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 736,
+   "applies_to": "MU-7",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Kingston Road",
+     3.0
+    ],
+    [
+     "side lot lines",
+     1.5
+    ],
+    [
+     "south lot line",
+     7.5
+    ]
+   ],
+   "note": "A build-to-zone along Kingston Road; 0.9 m from the west lot line at its jog."
+  }
+ ],
+ "X192": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 860,
+   "applies_to": "RH(SC)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Pickering Parkway",
+     3.0
+    ],
+    [
+     "north lot line",
+     3.0
+    ],
+    [
+     "south lot line",
+     3.0
+    ],
+    [
+     "east lot line",
+     14.0
+    ]
+   ]
+  }
+ ],
+ "X247": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 147,
+   "applies_to": "I(R)",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     12.0
+    ],
+    [
+     "west lot line (Abbey Road lots)",
+     7.5
+    ],
+    [
+     "south lot line (Rigby Drive lots)",
+     15.0
+    ],
+    [
+     "other lot lines",
+     12.0
+    ]
+   ],
+   "note": "The scan is faint; check the figure."
+  }
+ ],
+ "X257": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 194,
+   "applies_to": "MD-H",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Finch Avenue",
+     4.5
+    ],
+    [
+     "Whites Road",
+     4.5
+    ],
+    [
+     "west lot line",
+     7.5
+    ],
+    [
+     "south lot line",
+     7.5
+    ]
+   ],
+   "note": "3.0 m at the south-west corner; the MD-V block sits 48.0 m from Finch Avenue and 30.0 m from the west lot line."
+  }
+ ],
+ "X278": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 306,
+   "applies_to": "I(C)-DN",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Valley Farm Road",
+     6.0
+    ],
+    [
+     "Dunbarton Road",
+     4.5
+    ]
+   ],
+   "note": "The drawing marks the street-side distances only; 6.0 m from Dunbarton Road for most of its length."
+  }
+ ],
+ "X282": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 321,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Valley Farm Road",
+     7.5
+    ],
+    [
+     "north lot line",
+     1.8
+    ],
+    [
+     "south lot line",
+     1.8
+    ],
+    [
+     "east lot lines",
+     1.8
+    ]
+   ],
+   "note": "1.2 m beside the lot that juts in from Valley Farm Road."
+  }
+ ],
+ "X303": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 419,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     15.0
+    ],
+    [
+     "north lot line",
+     10.0
+    ],
+    [
+     "hydro corridor",
+     10.0
+    ],
+    [
+     "lot lines of the corner lot",
+     10.0
+    ]
+   ]
+  }
+ ],
+ "X309": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 448,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "Dersan Street",
+     2.5
+    ],
+    [
+     "north lot line",
+     2.5
+    ],
+    [
+     "west lot line",
+     2.5
+    ]
+   ],
+   "note": "Build-to-zones 3.0 m to 4.0 m from Brock Road and 2.5 m to 4.0 m from Dersan Street."
+  }
+ ],
+ "X310": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 455,
+   "applies_to": "MD-HD-1",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Earl Grey Avenue",
+     3.0
+    ],
+    [
+     "William Jackson Drive",
+     3.0
+    ],
+    [
+     "east lot line (OS-HL zone)",
+     3.0
+    ],
+    [
+     "south-east lot line",
+     3.0
+    ]
+   ],
+   "note": "Build-to-zones 3 m to 4 m along both streets."
+  }
+ ],
+ "X316": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 483,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "west lot line (future road edge)",
+     3.0
+    ],
+    [
+     "north lot line",
+     6.0
+    ],
+    [
+     "south lot line",
+     1.5
+    ]
+   ],
+   "note": "Build-to-zones along Brock Road and the future road; 2.0 m and 4.0 m from the north lot line at its east end."
+  }
+ ],
+ "X318": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X216 to X437",
+   "page": 500,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     0.5
+    ],
+    [
+     "north lot line",
+     3.5
+    ],
+    [
+     "east lot line",
+     85.0
+    ],
+    [
+     "south lot line",
+     35.0
+    ]
+   ],
+   "note": "A build-to-zone 2.5 m deep behind the Brock Road setback. Figure 1 is a shared-parking table."
+  }
+ ],
+ "X322": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 525,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     4.0
+    ],
+    [
+     "north lot line",
+     14.0
+    ],
+    [
+     "east lot line",
+     22.0
+    ],
+    [
+     "south lot line",
+     8.0
+    ]
+   ],
+   "note": "A build-to-zone 4.0 m to 8.0 m from Brock Road."
+  }
+ ],
+ "X335": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 618,
+   "applies_to": "MU-32",
+   "unit": "m",
+   "setbacks": [
+    [
+     "Palmer's Sawmill Road",
+     3.0
+    ],
+    [
+     "Brock Road",
+     3.0
+    ],
+    [
+     "west lot line",
+     8.0
+    ],
+    [
+     "south lot line",
+     3.0
+    ]
+   ],
+   "note": "Build-to-zones along both streets. Figure 2 sets a minimum height of 11.5 m at the corner."
+  }
+ ],
+ "X338": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 636,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Brock Road",
+     2.0
+    ],
+    [
+     "William Jackson Drive",
+     1.5
+    ],
+    [
+     "Street 'A'",
+     3.0
+    ],
+    [
+     "east lot line",
+     3.0
+    ]
+   ],
+   "note": "Build-to-zones 2.0 m to 4.0 m from Brock Road and 1.5 m to 4.0 m from William Jackson Drive; 2.0 m from William Jackson Drive further east."
+  }
+ ],
+ "X435": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 804,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Altona Road",
+     3.0
+    ],
+    [
+     "north lot line",
+     1.2
+    ],
+    [
+     "south lot line",
+     3.0
+    ],
+    [
+     "Sparrow Circle",
+     3.0
+    ],
+    [
+     "east lot line",
+     6.0
+    ]
+   ]
+  }
+ ],
+ "X212": [
+  {
+   "figure": "Figure 2",
+   "document": "Exception Zones X1 to X215",
+   "page": 945,
+   "applies_to": "A36",
+   "unit": "ft",
+   "setbacks": [
+    [
+     "Liverpool Road",
+     25
+    ],
+    [
+     "Faylee Crescent",
+     25
+    ],
+    [
+     "south lot line",
+     30
+    ],
+    [
+     "north lot line",
+     10
+    ]
+   ]
+  }
+ ],
+ "X308": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 441,
+   "unit": "m",
+   "setbacks": [
+    [
+     "Four Seasons Lane",
+     2.0
+    ],
+    [
+     "Street 'A'",
+     3.0
+    ],
+    [
+     "Palmer's Sawmill Road",
+     3.0
+    ],
+    [
+     "Tillings Road",
+     5.0
+    ],
+    [
+     "west lot line",
+     5.0
+    ],
+    [
+     "south lot line",
+     6.0
+    ]
+   ],
+   "note": "3 m from Four Seasons Lane north of Palmer's Sawmill Road; 2 m to 7 m south of it. Build-to-zones along the streets."
+  }
+ ],
+ "X295": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 374,
+   "applies_to": "S1, S2, SD and SA",
+   "unit": "m",
+   "setbacks": [],
+   "yards": {
+    "S": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "S1": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "S2": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "SD": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "SA": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    }
+   },
+   "note": "A table of yards by zone: front 4.5 m, side 1.2 m, flankage 2.7 m, rear 7.5 m."
+  }
+ ],
+ "X289": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X216 to X437",
+   "page": 342,
+   "applies_to": "S, SD and SA",
+   "unit": "m",
+   "setbacks": [],
+   "yards": {
+    "S": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "S1": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "S2": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "SD": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "SA": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.0,
+     "exterior_side_yard": 2.4,
+     "rear_yard": 7.5
+    }
+   },
+   "note": "A table of yards by zone: front 4.5 m, side 1.2 m (1.0 m for SA), flankage 2.7 m (2.4 m for SA), rear 7.5 m."
+  }
+ ],
+ "X211": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 942,
+   "applies_to": "S, SD and SA",
+   "unit": "m",
+   "setbacks": [],
+   "yards": {
+    "S": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "S1": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "S2": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "SD": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    },
+    "SA": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.0,
+     "exterior_side_yard": 2.4,
+     "rear_yard": 7.5
+    }
+   },
+   "note": "A table of yards by zone: front 4.5 m, side 1.2 m (1.0 m for SA), flankage 2.7 m (2.4 m for SA), rear 7.5 m."
+  }
+ ]
+}
