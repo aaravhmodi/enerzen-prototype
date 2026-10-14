@@ -41,6 +41,9 @@ cd web && npm install && npm run dev           # web, http://localhost:3000
 ```
 
 `web/.env.local` sets `NEXT_PUBLIC_API_URL=http://localhost:8001` (default).
+The Pickering zoning page calls `NEXT_PUBLIC_ZONING_API_URL` when it is set: the City's data lives only on the
+home server, so the Vercel site points it at that server's API over Tailscale Funnel
+(`https://aaravdagoat.tail732914.ts.net:8443`).
 
 Before every push:
 

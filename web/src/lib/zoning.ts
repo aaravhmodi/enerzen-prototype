@@ -1,7 +1,8 @@
 // Pickering zoning: the server's stored copy of the City's data, plus Mapbox for addresses it lacks.
 import type { FeatureCollection, Feature } from "geojson";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+// The Pickering store lives only on the home server, so a hosted site points this at the server's own API.
+export const API_BASE = process.env.NEXT_PUBLIC_ZONING_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 export const PICKERING_LOCATION = "Pickering (Dunbarton)";
 // West, south, east, north: the City of Pickering with a small margin.
