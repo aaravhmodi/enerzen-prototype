@@ -772,3 +772,32 @@ def test_permitted_uses_name_the_enerzen_units_that_fit():
     assert found['dwellings'] == ['Apartment Dwelling', 'Street Townhouse Dwelling'] and found['other_uses'] == 1
     assert found['enerzen_units'] == ['Townhouse', 'MURB'] and found['page'] == 103
     assert pz.permitted_uses('S2', rules) is None
+
+
+def test_a_lot_in_a_drawn_block_takes_the_setbacks_of_the_lines_it_is_on(monkeypatch):
+    from types import SimpleNamespace
+    from shapely import STRtree
+    from shapely.geometry import LineString, box
+    from engine import pickering_zoning as pz
+
+    def layer(category, name, features):
+        return SimpleNamespace(meta={'category': category, 'name': name}, features=features,
+                               tree=STRtree([g for _, g in features]), _indexed=list(range(len(features))))
+    block = box(0, 0, 40, 30)  # exception X9, two lots side by side, Bayly Street along its south edge
+    layers = [layer('zoning', 'Zoning', [({'ZONING_CODE': 'M15', 'EXCEPTION_NUM': '9'}, block)]),
+              layer('roads', 'Road Centreline', [({'FULL_NAME': 'Bayly Street'}, LineString([(-50, -8), (90, -8)]))])]
+    figure = [{'figure': 'Figure 1', 'setbacks': [{'from': 'Bayly Street', 'value_m': 4.0, 'stated': '4 m'},
+                                                  {'from': 'east lot line', 'value_m': 7.5, 'stated': '7.5 m'}]}]
+    lot = lambda: {'exceptions': ['X9'], 'figure_setbacks': figure, 'basis': 'figure', 'complete': False,
+                   'setbacks_by_side': {s: {'applies': a, 'value': None} for s, a in
+                                        zip('NESW', ('rear_yard', 'interior_side_yard', 'front_yard', 'interior_side_yard'))}}
+    east, west = lot(), lot()
+    pz._sides_from_figures(layers, box(20, 0, 40, 30), east, {'rotation_deg': 0})
+    pz._sides_from_figures(layers, box(0, 0, 20, 30), west, {'rotation_deg': 0})
+    assert {s: e['value'] for s, e in east['setbacks_by_side'].items()} == {'N': None, 'E': 7.5, 'S': 4.0, 'W': 0.0}
+    assert east['complete'] is False  # the north edge is the block's, and the drawing names no north line
+    assert {s: e['value'] for s, e in west['setbacks_by_side'].items()} == {'N': None, 'E': 0.0, 'S': 4.0, 'W': None}
+    figure[0]['setbacks'] += [{'from': 'north and west lot lines', 'value_m': 3.0, 'stated': '3 m'}]
+    west = lot()
+    pz._sides_from_figures(layers, box(0, 0, 20, 30), west, {'rotation_deg': 0})
+    assert west['complete'] and west['basis'] == 'figure_mapped' and west['buildable_area_m2'] == (20 - 3) * (30 - 3 - 4)

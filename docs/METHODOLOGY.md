@@ -585,6 +585,16 @@ and O. Reg. 545/06. The API reads only that stored copy.
   dwelling unit), 3-Bedroom house (detached), Townhouse (street or block
   townhouse, multiple attached) and MURB (apartment). An exception zone's uses
   are in its own text and are not listed.
+- **Yards from an exception's drawing** — where an exception draws its
+  setbacks for a whole block ("4 m from Bayly Street", "south lot line")
+  rather than stating them, each lot side is matched to a line: a side facing
+  a street the drawing names (the City's road centreline name, within 25 m)
+  takes that setback; a side running at least half its length along the
+  block's outline (the exception's zoning polygons) takes the setback of the
+  outline's edge in that direction; a side inside the block takes 0 m, as the
+  drawing sets nothing from it. Lines the drawing names by item, plan, zone or
+  feature are not guessed at. Where parts of the drawing differ for the same
+  line, the larger setback is shown.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

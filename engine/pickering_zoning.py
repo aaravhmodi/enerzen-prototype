@@ -308,7 +308,66 @@ def _apply_rules(layers, geom, code, rules) -> tuple[dict, dict | None]:
     streets, lanes = _streets_and_lanes(layers, geom, lot_rules.FRONTING_M + 100) if geom is not None else ([], [])
     dims = lot_dimensions(geom, streets or lanes)
     attached = lot_rules.attached_sides(geom, dims['rotation_deg'], _footprints(layers, geom)) if dims else []
-    return lot_rules.apply_to_lot(geom, code, rules, streets, dims, lanes, attached, _neighbour_zones(layers, geom)), dims
+    lot = lot_rules.apply_to_lot(geom, code, rules, streets, dims, lanes, attached, _neighbour_zones(layers, geom))
+    if lot['basis'] == 'figure' and lot['figure_setbacks'] and dims:
+        _sides_from_figures(layers, geom, lot, dims)
+    return lot, dims
+
+
+COMPASS = {'north': 'N', 'south': 'S', 'east': 'E', 'west': 'W'}
+
+
+def _sides_from_figures(layers, geom, lot: dict, dims: dict):
+    """Give a lot its yards from the drawing its exception sets them on.
+
+    The drawing sets each setback from a street or from a named edge of the whole block ("south lot
+    line"), not from each lot in it. A side facing a street the drawing names takes that street's
+    setback; a side on the block's edge takes the setback of the edge in that direction; a side
+    inside the block faces neither, and the drawing asks nothing of it. Where an exception draws
+    several parts with different setbacks for the same line, the larger is taken.
+    """
+    rotation, centre = dims['rotation_deg'], geom.centroid
+    numbers = [int(x[1:]) for x in lot['exceptions']]
+    block = [g for l in layers if l.meta['category'] == 'zoning' and l.tree is not None
+             for i in l.tree.query(geom)
+             for attrs, g in [l.features[l._indexed[int(i)]]]
+             if (n := re.findall(r'\d+', str(_pick(attrs, r'^exception') or ''))) and int(n[0]) in numbers]
+    block = shapely.union_all([g.buffer(0.5) for g in block]).buffer(-0.5) if block else None
+    on_edge = set()
+    if block is not None and not block.is_empty:
+        near_edge = block.boundary.buffer(1.5)
+        ring = list((geom.geoms[0] if hasattr(geom, 'geoms') else geom).exterior.coords)
+        for a, b in zip(ring, ring[1:]):  # each edge on its own: along the block's edge, they join at the corners
+            segment = shapely.geometry.LineString([a, b])
+            if segment.length > 2 and segment.intersection(near_edge).length >= segment.length / 2:
+                on_edge.add(lot_rules._side_of(centre, segment.interpolate(0.5, normalized=True), rotation))
+    named = [(str(_pick(a, r'^full_?name$', r'^name$') or ''), g) for l in _street_layers(layers)
+             for i in l.tree.query(geom.buffer(lot_rules.FRONTING_M + 10)) for a, g in [l.features[l._indexed[int(i)]]]]
+    found = {}
+    for figure in lot['figure_setbacks']:
+        for setback in figure['setbacks']:
+            line, value = setback['from'].lower(), setback['value_m']
+            sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
+                     if name and name.lower() in line and g.distance(geom) <= lot_rules.FRONTING_M + 10}
+            if not sides and 'lot line' in line and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', line):
+                sides = {COMPASS[w] for w in re.findall(r'north|south|east|west', line)} & on_edge
+            for side in sides:
+                found.setdefault(side, []).append((value, f"{figure['figure']}: {setback['stated']} from {setback['from']}"))
+    for side, entry in lot['setbacks_by_side'].items():
+        if entry['value'] is not None:
+            continue
+        if side in found:
+            value, said = max(found[side])
+            entry.update(value=round(value, 2), note=f"Exception {', '.join(lot['exceptions'])}, {said}"
+                         + ('; the drawing gives other parts other setbacks, and the larger is shown' if len({v for v, _ in found[side]}) > 1 else ''))
+        elif block is not None and side not in on_edge:
+            entry.update(value=0.0, note="Inside the block the exception's drawing covers: it sets setbacks only from "
+                                         "the block's outer lines and streets.")
+    if all(e['value'] is not None for e in lot['setbacks_by_side'].values()):
+        envelope = lot_rules._envelope(geom, rotation, {s: lot['setbacks_by_side'][s]['value'] for s in 'NESW'})
+        lot.update(complete=True, basis='figure_mapped', _envelope=envelope,
+                   buildable_area_m2=round(envelope.area, 1) if envelope is not None else None,
+                   basis_note="Yards read from the exception's drawing, side by side; see each side's note.")
 
 
 def _neighbour_zones(layers, geom) -> dict:
