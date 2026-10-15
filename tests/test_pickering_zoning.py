@@ -787,7 +787,7 @@ def test_a_lot_in_a_drawn_block_takes_the_setbacks_of_the_lines_it_is_on(monkeyp
     layers = [layer('zoning', 'Zoning', [({'ZONING_CODE': 'M15', 'EXCEPTION_NUM': '9'}, block)]),
               layer('roads', 'Road Centreline', [({'FULL_NAME': 'Bayly Street'}, LineString([(-50, -8), (90, -8)]))])]
     figure = [{'figure': 'Figure 1', 'setbacks': [{'from': 'Bayly Street', 'value_m': 4.0, 'stated': '4 m'},
-                                                  {'from': 'east lot line', 'value_m': 7.5, 'stated': '7.5 m'}]}]
+                                                  {'from': 'east lot line (top of bank)', 'value_m': 7.5, 'stated': '7.5 m'}]}]
     lot = lambda: {'exceptions': ['X9'], 'figure_setbacks': figure, 'basis': 'figure', 'complete': False,
                    'setbacks_by_side': {s: {'applies': a, 'value': None} for s, a in
                                         zip('NESW', ('rear_yard', 'interior_side_yard', 'front_yard', 'interior_side_yard'))}}

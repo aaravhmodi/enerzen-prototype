@@ -349,8 +349,10 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
             line, value = setback['from'].lower(), setback['value_m']
             sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
                      if name and name.lower() in line and g.distance(geom) <= lot_rules.FRONTING_M + 10}
-            if not sides and 'lot line' in line and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', line):
-                sides = {COMPASS[w] for w in re.findall(r'north|south|east|west', line)} & on_edge
+            # "south lot line (MD-H6 zone)": the bracket says what lies beyond the line, not which line.
+            plain = re.sub(r'\([^)]*\)', '', line)
+            if not sides and 'lot line' in plain and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', plain):
+                sides = {COMPASS[w] for w in re.findall(r'north|south|east|west', plain)} & on_edge
             for side in sides:
                 found.setdefault(side, []).append((value, f"{figure['figure']}: {setback['stated']} from {setback['from']}"))
     for side, entry in lot['setbacks_by_side'].items():
