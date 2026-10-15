@@ -593,6 +593,27 @@ and O. Reg. 545/06. The API reads only that stored copy.
   detached, semi-detached or townhouse dwelling, Planning Act s.35.1 permits a
   unit in an ancillary building on serviced urban land, and the check says so.
 
+- **Servicing** — Durham publishes no water or sewer mains. A lot inside the
+  City's urban area (its Official Plan layer) is where the Regional Official
+  Plan plans full municipal water and sewer; outside it a home is expected to
+  be on a private well and septic system. The Region confirms any connection.
+- **Development charges** — `scripts/dev_charges.py` reads the current
+  pamphlets linked from the City's and the Region's development charges pages
+  (City city-wide and Seaton; Region region-wide and Seaton water and sewer),
+  row by row, and keeps a table only when its rows add up to the pamphlet's
+  own total (±$5 a column). A "Total" row equal to the rows since the last
+  subtotal is a subtotal; one equal to neither (Seaton's soft services) is a
+  charge. The City's pamphlet prints each year's rates over the last in
+  another font, so where the plain text does not add up, a word covered by a
+  later-drawn word is dropped. A new house pays the City (city-wide, or
+  Seaton's schedule), the Region (its region-wide water and sewer only where
+  municipal services are planned and never in Seaton, which pays its own) and
+  the school boards' education charge. A garden suite pays no City or Region
+  charge (Development Charges Act, 1997, s. 2(3.2)–(3.3)); the boards' charge
+  is flagged to confirm. The soft-cost allowance (section 6.9) still carries
+  development charges inside its 25%, so these figures are shown beside the
+  cost, not added to it.
+
 - **Geometry** — coordinates are projected to local metres around latitude
   43.85 (equirectangular: 111,132 m per degree of latitude, 111,320 × cos(43.85°)
   m per degree of longitude), so areas and distances read in metres; the error

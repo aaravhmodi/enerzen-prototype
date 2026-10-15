@@ -117,14 +117,23 @@ export type StoredDoc = { title: string; url: string; file: string; pages?: numb
 
 type Cite = { document?: string; page?: number | null; file?: string | null; number?: string };
 export type AdditionalUnits = {
-  zone: string; permitted_in_zone: boolean; zone_table: Cite; section: Cite; blockers: string[]; checks: string[];
+  zone: string; permitted_in_zone: boolean | null; zone_table: Cite; section: Cite; blockers: string[]; checks: string[];
   max_height_m?: number; min_interior_side_m?: number; min_rear_m?: number; taller_than_m?: number;
   min_side_rear_if_taller_m?: number; max_floor_area_m2?: number; max_share_of_house_pct?: number;
   coverage_pct?: number; footprint_left_m2?: number | null; path_fits?: boolean | null; existing_units?: number;
 };
 
+export type DevCharges = {
+  kind: string; total: number; retrieved_at: string;
+  lines: { authority: string; area?: string; amount: number; services: Record<string, number>; effective?: string | null; url: string }[];
+  garden_suite: { municipal: number; basis: string; school_boards: number | null };
+};
+export type Servicing = { municipal_expected: boolean; in_urban_area: boolean; in_hamlet: boolean; source?: string | null; note: string };
+
 export type Lookup = {
   additional_units?: AdditionalUnits | null;
+  development_charges?: DevCharges | null;
+  servicing?: Servicing | null;
   status: "available" | "not_found" | "not_scraped" | string;
   label: string;
   detail: string;

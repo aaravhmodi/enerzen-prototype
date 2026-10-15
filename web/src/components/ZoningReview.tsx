@@ -6,6 +6,7 @@ import { useUnits } from "@/lib/units";
 import ZoneStandards from "./ZoneStandards";
 import LotSetbacks from "./LotSetbacks";
 import GardenSuite from "./GardenSuite";
+import DevCharges from "./DevCharges";
 
 const GROUP_LABELS: Record<string, string> = {
   zoning_bylaw: "Zoning by-laws",
@@ -204,14 +205,23 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
       <Step n={3} title="Proposed development">
         <LotSetbacks lot={s["3_proposed_development"].lot_standards} />
         {lookup.additional_units && <GardenSuite aru={lookup.additional_units} />}
+        {lookup.development_charges && (
+          <DevCharges dc={lookup.development_charges} gardenSuite={!!lookup.additional_units?.permitted_in_zone} />
+        )}
         <ZoneStandards standards={s["3_proposed_development"].zone_standards_in_bylaw_text} />
         <Checklist label="You supply" items={s["3_proposed_development"].applicant_must_supply} />
         <p className="zr-muted">{s["3_proposed_development"].check_against}</p>
       </Step>
 
       <Step n={4} title="Site characteristics">
-        <h4>Servicing within 60 m</h4>
-        <Hits hits={site.servicing_nearby} empty="No servicing layer features nearby in the City data." />
+        <h4>Servicing</h4>
+        {lookup.servicing && <p className={lookup.servicing.municipal_expected ? "zr-ok" : "zr-muted"}>{lookup.servicing.note}</p>}
+        {site.servicing_nearby.length > 0 && (
+          <details>
+            <summary>Storm and other mapped services within 60 m ({site.servicing_nearby.length})</summary>
+            <Hits hits={site.servicing_nearby} empty="" />
+          </details>
+        )}
         <h4>Adjacent zoning (within 30 m)</h4>
         <Hits hits={site.adjacent_zoning} empty="No other zone within 30 m in the City data." />
         <h4>Topography</h4>

@@ -12,6 +12,7 @@ export default function GardenSuite({ aru }: { aru: AdditionalUnits }) {
         {what}, p. {c.page}
       </a>
     ) : null;
+  if (aru.permitted_in_zone === null) return <>{aru.checks.map((c) => <p key={c} className="zr-muted">{c}</p>)}</>;
   if (!aru.permitted_in_zone)
     return <p className="zr-bad">Zone {aru.zone} does not permit additional dwelling units ({src(aru.zone_table, "use table")}).</p>;
   const ok = aru.blockers.length === 0;

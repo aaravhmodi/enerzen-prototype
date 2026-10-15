@@ -19,7 +19,7 @@ import shapely.ops
 from shapely import STRtree
 from shapely.geometry import Point, mapping
 
-from engine import lot_rules
+from engine import dev_charges, lot_rules
 
 DEFAULT_STORE = Path(__file__).parent.parent / 'data' / 'municipal' / 'pickering'
 FIGURE_SETBACKS = Path(__file__).parent.parent / 'data' / 'pickering_figure_setbacks.json'
@@ -176,7 +176,7 @@ def _footprints(layers, geom) -> list:
     return [layer.features[layer._indexed[int(i)]][1] for i in layer.tree.query(geom)] if layer else []
 
 
-def additional_units(layers, geom, code, rules, overlays, standards) -> dict | None:
+def additional_units(layers, geom, code, rules, overlays, standards, urban: bool | None = None) -> dict | None:
     """Can this lot take a garden suite (an additional dwelling unit in an accessory building)?
 
     From the by-law's own permitted-use tables and its section 4.3 (or Seaton's 14.2.9), read by
@@ -216,9 +216,14 @@ def additional_units(layers, geom, code, rules, overlays, standards) -> dict | N
             out['blockers'].append(f'In {name}: {rule}.')
         elif share > 0:
             out['checks'].append(f'{share:g}% of the lot is in {name} ({rule}); a new garden suite must sit outside it.')
+    if basis == 'planning_act' and urban is False:
+        out['permitted_in_zone'] = None
+        out['checks'].append(f"Exception zone {', '.join(exceptions)}: outside the urban area Planning Act s.35.1 does "
+                             "not apply, so only the exception's own text can permit a garden suite.")
+        return out
     if basis == 'planning_act':
-        out['checks'].append(f"Exception zone {', '.join(exceptions)} permits houses, so Planning Act s.35.1 permits a "
-                             'garden suite if the lot has municipal water and sewer.')
+        out['checks'].append(f"Exception zone {', '.join(exceptions)} permits houses and the lot is in the urban area, "
+                             'so Planning Act s.35.1 permits a garden suite.')
     if on_lot('floodplain', r'regulat'):
         out['checks'].append('In the conservation authority regulated area: no additional unit on hazardous lands; '
                              'the authority confirms where the hazard limit falls.')
@@ -837,7 +842,20 @@ def lookup(latitude: float, longitude: float) -> dict:
     rules = zone_rules()
     standards, dimensions = _apply_rules(layers, parcel['_geom'] if parcel else None, primary_zone, rules)
     envelope = standards.pop('_envelope')
-    garden_suite = additional_units(layers, parcel['_geom'] if parcel else None, primary_zone, rules, overlays, standards)
+    # Durham publishes no water or sewer mains; the City's urban area is where the Regional Official
+    # Plan plans full municipal services, and outside it a home is on a private well and septic system.
+    urban = [h for h in official_plan if re.search(r'urban_?area$', h['layer'], re.I) and h['distance_m'] == 0]
+    hamlet = [h for h in official_plan if re.search(r'hamlet', h['layer'], re.I) and h['distance_m'] == 0]
+    servicing_status = {
+        'municipal_expected': bool(urban), 'in_urban_area': bool(urban), 'in_hamlet': bool(hamlet),
+        'source': (urban or hamlet or [{}])[0].get('source_url'),
+        'note': ('Inside the urban area, planned for municipal water and sewer; the Region confirms the connection.'
+                 if urban else 'Outside the urban area: a private well and septic system unless the Region says otherwise.'),
+    } if official_plan else None
+    seaton = any(str(h['attributes'].get('ZONING_AREA', '')).lower() == 'seaton' for h in zoning)
+    garden_suite = additional_units(layers, parcel['_geom'] if parcel else None, primary_zone, rules, overlays, standards,
+                                    servicing_status['in_urban_area'] if servicing_status else None)
+    charges = dev_charges.for_lot(store_dir(), seaton, servicing_status['municipal_expected'] if servicing_status else None)
 
     property_id = None
     if parcel:
@@ -875,6 +893,8 @@ def lookup(latitude: float, longitude: float) -> dict:
         }.items() if v},
         'source_url': zoning[0]['source_url'] if zoning else None,
         'additional_units': garden_suite,
+        'servicing': servicing_status,
+        'development_charges': charges,
         'buildable_area': mapping(_to_wgs84(envelope)) if envelope is not None else None,
         'source_label': 'City of Pickering zoning (stored on this server)',
         'steps': {
