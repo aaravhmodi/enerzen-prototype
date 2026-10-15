@@ -234,7 +234,9 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
         # A figure that is a table of yards by zone (read from the drawing; see figure_setbacks) gives
         # the yards the text leaves to it, and anything the text states still has the last word.
         drawn = [(key, {'value': value, 'unit': 'm', 'document': figure['document'], 'page': figure['page'],
-                        **({'common_wall': figure['common_wall']} if key == 'interior_side_yard' and figure.get('common_wall') else {})},
+                        **({'common_wall': figure['common_wall']} if key == 'interior_side_yard' and figure.get('common_wall') else {}),
+                        **({'deeper': (figure.get('deeper') or {})[key], 'note': figure.get('note')}
+                           if key in (figure.get('deeper') or {}) else {})},
                   f"Exception {exception}, {figure['figure']}")
                  for figure in section.get('figures', [])
                  for key, value in (_own(figure.get('yards') or {}, designation, base) or {}).items()]
@@ -365,6 +367,9 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                    'exterior_side_yard' if side == flank else 'interior_side_yard')
             # Without an exterior side yard in the by-law, the flank falls back to the interior one, said so.
             rule = standards.get(key) or (standards.get('interior_side_yard') if key == 'exterior_side_yard' else None)
+            # "for lot depths greater than 40.0 metres: 10.0 metres": [40.0, 10.0], the deeper lot's figure.
+            if rule and rule.get('deeper') and dimensions and dimensions.get('depth_m', 0) > rule['deeper'][0]:
+                rule = {**rule, 'value': rule['deeper'][1]}
             unasked = bool(street_line) and rule is None and key in ('rear_yard', 'interior_side_yard')
             if street_line and rule is None:
                 rule = {**street_line, 'value': 0.0} if unasked else street_line

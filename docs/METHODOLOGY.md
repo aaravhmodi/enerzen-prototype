@@ -625,6 +625,15 @@ and O. Reg. 545/06. The API reads only that stored copy.
   By-law 2511"), the lot takes that section's zone. A table dash with a note
   ("-(2)") is none required with the note's condition beside it, unless the
   note applies another zone's requirements.
+- **Drawn streets, edge by edge** — which sides of a lot a street named on a
+  drawing faces is judged from the lot's own edges: a side whose edge's
+  midpoint is about as near the street as the nearest edge's (within 1.5× + 3
+  m) faces it, so a street bending round a corner faces both sides. A
+  drawing's street matches the City's road name, or, where only the street's
+  type has changed since ("Oklahoma Road", now Oklahoma Drive), its name
+  without the type when one street near the lot has it. A yard an exception
+  sets by lot depth (X62: 7.5 m, or 10.0 m on lots over 40.0 m deep) takes the
+  figure for the lot's measured depth.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

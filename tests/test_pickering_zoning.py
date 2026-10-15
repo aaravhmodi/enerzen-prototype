@@ -879,3 +879,16 @@ def test_a_street_bending_round_a_corner_faces_both_sides_and_a_long_one_only_it
            'setbacks_by_side': {s: {'applies': 'x', 'value': None} for s in 'NESW'}}
     pz._sides_from_figures(layers, box(0, 0, 40, 30), lot, {'rotation_deg': 0})
     assert {s: e['value'] for s, e in lot['setbacks_by_side'].items()} == {'N': 4.0, 'E': None, 'S': 9.1, 'W': 9.1}
+
+
+def test_a_rear_yard_set_by_lot_depth_takes_the_deeper_figure_on_a_deep_lot():
+    from shapely.geometry import box, LineString
+    from engine import lot_rules
+    rules = {'zones': {}, 'exceptions': {'X62': {'figures': [{'figure': 'Zone Requirements', 'document': 'd', 'page': 235,
+        'yards': {'S4-9': {'rear_yard': 7.5}}, 'deeper': {'rear_yard': [40.0, 10.0]}, 'note': 'by depth', 'setbacks': []}]}}}
+    street = [LineString([(-50, -5), (50, -5)])]
+    for depth, rear in ((35, 7.5), (45, 10.0)):
+        lot = box(0, 0, 15, depth)
+        dims = {'width_m': 15, 'depth_m': depth, 'rotation_deg': 0, 'rectangularity': 1, 'street_side': 'S'}
+        found = lot_rules.apply_to_lot(lot, 'S4-9-X62', rules, street, dims)
+        assert found['setbacks_by_side']['N']['value'] == rear
