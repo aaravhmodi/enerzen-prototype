@@ -519,3 +519,19 @@ def test_a_bare_dash_under_a_minimum_needs_none_and_a_noted_dash_waits_for_its_n
     found, _ = rules_from_table(rows, '', {'document': 'By-law 8149/24', 'page': 138})
     assert found['UT']['front_yard']['value'] == 0.0 and found['UT']['front_yard']['none_required']
     assert 'building_height' not in found['UT'] and 'front_yard' not in found.get('UR', {})
+
+
+def test_a_former_bylaws_zone_sections_in_feet_and_the_volumes_its_exceptions_came_from():
+    pages = ['SECTION 5 - GENERAL PROVISIONS FOR ALL ZONES Side Yard - Minimum 99 feet',
+             'SECTION 10 - ONE-FAMILY DETACHED DWELLING FOURTH DENSITY ZONE R-4 The following 10.2.1 Lot Frontage: Minimum - '
+             '50 feet 10.2.2 Lot Area: Minimum - 5,000 square feet 10.2.3 Yard Requirements: Front Yard - Minimum 25 feet '
+             'Rear Yard 25 feet minimum Side Yard Minimum one side six (6) feet, other side ten (10) feet 10.2.6 Lot '
+             'Coverage: Maximum - l0 per cent',
+             'SECTION 14 - GENERAL COMMERCIAL ZONE C2 Front Yard - Minimum 60 feet']
+    zones = zone_rules.former_zones(pages, {'document': 'By-law 2511 (former parent by-law)'})
+    r4 = zones['R4']
+    assert (r4['lot_frontage']['value'], r4['lot_area']['value'], r4['front_yard']['value'], r4['rear_yard']['value']) == (15.24, 464.52, 7.62, 7.62)
+    assert (r4['interior_side_yard']['value'], r4['interior_side_yard']['other_side'], r4['lot_coverage']['value']) == (1.83, 3.05, 10.0)
+    assert r4['front_yard']['page'] == 2 and zones['C2']['front_yard']['value'] == 18.29 and 'S' not in zones
+    volumes = zone_rules.former_volumes([{'url': 'x/2511_-Exception-Zones_V3-X1-to-X3-X413-to-X414---CLEAN.pdf'}])
+    assert volumes == {'X1': '2511', 'X2': '2511', 'X3': '2511', 'X413': '2511', 'X414': '2511'}

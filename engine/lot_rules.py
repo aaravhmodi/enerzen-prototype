@@ -85,6 +85,21 @@ def _zone_table(base: str, designation: str, rules: dict) -> tuple[str, dict]:
     return base, {}
 
 
+def _former_table(base: str, exceptions: list[str], rules: dict) -> tuple[str, dict]:
+    """The zone's standards in the former parent by-law an exception was carried forward from (By-law
+    8149/24 s. 16.2.1 keeps 2511, 2520, 3036 and 3037 in effect for those exceptions): the by-law the
+    exception's text names, else the one whose exception volume it came from."""
+    former = rules.get('former') or {}
+    for exception in exceptions:
+        text = (rules.get('exceptions', {}).get(exception) or {}).get('text', '')
+        named = re.findall(r'By-?law (?:No\.\s*)?(2511|2520|3036|3037)\b', text)
+        for number in dict.fromkeys(named + [(rules.get('former_of') or {}).get(exception)]):
+            table = ((former.get(number) or {}).get('zones') or {}).get(base)
+            if table:
+                return f'{base}, By-law {number} (former)', {k: v for k, v in table.items() if not k.startswith('_')}
+    return base, {}
+
+
 def _own(by_zone: dict, designation: str, base: str):
     """The entry for a lot's zone in an exception's zone-by-zone provisions: its own designation, else
     the designation shorn of trailing parts ("R3-5-ES" is under "R3-5"), else the base zone."""
@@ -196,6 +211,8 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
     designation = re.sub(r'[-\s(]*X\s?\d+\)?', '', code.upper()).strip('- ')
     resolved = {}
     zone, table = _zone_table(base, designation, rules)
+    if not table:
+        zone, table = _former_table(base, exceptions, rules)
     row = _table_row(table, frontage_m, lane_lot, joined)
     for key, rule in table.items():
         resolved[key] = {**_in_row(rule, row), 'from': f'Zone {zone} table' + (f', "{row}" row' if row else ''),

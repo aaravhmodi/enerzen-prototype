@@ -602,6 +602,19 @@ and O. Reg. 545/06. The API reads only that stored copy.
   exception's opening. A yards table an exception prints as a figure (X159,
   X160) is transcribed with the rest of the drawings; where it gives setbacks
   per pair of semi-detached dwellings, the common wall takes none.
+- **Former parent by-laws** — 8149/24 s. 16.2.1 supersedes By-laws 2511, 2520,
+  3036 and 3037 but keeps them in effect for the exception zones carried
+  forward from them, and such an exception often changes one figure and leaves
+  the rest to its parent zone ("Notwithstanding subsection 10.2.3 of By-law
+  2511"). The City publishes them only as scans; `scripts/former_bylaws.py`
+  stores the recognised text its archive serves for each page, and each zone
+  section ("SECTION 10 - ... ZONE R4") is read for frontage, lot area, front,
+  rear, side and flankage yards, coverage and height, in feet converted to
+  metres (×0.3048; square feet ×0.0929). The first case a section states is
+  kept (the serviced lot; the first kind of building). A lot whose zone has
+  no 8149/24 table takes its parent zone from the by-law its exception names,
+  else the by-law whose exception volume it came from; the exception's own
+  figures still have the last word.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

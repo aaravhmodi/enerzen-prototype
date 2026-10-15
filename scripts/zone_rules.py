@@ -764,6 +764,79 @@ ARU_FIGURES = {
 }
 
 
+FEET = 0.3048
+# A former by-law's zone section: "SECTION 10 - ONE-FAMILY DETACHED DWELLING FOURTH DENSITY ZONE R-4".
+FORMER_SECTION = re.compile(r'SECTION\s+(\d+[A-Z]?)\s*[-–]?\s*([A-Z][A-Z \-,&/()\'.]{3,120}?)\bZONES?\b\s*[-–]?\s*"?'
+                            r'([A-Z0-9]{1,3}(?:-?\d{1,2})?[A-Z]?)"?(?=[\s:,.])')
+_N = r'(?:[a-z]+\s*\()?(\d+(?:\.\d+)?)\)?'  # "25" or "six (6)"
+_FT = r'\s*(feet|foot|ft\.?|metres?)'
+FORMER_FIGURES = {
+    'lot_frontage': (rf'Lot Frontage:?\s*[-–]?\s*Minimum\s*[-–]?\s*{_N}{_FT}', 'minimum'),
+    'lot_area': (r'Lot Area:?\s*[-–]?\s*Minimum\s*[-–]?\s*([\d,]+)\s*(square feet|sq\.? ?ft|square metres)', 'minimum'),
+    'front_yard': (rf'Front Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
+    'rear_yard': (rf'Rear Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
+    'exterior_side_yard': (rf'Flankage (?:Side )?Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
+    'interior_side_yard': (rf'Side Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?(?:on\s+)?(?:one side\s*)?{_N}{_FT}'
+                           rf'(?:\s*(?:minimum)?,?\s*(?:and\s+)?(?:on\s+the\s+)?other side\s*{_N}{_FT})?', 'minimum'),
+    'lot_coverage': (r'Lot Coverage:?\s*[-–]?\s*Maximum[^%\d]{0,60}?(\d+(?:\.\d+)?)\s*per\s?cent', 'maximum'),
+    'building_height': (rf'Height[^:]{{0,30}}:?\s*[-–]?\s*Maximum\s*[-–]?\s*{_N}{_FT}', 'maximum'),
+}
+FORMER_CODE = {'MI': 'M1', '01': 'O1', '02': 'O2', '03A': 'O3A', 'R-4': 'R4', 'R-3': 'R3'}
+
+
+def former_zones(pages: list[str], source: dict) -> dict:
+    """{zone: {standard: rule}} from a former parent by-law's zone sections, read from the archive's
+    recognised text. Its figures are in feet and square feet and are given in metres, the figure as
+    written kept beside. Where a section sets requirements for several kinds of building (the RM2
+    zone: multiple attached dwellings, then apartments), the first stated is kept, as in the tables."""
+    text, offsets = '', []
+    for number, page in enumerate(pages, 1):
+        offsets.append((len(text), number))
+        # The scans' text reads a one as "l" or "I" and a nought as "O" inside figures: "l0 per cent".
+        page = re.sub(r'(?<![A-Za-z])[lI](?=\d)|(?<=\d)[lI](?=\d)', '1', page)
+        text += ' '.join(re.sub(r'(?<=\d)O(?=\d)', '0', page).split()) + ' '
+    page_at = lambda pos: max(n for start, n in offsets if start <= pos)
+    heads = list(FORMER_SECTION.finditer(text))
+    found = {}
+    for i, head in enumerate(heads):
+        code = head.group(3)
+        zone = FORMER_CODE.get(code, code.replace('-', '') if re.fullmatch(r'R-\d', code) else code)
+        # "SECTION 5 - GENERAL PROVISIONS FOR ALL ZONES" sets no zone; a zone a by-law restates is read once.
+        if re.search(r'GENERAL PROVISIONS|\bALL\b', head.group(2)) or not re.search('[A-Z]', zone) or zone in found:
+            continue
+        start, end = head.end(), heads[i + 1].start() if i + 1 < len(heads) else min(len(text), head.end() + 6000)
+        body = text[start:end]
+        rules = {}
+        for key, (pattern, bound) in FORMER_FIGURES.items():
+            m = re.search(pattern, body, re.I)
+            if not m:
+                continue
+            value, unit = float(m.group(1).replace(',', '')), (m.group(2) if m.lastindex >= 2 else '%').lower()
+            per = 1.0 if unit.startswith(('metre', 'square metre')) else FEET ** 2 if 'square' in unit or 'sq' in unit else FEET
+            rule = {'value': round(value * per, 2), 'unit': 'm2' if key == 'lot_area' else 'm', 'raw': m.group(0),
+                    'bound': bound, 'label': m.group(0).split(':')[0].split(' - ')[0], **source, 'page': page_at(start + m.start())}
+            if key == 'lot_coverage':
+                rule.update(value=value, unit='%')
+            if key == 'interior_side_yard' and m.group(3):
+                rule['other_side'] = round(float(m.group(3)) * (1.0 if m.group(4).lower().startswith('metre') else FEET), 2)
+            rules[key] = rule
+        if rules:
+            found[zone] = {**rules, '_section': head.group(1)}
+    return found
+
+
+def former_volumes(documents: list[dict]) -> dict:
+    """{"X12": "2511"}: which former by-law each carried-forward exception came from, from the names of the
+    by-law review's exception volumes ("2511_-Exception-Zones_V3-X1-to-X91-X413-to-X414")."""
+    owner = {}
+    for doc in documents:
+        m = re.search(r'(2511|2520|3036|3037)_-?Exception-Zones_V\d+-(.+?)(?:---|\.pdf)', str(doc.get('url')), re.I)
+        for a, b in re.findall(r'X(\d+)(?:-to-X(\d+))?', m.group(2)) if m else ():
+            for n in range(int(a), int(b or a) + 1):
+                owner.setdefault(f'X{n}', m.group(1))
+    return owner
+
+
 MARK = re.compile(r' ●|^●|  ')  # where a row's cells begin: its first mark, or a blank first cell
 
 
@@ -970,7 +1043,14 @@ def extract(documents: list[dict], store: Path) -> dict:
                 exceptions[code].setdefault('by_lot_type', {}).update(by_type)
     families = {family: sorted(z for z in established if z.startswith(family[:-1]) and z != family[:-1])
                 for family in zones if family.endswith('*')}
+    # The former parent by-laws an exception zone still rests on (scripts/former_bylaws.py stores their text).
+    former, index = {}, store / 'former_bylaws.json'
+    for number, entry in (json.loads(index.read_text(encoding='utf-8'))['bylaws'] if index.exists() else {}).items():
+        pages = json.loads((store / entry['text_file']).read_text(encoding='utf-8'))
+        source = {'document': entry['document'], 'url': entry['url'], 'file': None}
+        former[number] = {'zones': former_zones(pages, source), 'document': entry['document'], 'url': entry['url']}
     return {'zones': zones, 'exceptions': exceptions, 'families': families, 'additional_units': additional_units, 'uses': uses,
+            'former': former, 'former_of': former_volumes(documents),
             'unparsed': unparsed[:500], 'documents_read': read,
             'table_reader': 'pdfplumber' if pdfplumber else None}
 

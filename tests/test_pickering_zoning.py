@@ -807,3 +807,15 @@ def test_an_exception_zone_with_an_overlay_suffix_finds_its_provisions():
     from engine import lot_rules
     rules = {'zones': {}, 'exceptions': {'X210': {'by_zone': {'R3-5': {'rear_yard': {'value': 7.5, 'unit': 'm'}}}}}}
     assert lot_rules.resolve('R3-5-ES-X210', rules)['rear_yard']['value'] == 7.5
+
+
+def test_an_old_exception_falls_back_to_its_former_parent_zone():
+    from engine import lot_rules
+    rules = {'zones': {}, 'former_of': {'X33': '3036'},
+             'former': {'2511': {'zones': {'R4': {'front_yard': {'value': 7.62}, 'rear_yard': {'value': 7.62}, '_section': '10'}}},
+                        '3036': {'zones': {'R4': {'front_yard': {'value': 9.0}}}}},
+             'exceptions': {'X33': {'text': 'Notwithstanding subsections 10.2.3 of By-law 2511, the minimum front yard is 6.0 metres',
+                                    'provisions': {'front_yard': {'value': 6.0}}}}}
+    found = lot_rules.resolve('R4-X33', rules)
+    assert found['rear_yard']['value'] == 7.62 and 'By-law 2511 (former)' in found['rear_yard']['from']
+    assert found['front_yard']['value'] == 6.0  # the exception's own figure still has the last word

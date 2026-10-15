@@ -807,6 +807,9 @@ def main(argv=None):
         import dev_charges  # the charges a new home pays, from the City's and Region's current pamphlets
         charges = dev_charges.scrape(args.out)
         manifest['errors'] += charges['errors']
+        import former_bylaws  # the parent by-laws 8149/24 keeps in effect for the exceptions it carried forward
+        former = former_bylaws.scrape(args.out)
+        manifest['errors'] += former['errors'] + [{'bylaw': n, 'error': 'not found in the archive'} for n in former['missing']]
     by_category = {}
     for layer in manifest['layers']:
         key = layer['category'] or 'other'
