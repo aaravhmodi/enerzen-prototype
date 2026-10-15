@@ -634,6 +634,13 @@ and O. Reg. 545/06. The API reads only that stored copy.
   without the type when one street near the lot has it. A yard an exception
   sets by lot depth (X62: 7.5 m, or 10.0 m on lots over 40.0 m deep) takes the
   figure for the lot's measured depth.
+- **Page breaks and size-dependent yards** — exception text is read with
+  each page's closing page number and the next page's running header
+  ("Section 15 | Exceptions", "City of Pickering") removed, so a yard whose
+  figure falls on the next page is still read. A table's notes are looked for
+  on the following page too. X62's side yards depend on lot frontage (1.2 m
+  and 0.6 m to 12.0 m, 1.2 m both sides to 14.9 m, 1.5 m both sides from 15.0
+  m) and are taken for the lot's measured width.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

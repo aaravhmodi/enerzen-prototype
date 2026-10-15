@@ -549,3 +549,12 @@ def test_a_noted_dash_needs_none_but_keeps_its_condition():
     found, _ = rules_from_table(rows, page, {'document': 'By-law 8149/24', 'page': 134})
     side = found['ORMC']['interior_side_yard']
     assert side['value'] == 0.0 and 'abuts a Residential zone, the setback shall be 7.5 m' in side['note']
+
+
+def test_a_page_break_between_a_yard_and_its_figure():
+    pages = ['Exception Zone 276 (By-law 1)\nZone Requirements ("S4" Zone)\nREAR YARD DEPTH (minimum): 7.5 metres\nINTERIOR SIDE YARD WIDTH: \n1236',
+             'Section 15 | Exceptions  \nConsolidated Zoning By-law for Council Adoption |  December 16, 2024   \nCity of Pickering \n'
+             ' minimum 1.2 metres one side, 0.6 of a metre other side\nFLANKAGE SIDE YARD WIDTH (minimum): 2.7 metres\n']
+    found = zone_rules.exceptions_from_pages(pages, {'document': 'd'})['X276']
+    side = (found.get('by_zone', {}).get('S4') or found['provisions'])['interior_side_yard']
+    assert side['value'] == 1.2

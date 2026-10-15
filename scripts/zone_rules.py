@@ -185,7 +185,7 @@ def _title_zones(text: str) -> list[str]:
     return found
 
 
-def rules_from_table(table, page_text: str, source: dict, carry: dict | None = None) -> tuple[dict, list]:
+def rules_from_table(table, page_text: str, source: dict, carry: dict | None = None, next_page: str = '') -> tuple[dict, list]:
     """{zone: {provision: rule}} from one table, and the numeric rows it could not place.
 
     `carry` holds a table by building type open at the foot of the last page (its zones and the
@@ -260,7 +260,7 @@ def rules_from_table(table, page_text: str, source: dict, carry: dict | None = N
         # of a requirement split by use states it. A dash with a note is none required with the note's
         # own condition beside it ("-(2)": "Where the interior side yard abuts a Residential zone, the
         # setback shall be 7.5 m"), unless the note sends the zone to another zone's requirements.
-        flat = ' '.join(page_text.split())
+        flat = ' '.join(f'{page_text} {next_page}'.split())  # a table's notes may run onto the next page
         for zone, key, label, mark in dashes:
             note = re.search(rf'(?:^|\s){mark}\.\s+(.+?)(?=\s\d+\.\s+[A-Z]|\sTable\s|$)', flat) if mark else None
             if mark and (not note or re.search(r'requirements of the', note.group(1), re.I)):
@@ -685,7 +685,14 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
     text, offsets = '', []
     for number, page in enumerate(pages, 1):
         offsets.append((len(text), number))
-        text += page + '\n'
+        # The page number closing a page and the header opening the next ("Section 15 | Exceptions",
+        # "City of Pickering") fall between a label and its figure: "INTERIOR SIDE YARD WIDTH: 1236 ...".
+        lines = page.split('\n')
+        while lines and (not lines[0].strip() or FURNITURE.match(lines[0])):
+            lines.pop(0)
+        while lines and (not lines[-1].strip() or FURNITURE.match(lines[-1])):
+            lines.pop()
+        text += '\n'.join(lines) + '\n'
     page_at = lambda pos: max(n for start, n in offsets if start <= pos)
     heads = list(EXCEPTION_HEADING.finditer(text))
     found = {}
@@ -986,7 +993,7 @@ def extract(documents: list[dict], store: Path) -> dict:
                         zoned = page.search(ZONE_HEADING.pattern, regex=True) if tables else []
                         for table in tables:
                             cells, where = unmerged(table), {**source, 'page': number}
-                            found, missed = rules_from_table(cells, page_text, where, carry)
+                            found, missed = rules_from_table(cells, page_text, where, carry, pages[number] if number < len(pages) else '')
                             unparsed += missed
                             for zone, rules in found.items():
                                 for key, rule in rules.items():
