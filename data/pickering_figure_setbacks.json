@@ -639,11 +639,11 @@
      20
     ],
     [
-     "south lot line",
+     "lot line opposite Rosefield Road",
      25
     ],
     [
-     "east lot line",
+     "lot line opposite Finch Avenue",
      15
     ],
     [
@@ -651,7 +651,7 @@
      15
     ]
    ],
-   "note": "35 ft from Finch Avenue for most of its length, and 25 ft from the east lot line except at one building. The page is printed sideways."
+   "note": "35 ft from Finch Avenue for most of its length, and 25 ft from the line opposite Finch Avenue except at one building. The page is printed sideways (north to the left), so the far lines are named by the street they face away from."
   }
  ],
  "X1": [
@@ -670,15 +670,15 @@
      35
     ],
     [
-     "east lot line",
+     "lot line opposite Hillcrest Road",
      30
     ],
     [
-     "south lot line",
+     "lot line opposite Oklahoma Road",
      30
     ]
    ],
-   "note": "30 ft from Oklahoma Road, 20 ft only at the corners. The page is printed sideways."
+   "note": "30 ft from Oklahoma Road, 20 ft only at the corners. The page is printed sideways, so the far lines are named by the street they face away from rather than by compass."
   }
  ],
  "X98": [

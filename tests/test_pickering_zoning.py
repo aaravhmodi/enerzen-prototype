@@ -905,3 +905,21 @@ def test_side_yards_set_by_lot_frontage():
         dims = {'width_m': width, 'depth_m': 30, 'rotation_deg': 0, 'rectangularity': 1, 'street_side': 'S'}
         found = lot_rules.apply_to_lot(box(0, 0, width, 30), 'S4-9-X62', rules, street, dims)
         assert {found['setbacks_by_side'][s]['value'] for s in 'EW'} == sides
+
+
+def test_a_drawn_line_named_by_the_street_it_faces_away_from():
+    from types import SimpleNamespace
+    from shapely import STRtree
+    from shapely.geometry import LineString, box
+    from engine import pickering_zoning as pz
+    def layer(category, name, features):
+        return SimpleNamespace(meta={'category': category, 'name': name}, features=features,
+                               tree=STRtree([g for _, g in features]), _indexed=list(range(len(features))))
+    layers = [layer('zoning', 'Zoning', [({'ZONING_CODE': 'M15', 'EXCEPTION_NUM': '1'}, box(0, 0, 40, 30))]),
+              layer('roads', 'Road Centreline', [({'FULL_NAME': 'Hillcrest Road'}, LineString([(48, -50), (48, 80)]))])]
+    lot = {'exceptions': ['X1'], 'basis': 'figure', 'complete': False,
+           'figure_setbacks': [{'figure': 'Figure 1', 'setbacks': [{'from': 'Hillcrest Road side lot line', 'value_m': 10.7, 'stated': '35 ft'},
+                                                                  {'from': 'lot line opposite Hillcrest Road', 'value_m': 9.1, 'stated': '30 ft'}]}],
+           'setbacks_by_side': {s: {'applies': 'x', 'value': None} for s in 'NESW'}}
+    pz._sides_from_figures(layers, box(0, 0, 40, 30), lot, {'rotation_deg': 0})
+    assert lot['setbacks_by_side']['E']['value'] == 10.7 and lot['setbacks_by_side']['W']['value'] == 9.1

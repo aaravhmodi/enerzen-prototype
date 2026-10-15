@@ -633,7 +633,11 @@ and O. Reg. 545/06. The API reads only that stored copy.
   type has changed since ("Oklahoma Road", now Oklahoma Drive), its name
   without the type when one street near the lot has it. A yard an exception
   sets by lot depth (X62: 7.5 m, or 10.0 m on lots over 40.0 m deep) takes the
-  figure for the lot's measured depth.
+  figure for the lot's measured depth. A drawing printed sideways names its far lines by the
+  street they face away from ("lot line opposite Hillcrest Road"), the side
+  across from the one facing that street. A street renamed since the drawing
+  is recorded with the drawing (X300's Brockwest Avenue is today's Pickering
+  Parkway, the street Geta Circle and Dreyber Court open onto).
 - **Page breaks and size-dependent yards** — exception text is read with
   each page's closing page number and the next page's running header
   ("Section 15 | Exceptions", "City of Pickering") removed, so a yard whose

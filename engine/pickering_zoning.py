@@ -364,6 +364,19 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
         closest = min(d for _, d in near)
         return {side for side, d in near if d <= closest * 1.5 + 3}
 
+    def street_sides(line: str) -> set:
+        """The sides facing the street a drawing's line names, by the City's name for it or, where only
+        its type has changed since ("Oklahoma Road", now Oklahoma Drive), by its name without the type
+        where one street near the lot has it."""
+        sides = facing([g for name, g in named if name and re.search(rf'\b{re.escape(name)}\b', plainly(line))])
+        if not sides:
+            stem = lambda n: re.sub(rf'\s({STREET_TYPES})$', '', n)
+            wanted = re.match(rf'(.{{4,}}?)\s({STREET_TYPES})\b', plainly(line))
+            near = {name for name, g in named if wanted and name != stem(name) and stem(name) == wanted.group(1)}
+            if len(near) == 1:
+                sides = facing([g for name, g in named if name in near])
+        return sides
+
     found = {}
     for figure in lot['figure_setbacks']:
         for setback in figure['setbacks']:
@@ -371,15 +384,11 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
             for old, new in (figure.get('renamed') or {}).items():  # a street renamed since the drawing
                 line = line.replace(old, new)
             line = line.lower()
-            sides = facing([g for name, g in named if name and re.search(rf'\b{re.escape(name)}\b', plainly(line))])
-            if not sides:
-                # A street renamed in kind since the drawing ("Oklahoma Road", now Oklahoma Drive): the name
-                # without its type, where one street near the lot has it.
-                stem = lambda n: re.sub(rf'\s({STREET_TYPES})$', '', n)
-                wanted = re.match(rf'(.{{4,}}?)\s({STREET_TYPES})\b', plainly(line))
-                near = {name for name, g in named if wanted and name != stem(name) and stem(name) == wanted.group(1)}
-                if len(near) == 1:
-                    sides = facing([g for name, g in named if name in near])
+            # "lot line opposite Hillcrest Road": the block's edge across from the side facing that street.
+            across = re.match(r'lot lines? opposite (.+)', line)
+            sides = street_sides(across.group(1) if across else line)
+            if across:
+                sides = {lot_rules.OPPOSITE[s] for s in sides} & (on_edge if block is not None else set('NESW'))
             # "south lot line (MD-H6 zone)": the bracket says what lies beyond the line, not which line.
             plain = re.sub(r'\([^)]*\)', '', line)
             if not sides and 'lot line' in plain and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', plain):
