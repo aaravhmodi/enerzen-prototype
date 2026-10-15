@@ -336,9 +336,9 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
              if (n := re.findall(r'\d+', str(_pick(attrs, r'^exception') or ''))) and int(n[0]) in numbers]
     block = shapely.union_all([g.buffer(0.5) for g in block]).buffer(-0.5) if block else None
     on_edge = set()
+    ring = list((geom.geoms[0] if hasattr(geom, 'geoms') else geom).exterior.coords)
     if block is not None and not block.is_empty:
         near_edge = block.boundary.buffer(1.5)
-        ring = list((geom.geoms[0] if hasattr(geom, 'geoms') else geom).exterior.coords)
         for a, b in zip(ring, ring[1:]):  # each edge on its own: along the block's edge, they join at the corners
             segment = shapely.geometry.LineString([a, b])
             if segment.length > 2 and segment.intersection(near_edge).length >= segment.length / 2:
@@ -350,15 +350,19 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
     named = [(re.sub(r' [nesw]$', '', plainly(str(_pick(a, r'^full_?name$', r'^name$') or ''))), g)
              for l in _street_layers(layers)
              for i in l.tree.query(geom.buffer(NAMED_STREET_M)) for a, g in [l.features[l._indexed[int(i)]]]]
+    edges = [(lot_rules._side_of(centre, mid, rotation), mid) for a, b in zip(ring, ring[1:])
+             if (seg := shapely.geometry.LineString([a, b])).length > 2 for mid in [seg.interpolate(0.5, normalized=True)]]
+
     def facing(roads) -> set:
-        """The sides a street runs along, piece by piece: a street that bends round the lot's corner
-        faces two of its sides. Pieces further off than the nearest by more than 15 m are left out."""
-        pieces = [shapely.geometry.LineString(pair) for g in roads for line in getattr(g, 'geoms', [g])
-                  for pair in zip(line.coords, line.coords[1:])]
-        pieces = [p for p in pieces if p.distance(geom) <= NAMED_STREET_M]
-        reach = min((p.distance(geom) for p in pieces), default=0) + 15
-        return {lot_rules._side_of(centre, shapely.ops.nearest_points(p, geom)[0], rotation) for p in pieces
-                if p.distance(geom) <= reach}
+        """The sides a street runs along, judged edge by edge of the lot: a side whose edge is about as
+        near the street as the nearest edge is faces it, so a street bending round a corner faces both
+        sides, and a long straight one only its own (a corner would read as either side)."""
+        street = shapely.union_all(roads) if roads else None
+        if street is None or street.distance(geom) > NAMED_STREET_M:
+            return set()
+        near = [(side, street.distance(mid)) for side, mid in edges]
+        closest = min(d for _, d in near)
+        return {side for side, d in near if d <= closest * 1.5 + 3}
 
     found = {}
     for figure in lot['figure_setbacks']:
