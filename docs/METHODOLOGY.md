@@ -595,6 +595,13 @@ and O. Reg. 545/06. The API reads only that stored copy.
   drawing sets nothing from it. Lines the drawing names by item, plan, zone or
   feature are not guessed at. Where parts of the drawing differ for the same
   line, the larger setback is shown.
+- **Exception zones, finer points** — a lot mapped with a suffix its exception
+  does not name ("R3-5-ES") takes the provisions of the longest designation
+  the exception does name ("R3-5"). Exception text is never read from the
+  zoning schedules, whose map labels ("X92") would otherwise be taken for an
+  exception's opening. A yards table an exception prints as a figure (X159,
+  X160) is transcribed with the rest of the drawings; where it gives setbacks
+  per pair of semi-detached dwellings, the common wall takes none.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

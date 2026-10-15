@@ -801,3 +801,9 @@ def test_a_lot_in_a_drawn_block_takes_the_setbacks_of_the_lines_it_is_on(monkeyp
     west = lot()
     pz._sides_from_figures(layers, box(0, 0, 20, 30), west, {'rotation_deg': 0})
     assert west['complete'] and west['basis'] == 'figure_mapped' and west['buildable_area_m2'] == (20 - 3) * (30 - 3 - 4)
+
+
+def test_an_exception_zone_with_an_overlay_suffix_finds_its_provisions():
+    from engine import lot_rules
+    rules = {'zones': {}, 'exceptions': {'X210': {'by_zone': {'R3-5': {'rear_yard': {'value': 7.5, 'unit': 'm'}}}}}}
+    assert lot_rules.resolve('R3-5-ES-X210', rules)['rear_yard']['value'] == 7.5

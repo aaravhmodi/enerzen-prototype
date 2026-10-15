@@ -85,6 +85,16 @@ def _zone_table(base: str, designation: str, rules: dict) -> tuple[str, dict]:
     return base, {}
 
 
+def _own(by_zone: dict, designation: str, base: str):
+    """The entry for a lot's zone in an exception's zone-by-zone provisions: its own designation, else
+    the designation shorn of trailing parts ("R3-5-ES" is under "R3-5"), else the base zone."""
+    parts = designation.split('-')
+    for n in range(len(parts), 0, -1):
+        if by_zone.get('-'.join(parts[:n])):
+            return by_zone['-'.join(parts[:n])]
+    return by_zone.get(base)
+
+
 def drawn_rule(code: str | None, rules: dict) -> dict | None:
     """Where the by-law gives a lot's setbacks on a drawing ("within the building envelope shown on
     Figure 1"): what it says and the page, for the lot's own zone in its exception."""
@@ -200,13 +210,13 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
         general = {} if sectioned else section.get('provisions') or {}
         # A figure that is a table of yards by zone (read from the drawing; see figure_setbacks) gives
         # the yards the text leaves to it, and anything the text states still has the last word.
-        drawn = [(key, {'value': value, 'unit': 'm', 'document': figure['document'], 'page': figure['page']},
+        drawn = [(key, {'value': value, 'unit': 'm', 'document': figure['document'], 'page': figure['page'],
+                        **({'common_wall': figure['common_wall']} if key == 'interior_side_yard' and figure.get('common_wall') else {})},
                   f"Exception {exception}, {figure['figure']}")
                  for figure in section.get('figures', [])
-                 for key, value in ((figure.get('yards') or {}).get(designation) or
-                                    (figure.get('yards') or {}).get(base) or {}).items()]
+                 for key, value in (_own(figure.get('yards') or {}, designation, base) or {}).items()]
         stated = drawn + [(key, rule, f'Exception {exception}') for key, rule in
-                          [*general.items(), *(by_zone.get(designation) or by_zone.get(base) or {}).items()]]
+                          [*general.items(), *(_own(by_zone, designation, base) or {}).items()]]
         # A newer exception gives one zone a column per kind of lot ("9.0 m single dwelling", "12.0 m
         # single dwelling", "semi-detached dwelling"). The lot takes the widest kind its own frontage
         # reaches, measured with half a metre's grace, and the column is named beside each value.

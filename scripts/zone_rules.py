@@ -952,7 +952,10 @@ def extract(documents: list[dict], store: Path) -> dict:
                         page.flush_cache()
             except Exception as exc:
                 unparsed.append({'file': doc['file'], 'error': repr(exc)})
-        for code, entry in exceptions_from_pages(pages, source).items():
+        # A zoning schedule is a map: its "X92" labels open no exception, and read as headings they
+        # took an exception's place before its own text was reached.
+        maps = re.search(r'schedule', str(doc.get('title')), re.I) and not re.search(r'exception', str(doc.get('title')), re.I)
+        for code, entry in ({} if maps else exceptions_from_pages(pages, source)).items():
             current = exceptions.setdefault(code, entry)
             if current is not entry:  # an amendment restating an exception: later documents add provisions
                 current.setdefault('also_in', []).append(entry['file'])
