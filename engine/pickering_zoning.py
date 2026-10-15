@@ -367,7 +367,10 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
     found = {}
     for figure in lot['figure_setbacks']:
         for setback in figure['setbacks']:
-            line, value = setback['from'].lower(), setback['value_m']
+            line, value = setback['from'], setback['value_m']
+            for old, new in (figure.get('renamed') or {}).items():  # a street renamed since the drawing
+                line = line.replace(old, new)
+            line = line.lower()
             sides = facing([g for name, g in named if name and re.search(rf'\b{re.escape(name)}\b', plainly(line))])
             if not sides:
                 # A street renamed in kind since the drawing ("Oklahoma Road", now Oklahoma Drive): the name

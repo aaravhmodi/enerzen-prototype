@@ -140,7 +140,7 @@ def figure_setbacks(exceptions: list[str], rules: dict) -> list[dict]:
     for exception in exceptions:
         for figure in (rules.get('exceptions', {}).get(exception) or {}).get('figures', []):
             per_unit = 0.3048 if figure['unit'] == 'ft' else 1.0
-            figures.append({'exception': exception, **{k: figure.get(k) for k in ('figure', 'document', 'page', 'applies_to', 'note')},
+            figures.append({'exception': exception, **{k: figure.get(k) for k in ('figure', 'document', 'page', 'applies_to', 'note', 'renamed')},
                             'setbacks': [{'from': line, 'value_m': round(value * per_unit, 1),
                                           'stated': f"{value:g} {figure['unit']}"} for line, value in figure['setbacks']]})
     return figures

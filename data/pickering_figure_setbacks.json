@@ -392,7 +392,10 @@
      35
     ]
    ],
-   "note": "125 ft and 160 ft from Brockwest Avenue for the taller parts (5 1/2 and 9 storeys)."
+   "note": "125 ft and 160 ft from Brockwest Avenue for the taller parts (5 1/2 and 9 storeys). Brockwest Avenue on the drawing is today's Pickering Parkway: the street between Denmar Road and Highway 401 that Geta Circle and Dreyber Court open onto (the City's road centrelines).",
+   "renamed": {
+    "Brockwest Avenue": "Pickering Parkway"
+   }
   },
   {
    "figure": "Figure 2",
@@ -413,7 +416,10 @@
      "north lot line",
      100
     ]
-   ]
+   ],
+   "renamed": {
+    "Brockwest Avenue": "Pickering Parkway"
+   }
   }
  ],
  "X299": [
