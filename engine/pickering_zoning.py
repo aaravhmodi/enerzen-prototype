@@ -350,12 +350,21 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
     named = [(re.sub(r' [nesw]$', '', plainly(str(_pick(a, r'^full_?name$', r'^name$') or ''))), g)
              for l in _street_layers(layers)
              for i in l.tree.query(geom.buffer(NAMED_STREET_M)) for a, g in [l.features[l._indexed[int(i)]]]]
+    def facing(roads) -> set:
+        """The sides a street runs along, piece by piece: a street that bends round the lot's corner
+        faces two of its sides. Pieces further off than the nearest by more than 15 m are left out."""
+        pieces = [shapely.geometry.LineString(pair) for g in roads for line in getattr(g, 'geoms', [g])
+                  for pair in zip(line.coords, line.coords[1:])]
+        pieces = [p for p in pieces if p.distance(geom) <= NAMED_STREET_M]
+        reach = min((p.distance(geom) for p in pieces), default=0) + 15
+        return {lot_rules._side_of(centre, shapely.ops.nearest_points(p, geom)[0], rotation) for p in pieces
+                if p.distance(geom) <= reach}
+
     found = {}
     for figure in lot['figure_setbacks']:
         for setback in figure['setbacks']:
             line, value = setback['from'].lower(), setback['value_m']
-            sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
-                     if name and re.search(rf'\b{re.escape(name)}\b', plainly(line)) and g.distance(geom) <= NAMED_STREET_M}
+            sides = facing([g for name, g in named if name and re.search(rf'\b{re.escape(name)}\b', plainly(line))])
             if not sides:
                 # A street renamed in kind since the drawing ("Oklahoma Road", now Oklahoma Drive): the name
                 # without its type, where one street near the lot has it.
@@ -363,8 +372,7 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
                 wanted = re.match(rf'(.{{4,}}?)\s({STREET_TYPES})\b', plainly(line))
                 near = {name for name, g in named if wanted and name != stem(name) and stem(name) == wanted.group(1)}
                 if len(near) == 1:
-                    sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
-                             if name in near and g.distance(geom) <= NAMED_STREET_M}
+                    sides = facing([g for name, g in named if name in near])
             # "south lot line (MD-H6 zone)": the bracket says what lies beyond the line, not which line.
             plain = re.sub(r'\([^)]*\)', '', line)
             if not sides and 'lot line' in plain and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', plain):

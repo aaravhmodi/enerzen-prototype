@@ -859,3 +859,23 @@ def test_a_drawing_names_a_street_by_its_old_type():
            'setbacks_by_side': {s: {'applies': 'x', 'value': None} for s in 'NESW'}}
     pz._sides_from_figures(layers, box(0, 0, 40, 30), lot, {'rotation_deg': 0})
     assert lot['setbacks_by_side']['W']['value'] == 6.1
+
+
+def test_a_street_bending_round_a_corner_faces_both_sides_and_a_long_one_only_its_own():
+    from types import SimpleNamespace
+    from shapely import STRtree
+    from shapely.geometry import LineString, box
+    from engine import pickering_zoning as pz
+    def layer(category, name, features):
+        return SimpleNamespace(meta={'category': category, 'name': name}, features=features,
+                               tree=STRtree([g for _, g in features]), _indexed=list(range(len(features))))
+    roads = [({'FULL_NAME': 'Oklahoma Drive'}, LineString([(-8, 100), (-8, -8), (100, -8)])),  # down the west, along the south
+             ({'FULL_NAME': 'Bayly Street'}, LineString([(-300, 38), (300, 38)]))]  # one long piece along the north
+    layers = [layer('zoning', 'Zoning', [({'ZONING_CODE': 'M15', 'EXCEPTION_NUM': '1'}, box(0, 0, 40, 30))]),
+              layer('roads', 'Road Centreline', roads)]
+    lot = {'exceptions': ['X1'], 'basis': 'figure', 'complete': False,
+           'figure_setbacks': [{'figure': 'Figure 1', 'setbacks': [{'from': 'Oklahoma Road', 'value_m': 9.1, 'stated': '30 ft'},
+                                                                  {'from': 'Bayly Street', 'value_m': 4.0, 'stated': '4 m'}]}],
+           'setbacks_by_side': {s: {'applies': 'x', 'value': None} for s in 'NESW'}}
+    pz._sides_from_figures(layers, box(0, 0, 40, 30), lot, {'rotation_deg': 0})
+    assert {s: e['value'] for s, e in lot['setbacks_by_side'].items()} == {'N': 4.0, 'E': None, 'S': 9.1, 'W': 9.1}
