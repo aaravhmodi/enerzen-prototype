@@ -261,7 +261,9 @@ def _path_fits(layers, geom, houses, width) -> bool | None:
         return None
     road = min(streets, key=lambda g: g.distance(geom))
     house = shapely.union_all(houses).intersection(geom)
-    behind = geom.difference(road.buffer(max(road.distance(Point(c)) for c in house.convex_hull.exterior.coords)))
+    if house.area <= 0:  # a neighbour's footprint only touching the lot line
+        return None
+    behind = geom.difference(road.buffer(max(road.distance(Point(c)) for c in shapely.get_coordinates(house))))
     if behind.is_empty:
         return False
     # Shrinking the open ground by half the width leaves only the parts a path that wide can reach.

@@ -761,3 +761,5 @@ def test_garden_suite_needs_a_permitting_zone_room_and_a_path(monkeypatch):
     rules['exceptions'] = {'X12': {'text': '"Dwelling, Detached" shall mean', 'page': 300}, 'X13': {'text': 'a gas station'}}
     assert pz.additional_units([], lot, 'S2-X12', rules, {}, std)['basis'] == 'planning_act'
     assert pz.additional_units([], lot, 'C9-X13', rules, {}, std) is None
+    monkeypatch.setattr(pz, '_footprints', lambda *a: [box(15, 6, 20, 18)])  # next door, touching the lot line
+    assert pz.additional_units([], lot, 'R4', rules, {}, std)['path_fits'] is None
