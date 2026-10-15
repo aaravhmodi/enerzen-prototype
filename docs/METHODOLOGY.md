@@ -588,7 +588,10 @@ and O. Reg. 545/06. The API reads only that stored copy.
   one piece reaches both the street side and the ground behind the house. The
   Oak Ridges Moraine and Greenbelt rule a garden suite out; the conservation
   authority regulated area and mapped natural heritage are flagged for
-  confirmation. Footprint left is coverage × lot area − existing footprints.
+  confirmation. Footprint left is coverage × lot area − existing footprints. An
+  exception zone has no row in the use tables; where its text permits a
+  detached, semi-detached or townhouse dwelling, Planning Act s.35.1 permits a
+  unit in an ancillary building on serviced urban land, and the check says so.
 
 - **Geometry** — coordinates are projected to local metres around latitude
   43.85 (equirectangular: 111,132 m per degree of latitude, 111,320 × cos(43.85°)
