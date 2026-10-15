@@ -819,7 +819,10 @@ def extract(documents: list[dict], store: Path) -> dict:
         read.append(doc['file'])
         opened, tabled, typed, running = _open_sections(pages), {}, {}, None
         if '8149' in str(doc.get('title')):
-            additional_units = additional_units_from_pages(pages, source)
+            # The consolidated by-law comes first; an amendment naming 8149/24 only adds what it restates.
+            for part, found in additional_units_from_pages(pages, source).items():
+                for key, value in found.items():
+                    additional_units[part].setdefault(key, value)
             # The zones the by-law establishes, from its Table 2.1 and the page after it.
             at = next((i for i, page in enumerate(pages) if 'Establishment of Zones' in page and 'Zoning Symbol' in page), None)
             for page in pages[at:at + 3] if at is not None else ():
