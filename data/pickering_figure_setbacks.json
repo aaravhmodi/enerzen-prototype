@@ -1900,6 +1900,22 @@
     ]
    ],
    "note": "Build-to-zones 2.0 m to 4.0 m from Brock Road and 1.5 m to 4.0 m from William Jackson Drive; 2.0 m from William Jackson Drive further east."
+  },
+  {
+   "figure": "Zone Requirements (\"MU-MD\")",
+   "document": "Exception Zones X216 to X437",
+   "page": 631,
+   "unit": "m",
+   "setbacks": [],
+   "yards": {
+    "MU-MD": {
+     "front_yard": 3.0,
+     "exterior_side_yard": 3.0,
+     "interior_side_yard": 2.0,
+     "rear_yard": 2.0
+    }
+   },
+   "note": "Setbacks of buildings: 6.0 m from Brock Road, 3.0 m from all other streets, 2.0 m from all other lot lines, and 1.6 m where an interior side abuts a public walkway."
   }
  ],
  "X435": [
@@ -2217,6 +2233,22 @@
      ]
     ]
    }
+  }
+ ],
+ "X112": [
+  {
+   "figure": "Zone Requirements (\"SA-11\")",
+   "document": "Exception Zones X1 to X215",
+   "page": 460,
+   "unit": "m",
+   "setbacks": [],
+   "yards": {
+    "SA-11": {
+     "interior_side_yard": 1.5
+    }
+   },
+   "common_wall": "No interior side yard is required along a common wall shared with the dwelling on the abutting lot.",
+   "note": "\"Side yard: 1) 1.5 metres, except where dwellings on abutting lots share a common wall.\""
   }
  ]
 }

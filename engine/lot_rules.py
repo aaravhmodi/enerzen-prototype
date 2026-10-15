@@ -265,8 +265,12 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
     return {key: _for_kind(rule, joined) for key, rule in resolved.items()}
 
 
-YARD_WORDS = {'front_yard': r'front yard', 'rear_yard': r'rear yard', 'interior_side_yard': r'(?<!flankage )side yard',
-              'exterior_side_yard': r'flankage|exterior side'}
+# A yard a section sets ("Rear Yard Depth (minimum)", "Side yard: 1) 1.5 metres"), not one it only mentions
+# ("one of which may be located within a rear yard").
+_SETS = r's?\s*(?:depth|width|setback|\(|:)'
+YARD_WORDS = {'front_yard': rf'front yard{_SETS}', 'rear_yard': rf'rear yard{_SETS}',
+              'interior_side_yard': rf'(?<!flankage )(?<!exterior )side yard{_SETS}',
+              'exterior_side_yard': rf'(?:flankage|exterior)(?: side)? yard{_SETS}'}
 
 
 def _unasked_yards(designation: str, exceptions: list[str], rules: dict, resolved: dict):
