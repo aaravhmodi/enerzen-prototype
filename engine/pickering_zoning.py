@@ -183,14 +183,22 @@ def additional_units(layers, geom, code, rules, overlays, standards) -> dict | N
     scripts/zone_rules.py; None when the zone has no row in those tables.
     """
     aru = rules.get('additional_units') or {}
-    base = lot_rules.split_zone(code)[0] if code else None
+    base, exceptions = lot_rules.split_zone(code) if code else (None, [])
     zone = aru.get('zones', {}).get(base)
+    basis = 'use_table'
     if zone is None:
-        return None
+        # An exception zone has no row in the use tables. Planning Act s.35.1 permits a unit in an
+        # ancillary building wherever a detached, semi-detached or row house is permitted on urban
+        # residential land, so the exception's own text decides.
+        text = next((e for x in exceptions if (e := rules.get('exceptions', {}).get(x))
+                     and re.search(r'detached dwelling|semi-detached|townhouse', e.get('text', ''), re.I)), None)
+        if text is None:
+            return None
+        zone, basis = {'permitted': True, 'seaton': False, **{k: text.get(k) for k in ('document', 'file', 'page')}}, 'planning_act'
     number = '14.2.9' if zone['seaton'] else '4.3'
     section = aru.get('sections', {}).get(number) or {}
     cite = lambda s: {'document': s.get('document'), 'page': s.get('page'), 'file': s.get('file')}
-    out = {'zone': base, 'permitted_in_zone': zone['permitted'], 'zone_table': cite(zone),
+    out = {'zone': base, 'permitted_in_zone': zone['permitted'], 'basis': basis, 'zone_table': cite(zone),
            'section': {**cite(section), 'number': number}, 'blockers': [], 'checks': []}
     if not zone['permitted']:
         return out
@@ -200,6 +208,9 @@ def additional_units(layers, geom, code, rules, overlays, standards) -> dict | N
         out['blockers'].append('Oak Ridges Moraine: only one additional unit, inside the house; no garden suite.')
     elif on_lot('provincial_plans', r'greenbelt (boundary|area)'):
         out['blockers'].append('Greenbelt Protected Countryside: only in an accessory building legally built by July 1, 2017.')
+    if basis == 'planning_act':
+        out['checks'].append(f"Exception zone {', '.join(exceptions)} permits houses, so Planning Act s.35.1 permits a "
+                             'garden suite if the lot has municipal water and sewer.')
     if on_lot('floodplain', r'regulat'):
         out['checks'].append('In the conservation authority regulated area: no additional unit on hazardous lands; '
                              'the authority confirms where the hazard limit falls.')

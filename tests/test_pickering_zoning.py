@@ -758,3 +758,6 @@ def test_garden_suite_needs_a_permitting_zone_room_and_a_path(monkeypatch):
     monkeypatch.setattr(pz, '_footprints', lambda *a: [box(0, 6, 15, 18)])
     found = pz.additional_units([], lot, 'R4', rules, {'provincial_plans': [{'layer': 'Oak Ridges Moraine Boundary', 'distance_m': 0}]}, std)
     assert found['path_fits'] is False and len(found['blockers']) == 2
+    rules['exceptions'] = {'X12': {'text': 'only detached dwellings', 'page': 300}, 'X13': {'text': 'a gas station'}}
+    assert pz.additional_units([], lot, 'S2-X12', rules, {}, std)['basis'] == 'planning_act'
+    assert pz.additional_units([], lot, 'C9-X13', rules, {}, std) is None
