@@ -130,7 +130,13 @@ export type DevCharges = {
 };
 export type Servicing = { municipal_expected: boolean; in_urban_area: boolean; in_hamlet: boolean; source?: string | null; note: string };
 
+export type PermittedUses = {
+  zone: string; dwellings: string[]; other_uses: number; enerzen_units: string[];
+  document?: string; file?: string | null; page?: number | null;
+};
+
 export type Lookup = {
+  permitted_uses?: PermittedUses | null;
   additional_units?: AdditionalUnits | null;
   development_charges?: DevCharges | null;
   servicing?: Servicing | null;

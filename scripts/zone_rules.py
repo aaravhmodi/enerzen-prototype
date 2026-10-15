@@ -678,7 +678,7 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
         code = f'X{int(head.group(1))}'
         page = page_at(head.start())
         entry = found.setdefault(code, {'heading': ' '.join(head.group(0).split())[:160], 'page': page,
-                                        'provisions': {}, 'text': ' '.join(body.split())[:4000], **source})
+                                        'provisions': {}, 'text': ' '.join(body.split()), **source})
         # Read page by page, so each standard cites the page it is on rather than the section's first.
         def read(begin, end):
             for (start, number), (stop, _) in zip(offsets, offsets[1:] + [(len(text), None)]):
@@ -755,6 +755,58 @@ ARU_FIGURES = {
 }
 
 
+MARK = re.compile(r' ●|^●|  ')  # where a row's cells begin: its first mark, or a blank first cell
+
+
+def uses_from_pages(pages: list[str], source: dict) -> dict:
+    """{zone: {use: {"notes", "page", ...}}}: every use a permitted-use table marks for a zone.
+
+    A table's zones head its columns ("Permitted Use R1A R1B"); each row is a use, its name wrapped
+    over as many lines as it needs, then one cell per zone. The text keeps a blank cell as an extra
+    space, so cells split on one space. "Residential Uses" and the like head groups of rows.
+    """
+    found = {}
+    for number, page in enumerate(pages, 1):
+        header, label = None, []
+        for line in page.split('\n'):
+            tokens = line.replace('Permitted Use', '').split()
+            if tokens and all(ZONE.match(t) and t not in NOT_ZONES for t in tokens) and len(tokens) >= 2 or \
+                    (line.startswith('Permitted Use') and tokens and all(ZONE.match(t) for t in tokens)):
+                header, label = tokens, []
+                continue
+            if header is None:
+                continue
+            if '●' not in line:
+                stripped = line.strip()
+                if not stripped or re.search(r'Uses$|^Notes?:', stripped) or re.match(r'\d+\. ', stripped):
+                    label = []
+                    if re.match(r'Notes?:|\d+\. |Table|\d+(\.\d+)+ ', stripped):
+                        header = None  # the table has ended
+                else:
+                    label.append(stripped)
+                continue
+            cut = MARK.search(line)
+            name = ' '.join(label + [line[:cut.start()].strip()]).strip()
+            rest = line[cut.start():]
+            # The space after a name separates it from the cells; on a line of cells alone, a leading
+            # space is a blank first cell.
+            rest = rest[1:] if rest.startswith(' ') and line[:cut.start()].strip() else rest
+            label = []
+            notes = re.findall(r'\((\d+(?:, ?\d+)*)\)', name)
+            name = re.sub(r'\s*\(\d+(?:, ?\d+)*\)', '', name).strip()
+            if not re.search('[A-Za-z]{3}', name):
+                continue
+            cells = rest.split(' ')
+            # More cells than columns: a stray space before the first mark, not a blank first cell.
+            while len(cells) > len(header) + 1 and cells[0] == '':
+                cells.pop(0)
+            for zone, cell in zip(header, cells + [''] * len(header)):
+                if cell.startswith('●'):
+                    found.setdefault(zone, {})[name] = {'notes': sorted(set(','.join(notes + re.findall(r'\d+', cell)).split(',')) - {''}),
+                                                         **source, 'page': number}
+    return found
+
+
 def additional_units_from_pages(pages: list[str], source: dict) -> dict:
     """Where the by-law permits additional dwelling units, and the figures it sets for them.
 
@@ -807,7 +859,7 @@ def extract(documents: list[dict], store: Path) -> dict:
     except ImportError:
         pdfplumber = None
     zones, exceptions, unparsed, read, established = {}, {}, [], [], set()
-    additional_units = {'zones': {}, 'sections': {}}
+    additional_units, uses = {'zones': {}, 'sections': {}}, {}
     # The consolidated by-law is read first, so its tables win over an older by-law naming the same zone.
     for doc in sorted(documents, key=lambda d: '8149' not in str(d.get('title'))):
         label = f"{doc.get('title', '')} {doc.get('url', '')}"
@@ -819,6 +871,8 @@ def extract(documents: list[dict], store: Path) -> dict:
         read.append(doc['file'])
         opened, tabled, typed, running = _open_sections(pages), {}, {}, None
         if '8149' in str(doc.get('title')):
+            for zone, found in uses_from_pages(pages, source).items():
+                uses.setdefault(zone, found)
             # The consolidated by-law comes first; an amendment naming 8149/24 only adds what it restates.
             for part, found in additional_units_from_pages(pages, source).items():
                 for key, value in found.items():
@@ -904,7 +958,7 @@ def extract(documents: list[dict], store: Path) -> dict:
                 exceptions[code].setdefault('by_lot_type', {}).update(by_type)
     families = {family: sorted(z for z in established if z.startswith(family[:-1]) and z != family[:-1])
                 for family in zones if family.endswith('*')}
-    return {'zones': zones, 'exceptions': exceptions, 'families': families, 'additional_units': additional_units,
+    return {'zones': zones, 'exceptions': exceptions, 'families': families, 'additional_units': additional_units, 'uses': uses,
             'unparsed': unparsed[:500], 'documents_read': read,
             'table_reader': 'pdfplumber' if pdfplumber else None}
 

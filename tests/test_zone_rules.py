@@ -500,3 +500,14 @@ def test_additional_unit_rows_keep_blank_cells_and_the_section_figures():
     section = found['sections']['4.3']
     assert (section['max_floor_area_m2'], section['large_lot_m2'], section['max_height_m'],
             section['max_height_large_lot_m'], section['path_width_m'], section['page']) == (150, 2000, 4.5, 6.5, 1.2, 3)
+
+
+def test_every_use_a_table_marks_with_wrapped_names_and_blank_cells():
+    page = ('Table 6.8 \nPermitted Use R3A R3B R3C \nResidential Uses \nAdditional Dwelling \nUnit(1, 2) ● ●  \n'
+            'Apartment Dwelling ●(3) ● ● \nBack-to-Back \nTownhouse \nDwelling \n ●  \nStreet Townhouse \n'
+            'Dwelling  ●(3) ●(3)  \nNotes: \n1. Subject to Section 4. \nDetached Dwelling ● ● ●')
+    uses = zone_rules.uses_from_pages([page], {'document': 'By-law 8149/24'})
+    assert sorted(uses['R3A']) == ['Additional Dwelling Unit', 'Apartment Dwelling', 'Street Townhouse Dwelling']
+    assert sorted(uses['R3B']) == ['Additional Dwelling Unit', 'Apartment Dwelling', 'Back-to-Back Townhouse Dwelling',
+                                   'Street Townhouse Dwelling']
+    assert sorted(uses['R3C']) == ['Apartment Dwelling'] and uses['R3A']['Apartment Dwelling']['notes'] == ['3']

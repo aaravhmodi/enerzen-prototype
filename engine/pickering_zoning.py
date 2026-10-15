@@ -176,6 +176,25 @@ def _footprints(layers, geom) -> list:
     return [layer.features[layer._indexed[int(i)]][1] for i in layer.tree.query(geom)] if layer else []
 
 
+# Which by-law uses each EnerZen unit is built as.
+ENERZEN_UNITS = {'Garden Suite': r'^Additional Dwelling Unit', '3-Bedroom house': r'^Detached Dwelling',
+                 'Townhouse': r'^(Street|Block) Townhouse|^Multiple Attached', 'MURB': r'^Apartment'}
+
+
+def permitted_uses(code, rules) -> dict | None:
+    """The dwellings the zone's permitted-use table marks, and which EnerZen units they fit; None for a
+    zone with no column in those tables (an exception zone's uses are in its own text)."""
+    base = lot_rules.split_zone(code)[0] if code else None
+    uses = (rules.get('uses') or {}).get(base)
+    if not uses:
+        return None
+    first = next(iter(uses.values()))
+    dwellings = sorted(u for u in uses if re.search(r'dwelling|townhouse|apartment|duplex', u, re.I))
+    return {'zone': base, 'dwellings': dwellings, 'other_uses': len(uses) - len(dwellings),
+            'enerzen_units': [unit for unit, pattern in ENERZEN_UNITS.items() if any(re.search(pattern, u) for u in uses)],
+            'document': first.get('document'), 'file': first.get('file'), 'page': first.get('page')}
+
+
 def additional_units(layers, geom, code, rules, overlays, standards, urban: bool | None = None) -> dict | None:
     """Can this lot take a garden suite (an additional dwelling unit in an accessory building)?
 
@@ -897,6 +916,7 @@ def lookup(latitude: float, longitude: float) -> dict:
         }.items() if v},
         'source_url': zoning[0]['source_url'] if zoning else None,
         'additional_units': garden_suite,
+        'permitted_uses': permitted_uses(primary_zone, rules),
         'servicing': servicing_status,
         'development_charges': charges,
         'buildable_area': mapping(_to_wgs84(envelope)) if envelope is not None else None,

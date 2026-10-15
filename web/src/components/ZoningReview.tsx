@@ -204,6 +204,25 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
 
       <Step n={3} title="Proposed development">
         <LotSetbacks lot={s["3_proposed_development"].lot_standards} />
+        {lookup.permitted_uses && (
+          <p>
+            Zone {lookup.permitted_uses.zone} permits{" "}
+            {lookup.permitted_uses.dwellings.map((d) => d.replace(/ Dwelling$/, "").toLowerCase()).join(", ") || "no dwellings"}
+            {lookup.permitted_uses.file && lookup.permitted_uses.page && (
+              <>
+                {" "}
+                (<a href={docUrl(lookup.permitted_uses.file, lookup.permitted_uses.page)} target="_blank" rel="noreferrer"
+                  className="zr-source">use table, p. {lookup.permitted_uses.page}</a>)
+              </>
+            )}
+            .{" "}
+            <strong>
+              {lookup.permitted_uses.enerzen_units.length
+                ? `EnerZen units that fit: ${lookup.permitted_uses.enerzen_units.join(", ")}.`
+                : "No EnerZen unit fits this zone."}
+            </strong>
+          </p>
+        )}
         {lookup.additional_units && <GardenSuite aru={lookup.additional_units} />}
         {lookup.development_charges && (
           <DevCharges dc={lookup.development_charges} gardenSuite={!!lookup.additional_units?.permitted_in_zone} />

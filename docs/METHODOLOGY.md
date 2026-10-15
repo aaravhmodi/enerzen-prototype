@@ -576,6 +576,15 @@ layers clipped to Pickering, Zoning By-law 8149/24 with its exception zones and
 amendments from the City's Laserfiche records, the Provincial Planning Statement
 and O. Reg. 545/06. The API reads only that stored copy.
 
+- **Permitted uses** — every row of 8149/24's permitted-use tables is read: a
+  use's name may wrap over several lines, then one cell per zone column, a
+  blank cell kept in the text as an extra space (a line of cells alone that
+  starts with a space starts with a blank cell; a row with more cells than
+  columns has a stray leading space). Each lot lists the dwellings its zone
+  permits and the EnerZen units built as one of them: Garden Suite (additional
+  dwelling unit), 3-Bedroom house (detached), Townhouse (street or block
+  townhouse, multiple attached) and MURB (apartment). An exception zone's uses
+  are in its own text and are not listed.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

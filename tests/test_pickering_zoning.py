@@ -763,3 +763,12 @@ def test_garden_suite_needs_a_permitting_zone_room_and_a_path(monkeypatch):
     assert pz.additional_units([], lot, 'C9-X13', rules, {}, std) is None
     monkeypatch.setattr(pz, '_footprints', lambda *a: [box(15, 6, 20, 18)])  # next door, touching the lot line
     assert pz.additional_units([], lot, 'R4', rules, {}, std)['path_fits'] is None
+
+
+def test_permitted_uses_name_the_enerzen_units_that_fit():
+    from engine import pickering_zoning as pz
+    rules = {'uses': {'R3A': {'Apartment Dwelling': {'page': 103}, 'Street Townhouse Dwelling': {}, 'Home Occupation': {}}}}
+    found = pz.permitted_uses('R3A-X12', rules)
+    assert found['dwellings'] == ['Apartment Dwelling', 'Street Townhouse Dwelling'] and found['other_uses'] == 1
+    assert found['enerzen_units'] == ['Townhouse', 'MURB'] and found['page'] == 103
+    assert pz.permitted_uses('S2', rules) is None
