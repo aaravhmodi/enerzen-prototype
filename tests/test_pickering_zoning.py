@@ -737,3 +737,24 @@ def test_council_by_laws_saved_from_a_browser_are_imported_like_scraped_ones(sto
     assert added[0]['url'] in {d['url'] for d in manifest['documents']} and added[0]['saved_from_browser'] == '2026-10-14T20:49:00Z'
     assert (out / added[0]['text_file']).exists()
     assert import_council(out, bundle, ocr=False, log=lambda *_: None) == []  # already in the store
+
+
+def test_garden_suite_needs_a_permitting_zone_room_and_a_path(monkeypatch):
+    from shapely.geometry import LineString, box
+    from engine import pickering_zoning as pz
+    lot, street = box(0, 0, 15, 40), LineString([(-50, -5), (50, -5)])
+    monkeypatch.setattr(pz, '_streets_and_lanes', lambda *a: ([street], []))
+    rules = {'additional_units': {
+        'zones': {'R4': {'permitted': True, 'seaton': False, 'page': 98}, 'C1': {'permitted': False, 'seaton': False, 'page': 110}},
+        'sections': {'4.3': {'large_lot_m2': 2000, 'max_height_m': 4.5, 'max_height_large_lot_m': 6.5,
+                             'default_coverage_pct': 45, 'max_floor_area_m2': 150, 'path_width_m': 1.2, 'page': 57}}}}
+    std = {'standards': {}}
+    assert pz.additional_units([], lot, 'C1', rules, {}, std)['permitted_in_zone'] is False
+    assert pz.additional_units([], lot, 'R9', rules, {}, std) is None
+    # A house with 2 m beside it on one side leaves a path; wall to wall, it leaves none.
+    monkeypatch.setattr(pz, '_footprints', lambda *a: [box(0, 6, 13, 18)])
+    found = pz.additional_units([], lot, 'R4', rules, {}, std)
+    assert found['path_fits'] is True and found['max_height_m'] == 4.5 and found['footprint_left_m2'] == 270 - 156
+    monkeypatch.setattr(pz, '_footprints', lambda *a: [box(0, 6, 15, 18)])
+    found = pz.additional_units([], lot, 'R4', rules, {'provincial_plans': [{'layer': 'Oak Ridges Moraine Boundary', 'distance_m': 0}]}, std)
+    assert found['path_fits'] is False and len(found['blockers']) == 2

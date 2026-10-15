@@ -734,6 +734,72 @@ def exceptions_from_pages(pages: list[str], source: dict) -> dict:
     return found
 
 
+ARU_ROW = re.compile(r'Additional Dwelling\s+Unit(?: ?((?:\(\d+(?:, ?\d+)*\))+))?([^\n]*)')
+ARU_SECTION = re.compile(r'(\d+(?:\.\d+)*) Additional Dwelling Units? \n1\. Where permitted by this By-law')
+# Each figure of an additional dwelling unit section, in the words both 4.3 and Seaton's 14.2.9 use.
+ARU_FIGURES = {
+    'units_in_house': r'maximum of \w+ \((\d+)\) additional dwelling units are permitted within any legally',
+    'units_in_house_with_suite': r'maximum of \w+ \((\d+)\) additional dwelling unit is permitted within any legally',
+    'units_in_accessory_building': r'maximum of \w+ \((\d+)\) additional dwelling unit is permitted within an accessory',
+    'max_floor_area_m2': r'maximum floor area of ([\d.]+) sq\. ?m',
+    'max_share_of_house_pct': r'No more than (\d+)% of the (?:gross )?floor area',
+    'default_coverage_pct': r'maximum lot coverage for all buildings will be (\d+)%',
+    'large_lot_m2': r'Lots with an area of ([\d,]+) sq\. ?m\.? or less',
+    'max_height_m': r'Maximum Height \(m\) ([\d.]+)',
+    'max_height_large_lot_m': r'Maximum Height \(m\) [\d.]+ ([\d.]+)',
+    'min_interior_side_m': r'Minimum Interior Side Yard \(m\) ([\d.]+)',
+    'min_rear_m': r'Minimum Rear Yard \(m\) ([\d.]+)',
+    'taller_than_m': r'over ([\d.]+) m: [\d.]+',
+    'min_side_rear_if_taller_m': r'over [\d.]+ m: ([\d.]+)',
+    'path_width_m': r'minimum ([\d.]+) m wide path of travel',
+}
+
+
+def additional_units_from_pages(pages: list[str], source: dict) -> dict:
+    """Where the by-law permits additional dwelling units, and the figures it sets for them.
+
+    zones: each zone in a permitted-use table with an "Additional Dwelling Unit" row, and whether
+    its cell has the mark. The text keeps a blank cell as an extra space, so cells split on one space.
+    sections: section 4.3 and any restatement (Seaton's 14.2.9), every figure with its page.
+    """
+    zones, sections = {}, {}
+    for number, page in enumerate(pages, 1):
+        lines = page.split('\n')
+        for i, line in enumerate(lines):
+            row = ARU_ROW.match(line) or (ARU_ROW.match(line.rstrip() + ' ' + lines[i + 1])
+                                          if line.strip() == 'Additional Dwelling' and i + 1 < len(lines) else None)
+            if not row:
+                continue
+            # The table's zones: the nearest line above made only of zone symbols.
+            header = next((z for above in reversed(lines[:i])
+                           if (z := above.replace('Permitted Use', '').split())
+                           and all(ZONE.match(t) and t not in NOT_ZONES for t in z)), None)
+            if not header:
+                continue
+            rest = row.group(2)[1:] if row.group(2).startswith(' ') else row.group(2)
+            cells = rest.rstrip('\n').split(' ') + [''] * len(header)
+            for zone, cell in zip(header, cells):
+                zones.setdefault(zone, {'permitted': cell.startswith('●'), 'notes': re.findall(r'\d+', cell),
+                                        'seaton': 'Seaton' in page, **source, 'page': number})
+    text, offsets = '', []
+    for number, page in enumerate(pages, 1):
+        offsets.append((len(text), number))
+        text += page + '\n'
+    heads = list(ARU_SECTION.finditer(text))
+    for head in heads:
+        # The section runs to the next numbered section of the by-law (4.4 Air Conditioners...).
+        nxt = re.compile(r'\n' + re.escape(head.group(1).rsplit('.', 1)[0]) + r'\.\d+ [A-Z]').search(text, head.end())
+        body = ' '.join(text[head.end():nxt.start() if nxt else head.end() + 6000].split())
+        figures = {}
+        for key, pattern in ARU_FIGURES.items():
+            m = re.search(pattern, body)
+            if m:
+                figures[key] = float(m.group(1).replace(',', ''))
+        sections[head.group(1)] = {**figures, **source, 'page': max(n for s, n in offsets if s <= head.start()),
+                                   'missing': [k for k in ARU_FIGURES if k not in figures]}
+    return {'zones': zones, 'sections': sections}
+
+
 def extract(documents: list[dict], store: Path) -> dict:
     """zone_rules.json content from the stored zoning by-law documents."""
     try:
@@ -741,6 +807,7 @@ def extract(documents: list[dict], store: Path) -> dict:
     except ImportError:
         pdfplumber = None
     zones, exceptions, unparsed, read, established = {}, {}, [], [], set()
+    additional_units = {'zones': {}, 'sections': {}}
     # The consolidated by-law is read first, so its tables win over an older by-law naming the same zone.
     for doc in sorted(documents, key=lambda d: '8149' not in str(d.get('title'))):
         label = f"{doc.get('title', '')} {doc.get('url', '')}"
@@ -752,6 +819,7 @@ def extract(documents: list[dict], store: Path) -> dict:
         read.append(doc['file'])
         opened, tabled, typed, running = _open_sections(pages), {}, {}, None
         if '8149' in str(doc.get('title')):
+            additional_units = additional_units_from_pages(pages, source)
             # The zones the by-law establishes, from its Table 2.1 and the page after it.
             at = next((i for i, page in enumerate(pages) if 'Establishment of Zones' in page and 'Zoning Symbol' in page), None)
             for page in pages[at:at + 3] if at is not None else ():
@@ -833,7 +901,8 @@ def extract(documents: list[dict], store: Path) -> dict:
                 exceptions[code].setdefault('by_lot_type', {}).update(by_type)
     families = {family: sorted(z for z in established if z.startswith(family[:-1]) and z != family[:-1])
                 for family in zones if family.endswith('*')}
-    return {'zones': zones, 'exceptions': exceptions, 'families': families, 'unparsed': unparsed[:500], 'documents_read': read,
+    return {'zones': zones, 'exceptions': exceptions, 'families': families, 'additional_units': additional_units,
+            'unparsed': unparsed[:500], 'documents_read': read,
             'table_reader': 'pdfplumber' if pdfplumber else None}
 
 

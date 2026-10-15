@@ -6,6 +6,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 
+from scripts import zone_rules
 from scripts.zone_rules import extract, parse_value, provision_key, rules_from_table, rules_from_text
 
 STYLE = getSampleStyleSheet()
@@ -483,3 +484,19 @@ def test_a_scan_that_spaces_a_decimal_point_and_a_site_whose_standards_are_on_it
                             'for all other semi-detached dwellings:\n1 .2 metres one side, 0.6 metres other side, or', {})
     assert found['interior_side_yard']['other_kinds'][0]['value'] == 1.2
     assert DRAWN.search('The performance standards and provisions as set out on Figure 1 hereto shall apply to the area')
+
+
+def test_additional_unit_rows_keep_blank_cells_and_the_section_figures():
+    pages = ['Permitted Use R3A R3B R3C \nResidential Uses \nAdditional Dwelling \nUnit(1, 2) ● ●  \n',
+             'Permitted Use I1 UR UT \nAdditional Dwelling Unit (2)  ●(1)  \n',
+             '4.3 Additional Dwelling Units \n1. Where permitted by this By-law, a maximum of one (1) additional '
+             'dwelling unit is permitted within an accessory building. A maximum floor area of 150 sq. m. \n'
+             'Requirement Lots with an area of 2,000 \nsq.m. or less \nMaximum Height (m) 4.5 6.5 \n'
+             'minimum 1.2 m wide path of travel \n4.4 Air Conditioners \nmaximum floor area of 99 sq. m']
+    found = zone_rules.additional_units_from_pages(pages, {'document': 'By-law 8149/24'})
+    assert {z: v['permitted'] for z, v in found['zones'].items()} == {
+        'R3A': True, 'R3B': True, 'R3C': False, 'I1': False, 'UR': True, 'UT': False}
+    assert found['zones']['UR']['notes'] == ['1'] and found['zones']['R3A']['page'] == 1
+    section = found['sections']['4.3']
+    assert (section['max_floor_area_m2'], section['large_lot_m2'], section['max_height_m'],
+            section['max_height_large_lot_m'], section['path_width_m'], section['page']) == (150, 2000, 4.5, 6.5, 1.2, 3)

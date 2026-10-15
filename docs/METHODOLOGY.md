@@ -576,6 +576,20 @@ layers clipped to Pickering, Zoning By-law 8149/24 with its exception zones and
 amendments from the City's Laserfiche records, the Provincial Planning Statement
 and O. Reg. 545/06. The API reads only that stored copy.
 
+- **Garden suite (additional dwelling unit)** — the zones that permit one are read
+  from the "Additional Dwelling Unit" row of each permitted-use table in
+  8149/24 (the text keeps a blank cell as an extra space, so cells split on one
+  space). Its figures are read from section 4.3, or 14.2.9 in Seaton: up to
+  150 m² and no more than 50% of the house's floor area, within the zone's lot
+  coverage (45% where the zone sets none), 4.5 m tall (6.5 m on lots over
+  2,000 m²), 1.2 m side and rear yards (2.4 m if over 4.5 m tall), and a 1.2 m
+  clear path from the street. The path is tested by shrinking the open ground
+  around the City's building footprints by half the width and asking whether
+  one piece reaches both the street side and the ground behind the house. The
+  Oak Ridges Moraine and Greenbelt rule a garden suite out; the conservation
+  authority regulated area and mapped natural heritage are flagged for
+  confirmation. Footprint left is coverage × lot area − existing footprints.
+
 - **Geometry** — coordinates are projected to local metres around latitude
   43.85 (equirectangular: 111,132 m per degree of latitude, 111,320 × cos(43.85°)
   m per degree of longitude), so areas and distances read in metres; the error

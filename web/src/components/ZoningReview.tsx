@@ -5,6 +5,7 @@ import { CATEGORY_LABELS, docUrl, lotForForm, type Hit, type Lookup } from "@/li
 import { useUnits } from "@/lib/units";
 import ZoneStandards from "./ZoneStandards";
 import LotSetbacks from "./LotSetbacks";
+import GardenSuite from "./GardenSuite";
 
 const GROUP_LABELS: Record<string, string> = {
   zoning_bylaw: "Zoning by-laws",
@@ -202,6 +203,7 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
 
       <Step n={3} title="Proposed development">
         <LotSetbacks lot={s["3_proposed_development"].lot_standards} />
+        {lookup.additional_units && <GardenSuite aru={lookup.additional_units} />}
         <ZoneStandards standards={s["3_proposed_development"].zone_standards_in_bylaw_text} />
         <Checklist label="You supply" items={s["3_proposed_development"].applicant_must_supply} />
         <p className="zr-muted">{s["3_proposed_development"].check_against}</p>

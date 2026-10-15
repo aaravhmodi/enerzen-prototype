@@ -176,6 +176,88 @@ def _footprints(layers, geom) -> list:
     return [layer.features[layer._indexed[int(i)]][1] for i in layer.tree.query(geom)] if layer else []
 
 
+def additional_units(layers, geom, code, rules, overlays, standards) -> dict | None:
+    """Can this lot take a garden suite (an additional dwelling unit in an accessory building)?
+
+    From the by-law's own permitted-use tables and its section 4.3 (or Seaton's 14.2.9), read by
+    scripts/zone_rules.py; None when the zone has no row in those tables.
+    """
+    aru = rules.get('additional_units') or {}
+    base = lot_rules.split_zone(code)[0] if code else None
+    zone = aru.get('zones', {}).get(base)
+    if zone is None:
+        return None
+    number = '14.2.9' if zone['seaton'] else '4.3'
+    section = aru.get('sections', {}).get(number) or {}
+    cite = lambda s: {'document': s.get('document'), 'page': s.get('page'), 'file': s.get('file')}
+    out = {'zone': base, 'permitted_in_zone': zone['permitted'], 'zone_table': cite(zone),
+           'section': {**cite(section), 'number': number}, 'blockers': [], 'checks': []}
+    if not zone['permitted']:
+        return out
+    on_lot = lambda c, pattern='': [h for h in overlays.get(c, []) if h['distance_m'] == 0
+                                    and re.search(pattern, h['layer'], re.I)]
+    if on_lot('provincial_plans', r'moraine'):
+        out['blockers'].append('Oak Ridges Moraine: only one additional unit, inside the house; no garden suite.')
+    elif on_lot('provincial_plans', r'greenbelt (boundary|area)'):
+        out['blockers'].append('Greenbelt Protected Countryside: only in an accessory building legally built by July 1, 2017.')
+    if on_lot('floodplain', r'regulat'):
+        out['checks'].append('In the conservation authority regulated area: no additional unit on hazardous lands; '
+                             'the authority confirms where the hazard limit falls.')
+    if on_lot('natural_heritage'):
+        out['checks'].append('A mapped natural heritage feature touches the lot: no garden suite inside a key '
+                             'natural heritage or hydrologic feature.')
+    if geom is None or not section:
+        return out
+    area = geom.area
+    large = area > section.get('large_lot_m2', float('inf'))
+    height = section.get('max_height_large_lot_m' if large else 'max_height_m')
+    houses = _footprints(layers, geom)
+    built = sum(h.intersection(geom).area for h in houses)
+    coverage = (standards.get('standards', {}).get('lot_coverage') or {}).get('value') or section.get('default_coverage_pct')
+    room = round(area * coverage / 100 - built, 1) if coverage else None
+    out.update({
+        'max_height_m': height, 'min_interior_side_m': section.get('min_interior_side_m'),
+        'min_rear_m': section.get('min_rear_m'),
+        'taller_than_m': section.get('taller_than_m'), 'min_side_rear_if_taller_m': section.get('min_side_rear_if_taller_m'),
+        'max_floor_area_m2': section.get('max_floor_area_m2'),
+        'max_share_of_house_pct': section.get('max_share_of_house_pct'),
+        'coverage_pct': coverage, 'existing_footprint_m2': round(built, 1),
+        'footprint_left_m2': max(room, 0) if room is not None else None,
+        'path_width_m': section.get('path_width_m'),
+        'path_fits': _path_fits(layers, geom, houses, section.get('path_width_m')),
+        'existing_units': _existing_units(layers, geom),
+    })
+    if room is not None and room <= 0:
+        out['blockers'].append(f'The buildings already cover the {coverage:g}% of the lot the zone allows.')
+    if out['path_fits'] is False:
+        out['blockers'].append(f"No {section.get('path_width_m'):g} m clear path from the street past the house "
+                               'to the rear yard, as the by-law requires.')
+    return out
+
+
+def _path_fits(layers, geom, houses, width) -> bool | None:
+    """Whether a path of the given width runs from the street side of the lot to behind its buildings."""
+    streets, _ = _streets_and_lanes(layers, geom, lot_rules.FRONTING_M + 100)
+    if not houses or not streets or not width:
+        return None
+    road = min(streets, key=lambda g: g.distance(geom))
+    house = shapely.union_all(houses).intersection(geom)
+    behind = geom.difference(road.buffer(max(road.distance(Point(c)) for c in house.convex_hull.exterior.coords)))
+    if behind.is_empty:
+        return False
+    # Shrinking the open ground by half the width leaves only the parts a path that wide can reach.
+    open_ground = geom.difference(house).buffer(-width / 2)
+    front = road.distance(geom) + width
+    parts = getattr(open_ground, 'geoms', [open_ground])
+    return any(p.distance(road) <= front and p.intersects(behind) for p in parts if not p.is_empty)
+
+
+def _existing_units(layers, geom) -> int:
+    """Additional dwelling units the City has addressed on this lot."""
+    return sum(len(l.tree.query(geom, predicate='intersects')) for l in layers
+               if l.tree is not None and re.search(r'accessory ?dwelling', l.meta['name'], re.I))
+
+
 def _apply_rules(layers, geom, code, rules) -> tuple[dict, dict | None]:
     """A lot's standards and dimensions, using its streets, any rear lane and its building's footprint."""
     streets, lanes = _streets_and_lanes(layers, geom, lot_rules.FRONTING_M + 100) if geom is not None else ([], [])
@@ -731,8 +813,10 @@ def lookup(latitude: float, longitude: float) -> dict:
 
     # The zone covering most of the lot governs it; its standards come from the by-law's tables.
     primary_zone = next((code for h in zoning if (code := _zone_code(h['attributes']))), None)
-    standards, dimensions = _apply_rules(layers, parcel['_geom'] if parcel else None, primary_zone, zone_rules())
+    rules = zone_rules()
+    standards, dimensions = _apply_rules(layers, parcel['_geom'] if parcel else None, primary_zone, rules)
     envelope = standards.pop('_envelope')
+    garden_suite = additional_units(layers, parcel['_geom'] if parcel else None, primary_zone, rules, overlays, standards)
 
     property_id = None
     if parcel:
@@ -769,6 +853,7 @@ def lookup(latitude: float, longitude: float) -> dict:
             'setbacks': setback_summary(standards),
         }.items() if v},
         'source_url': zoning[0]['source_url'] if zoning else None,
+        'additional_units': garden_suite,
         'buildable_area': mapping(_to_wgs84(envelope)) if envelope is not None else None,
         'source_label': 'City of Pickering zoning (stored on this server)',
         'steps': {
