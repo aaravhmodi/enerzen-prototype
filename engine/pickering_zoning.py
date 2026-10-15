@@ -191,7 +191,7 @@ def additional_units(layers, geom, code, rules, overlays, standards) -> dict | N
         # ancillary building wherever a detached, semi-detached or row house is permitted on urban
         # residential land, so the exception's own text decides.
         text = next((e for x in exceptions if (e := rules.get('exceptions', {}).get(x))
-                     and re.search(r'detached dwelling|semi-detached|townhouse', e.get('text', ''), re.I)), None)
+                     and re.search(r'detached|townhouse|row ?house', e.get('text', ''), re.I)), None)
         if text is None:
             return None
         zone, basis = {'permitted': True, 'seaton': False, **{k: text.get(k) for k in ('document', 'file', 'page')}}, 'planning_act'
@@ -204,10 +204,18 @@ def additional_units(layers, geom, code, rules, overlays, standards) -> dict | N
         return out
     on_lot = lambda c, pattern='': [h for h in overlays.get(c, []) if h['distance_m'] == 0
                                     and re.search(pattern, h['layer'], re.I)]
-    if on_lot('provincial_plans', r'moraine'):
-        out['blockers'].append('Oak Ridges Moraine: only one additional unit, inside the house; no garden suite.')
-    elif on_lot('provincial_plans', r'greenbelt (boundary|area)'):
-        out['blockers'].append('Greenbelt Protected Countryside: only in an accessory building legally built by July 1, 2017.')
+    # A plan area over the whole lot rules a garden suite out; over part of it, the suite sits outside that part.
+    for name, hits, rule in (
+            ('the Oak Ridges Moraine', on_lot('provincial_plans', r'moraine'),
+             'only one additional unit, inside the house'),
+            ('Greenbelt Protected Countryside', [h for h in on_lot('provincial_plans', r'greenbelt')
+                                                 if h['attributes'].get('DESIGNATION') == 'Protected Countryside'],
+             'only in an accessory building legally built by July 1, 2017')):
+        share = max((h['parcel_share_pct'] or 0 for h in hits), default=0)
+        if share >= 95:
+            out['blockers'].append(f'In {name}: {rule}.')
+        elif share > 0:
+            out['checks'].append(f'{share:g}% of the lot is in {name} ({rule}); a new garden suite must sit outside it.')
     if basis == 'planning_act':
         out['checks'].append(f"Exception zone {', '.join(exceptions)} permits houses, so Planning Act s.35.1 permits a "
                              'garden suite if the lot has municipal water and sewer.')
