@@ -230,13 +230,16 @@ def rules_from_table(table, page_text: str, source: dict, carry: dict | None = N
     header = _zone_cells(rows[0])
     if sum(1 for z in header[1:] if z) >= 1 and not provision_key(rows[0][0] or ''):
         # Zones across the top, provisions down the first column.
-        label = None
+        label, dashes = None, []
         for row in rows[1:]:
             # A requirement split over several rows by use keeps its label; the first case stated is kept.
             label = row[0] or label
             for zone, cell in zip(header[1:], row[1:]):
                 if zone:
                     put(zone.strip('()'), label, cell)
+                    key = provision_key(label or '')
+                    if key and key[1] == 'minimum' and re.fullmatch(r'\s*[-–—]\s*', str(cell or '')):
+                        dashes.append((zone.strip('()'), key[0], label))
         # A requirement the table reader lost the name of (the rural zones' rear yard, at the foot of
         # its page) is read from the page's text instead: "Minimum Rear Yard (m) - -" and under it
         # "Residential Uses 12.0 12.0", the first case stated.
@@ -252,6 +255,12 @@ def rules_from_table(table, page_text: str, source: dict, carry: dict | None = N
                         for zone, cell in zip(named, cells):
                             put(zone, f"{line.rstrip('-– ')} – {' '.join(below.split()[:-len(named)])}", cell)
                         break
+        # A bare dash under a minimum is "none required" (the UT column of Table 13.3), unless a later row
+        # of a requirement split by use states it; a dash with a note ("-(1)": another zone's
+        # requirements apply) is left for the note.
+        for zone, key, label in dashes:
+            out.setdefault(zone, {}).setdefault(key, {'value': 0.0, 'unit': None, 'raw': '-', 'none_required': True,
+                                                      'bound': 'minimum', 'label': ' '.join(str(label).split()), **source})
         return out, unparsed
     first_col = _zone_cells([r[0] for r in rows[1:]])
     if sum(1 for z in first_col if z) >= 1 and any(provision_key(c or '') for c in rows[0][1:]):

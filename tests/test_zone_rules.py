@@ -511,3 +511,11 @@ def test_every_use_a_table_marks_with_wrapped_names_and_blank_cells():
     assert sorted(uses['R3B']) == ['Additional Dwelling Unit', 'Apartment Dwelling', 'Back-to-Back Townhouse Dwelling',
                                    'Street Townhouse Dwelling']
     assert sorted(uses['R3C']) == ['Apartment Dwelling'] and uses['R3A']['Apartment Dwelling']['notes'] == ['3']
+
+
+def test_a_bare_dash_under_a_minimum_needs_none_and_a_noted_dash_waits_for_its_note():
+    rows = [['Requirement', 'I1', 'UR', 'UT'], ['Minimum Front Yard (m)', '4.0', '-(1)', '-'],
+            ['Maximum Building Height (m)', '12.0', '-(1)', '-']]
+    found, _ = rules_from_table(rows, '', {'document': 'By-law 8149/24', 'page': 138})
+    assert found['UT']['front_yard']['value'] == 0.0 and found['UT']['front_yard']['none_required']
+    assert 'building_height' not in found['UT'] and 'front_yard' not in found.get('UR', {})
