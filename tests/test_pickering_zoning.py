@@ -819,3 +819,11 @@ def test_an_old_exception_falls_back_to_its_former_parent_zone():
     found = lot_rules.resolve('R4-X33', rules)
     assert found['rear_yard']['value'] == 7.62 and 'By-law 2511 (former)' in found['rear_yard']['from']
     assert found['front_yard']['value'] == 6.0  # the exception's own figure still has the last word
+
+
+def test_a_made_up_zone_takes_the_former_section_its_exception_sends_it_to():
+    from engine import lot_rules
+    rules = {'zones': {}, 'former': {'2511': {'zones': {'M2S': {'front_yard': {'value': 15.24}, '_section': '18'}}}},
+             'exceptions': {'X40': {'text': 'any use of the M2S Zone as per Section 18.1 of By-law 2511; BUILDING '
+                                            'RESTRICTIONS: Subject to Section 18.2 of By-law 2511;'}}}
+    assert lot_rules.resolve('MC-12-X40', rules)['front_yard']['value'] == 15.24

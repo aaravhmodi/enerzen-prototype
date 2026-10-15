@@ -535,3 +535,8 @@ def test_a_former_bylaws_zone_sections_in_feet_and_the_volumes_its_exceptions_ca
     assert r4['front_yard']['page'] == 2 and zones['C2']['front_yard']['value'] == 18.29 and 'S' not in zones
     volumes = zone_rules.former_volumes([{'url': 'x/2511_-Exception-Zones_V3-X1-to-X3-X413-to-X414---CLEAN.pdf'}])
     assert volumes == {'X1': '2511', 'X2': '2511', 'X3': '2511', 'X413': '2511', 'X414': '2511'}
+
+
+def test_an_exception_heading_after_its_section_number():
+    found = zone_rules.exceptions_from_pages(['15.92 Exception Zone 92 (By-law 173-75)\nProvisions\nFRONT YARD DEPTH (minimum): 6.0 metres\n'], {'document': 'd'})
+    assert 'X92' in found

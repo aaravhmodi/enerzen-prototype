@@ -97,6 +97,12 @@ def _former_table(base: str, exceptions: list[str], rules: dict) -> tuple[str, d
             table = ((former.get(number) or {}).get('zones') or {}).get(base)
             if table:
                 return f'{base}, By-law {number} (former)', {k: v for k, v in table.items() if not k.startswith('_')}
+        # A zone the exception makes up ("MC-12") whose building rules it sends to a section of the
+        # former by-law: "BUILDING RESTRICTIONS: Subject to Section 18.2 of By-law 2511" (the M2S zone).
+        for section, number in re.findall(r'(?:subject to|in accordance with|as per) Section (\d+[A-Z]?)\.2\b[^.;]{0,20}?of By-?law (2511|2520|3036|3037)', text, re.I):
+            for zone, table in ((former.get(number) or {}).get('zones') or {}).items():
+                if table.get('_section') == section:
+                    return f'{zone}, By-law {number} (former), Section {section}', {k: v for k, v in table.items() if not k.startswith('_')}
     return base, {}
 
 

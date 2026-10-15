@@ -125,7 +125,7 @@ EACH_SIDE = re.compile(r'\W*(interior|flankage|exterior)\s+side\s+yard\s*[:\-–
 ZONE_COLUMN = re.compile(r'\W*([A-Z][A-Z0-9]*(?:[-/][A-Z0-9]+)*)\W*\s*Zone\W*')
 # A zone as an exception writes it, hyphens and all: S1-2, S-SD-SA, RH/MU, MD-H5.
 DESIGNATION = re.compile(r'[A-Z][A-Z0-9]*(?:[-/][A-Z0-9]+)*')
-EXCEPTION_HEADING = re.compile(r'^\s*(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
+EXCEPTION_HEADING = re.compile(r'^\s*(?:\d+\.\d+\s+)?(?:Exception(?:\s+Zone)?\s*(?:No\.?\s*)?|X\s?)(\d{1,4})\b(.*)$', re.I | re.M)
 
 
 def provision_key(label: str):
@@ -773,10 +773,10 @@ _FT = r'\s*(feet|foot|ft\.?|metres?)'
 FORMER_FIGURES = {
     'lot_frontage': (rf'Lot Frontage:?\s*[-–]?\s*Minimum\s*[-–]?\s*{_N}{_FT}', 'minimum'),
     'lot_area': (r'Lot Area:?\s*[-–]?\s*Minimum\s*[-–]?\s*([\d,]+)\s*(square feet|sq\.? ?ft|square metres)', 'minimum'),
-    'front_yard': (rf'Front Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
-    'rear_yard': (rf'Rear Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
-    'exterior_side_yard': (rf'Flankage (?:Side )?Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
-    'interior_side_yard': (rf'Side Yard\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?(?:on\s+)?(?:one side\s*)?{_N}{_FT}'
+    'front_yard': (rf'Front Yards?\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
+    'rear_yard': (rf'Rear Yards?\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
+    'exterior_side_yard': (rf'Flankage (?:Side )?Yards?\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?{_N}{_FT}', 'minimum'),
+    'interior_side_yard': (rf'Side Yards?\s*[-–:]?\s*(?:Minimum\s*[-–]?\s*)?(?:on\s+)?(?:one side\s*)?{_N}{_FT}'
                            rf'(?:\s*(?:minimum)?,?\s*(?:and\s+)?(?:on\s+the\s+)?other side\s*{_N}{_FT})?', 'minimum'),
     'lot_coverage': (r'Lot Coverage:?\s*[-–]?\s*Maximum[^%\d]{0,60}?(\d+(?:\.\d+)?)\s*per\s?cent', 'maximum'),
     'building_height': (rf'Height[^:]{{0,30}}:?\s*[-–]?\s*Maximum\s*[-–]?\s*{_N}{_FT}', 'maximum'),
