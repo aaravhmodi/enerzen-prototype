@@ -842,3 +842,20 @@ def test_a_made_up_zone_needs_no_yard_its_requirements_never_name():
     assert found['interior_side_yard']['value'] == 0.0
     s49 = lot_rules.resolve('S4-9-X6', rules)
     assert 'rear_yard' not in s49 and s49['interior_side_yard']['value'] == 0.0  # named, though unread: still missing
+
+
+def test_a_drawing_names_a_street_by_its_old_type():
+    from types import SimpleNamespace
+    from shapely import STRtree
+    from shapely.geometry import LineString, box
+    from engine import pickering_zoning as pz
+    def layer(category, name, features):
+        return SimpleNamespace(meta={'category': category, 'name': name}, features=features,
+                               tree=STRtree([g for _, g in features]), _indexed=list(range(len(features))))
+    layers = [layer('zoning', 'Zoning', [({'ZONING_CODE': 'M15', 'EXCEPTION_NUM': '1'}, box(0, 0, 40, 30))]),
+              layer('roads', 'Road Centreline', [({'FULL_NAME': 'Oklahoma Drive'}, LineString([(-10, -50), (-10, 80)]))])]
+    lot = {'exceptions': ['X1'], 'basis': 'figure', 'complete': False,
+           'figure_setbacks': [{'figure': 'Figure 1', 'setbacks': [{'from': 'Oklahoma Road', 'value_m': 6.1, 'stated': '20 ft'}]}],
+           'setbacks_by_side': {s: {'applies': 'x', 'value': None} for s in 'NESW'}}
+    pz._sides_from_figures(layers, box(0, 0, 40, 30), lot, {'rotation_deg': 0})
+    assert lot['setbacks_by_side']['W']['value'] == 6.1

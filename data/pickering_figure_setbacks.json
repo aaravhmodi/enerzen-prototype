@@ -2154,5 +2154,24 @@
    "common_wall": "Setbacks are per pair of attached semi-detached dwellings: no side yard is required along the common wall.",
    "note": "A table printed as Figure 1: front 4.5 m, side 1.2 m, flankage 2.7 m, rear 7.5 m per pair of semi-detached dwellings."
   }
+ ],
+ "X92": [
+  {
+   "figure": "Figure 1",
+   "document": "Exception Zones X1 to X215",
+   "page": 368,
+   "unit": "m",
+   "setbacks": [],
+   "yards": {
+    "SD": {
+     "front_yard": 4.5,
+     "interior_side_yard": 1.2,
+     "exterior_side_yard": 2.7,
+     "rear_yard": 7.5
+    }
+   },
+   "common_wall": "Setbacks are per pair of attached semi-detached dwellings: no side yard is required along the common wall.",
+   "note": "A table printed as Figure 1 for the SD zone: front 4.5 m, side 1.2 m, flankage 2.7 m, rear 7.5 m. The A36 apartments take their setbacks from the drawing on Figure 3, not transcribed."
+  }
  ]
 }

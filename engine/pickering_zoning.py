@@ -316,6 +316,7 @@ def _apply_rules(layers, geom, code, rules) -> tuple[dict, dict | None]:
 
 COMPASS = {'north': 'N', 'south': 'S', 'east': 'E', 'west': 'W'}
 NAMED_STREET_M = 60.0
+STREET_TYPES = 'road|street|avenue|drive|boulevard|crescent|court|lane|parkway|way|place|circle|trail|gate|square'
 
 
 def _sides_from_figures(layers, geom, lot: dict, dims: dict):
@@ -355,6 +356,15 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
             line, value = setback['from'].lower(), setback['value_m']
             sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
                      if name and re.search(rf'\b{re.escape(name)}\b', plainly(line)) and g.distance(geom) <= NAMED_STREET_M}
+            if not sides:
+                # A street renamed in kind since the drawing ("Oklahoma Road", now Oklahoma Drive): the name
+                # without its type, where one street near the lot has it.
+                stem = lambda n: re.sub(rf'\s({STREET_TYPES})$', '', n)
+                wanted = re.match(rf'(.{{4,}}?)\s({STREET_TYPES})\b', plainly(line))
+                near = {name for name, g in named if wanted and name != stem(name) and stem(name) == wanted.group(1)}
+                if len(near) == 1:
+                    sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
+                             if name in near and g.distance(geom) <= NAMED_STREET_M}
             # "south lot line (MD-H6 zone)": the bracket says what lies beyond the line, not which line.
             plain = re.sub(r'\([^)]*\)', '', line)
             if not sides and 'lot line' in plain and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', plain):
