@@ -615,6 +615,16 @@ and O. Reg. 545/06. The API reads only that stored copy.
   no 8149/24 table takes its parent zone from the by-law its exception names,
   else the by-law whose exception volume it came from; the exception's own
   figures still have the last word.
+- **Yards an exception never names** — a zone an exception makes up for
+  itself ("RM-1": "No person shall within the lands designated RM-1 ...
+  except in accordance with the following provisions") is regulated by those
+  provisions alone, so a yard its zone section never names is not required.
+  A yard the section names in words not read (by lot depth, across a page
+  break) stays missing rather than taking 0 m. Where an exception sends its
+  building rules to a section of a former by-law ("Subject to Section 18.2 of
+  By-law 2511"), the lot takes that section's zone. A table dash with a note
+  ("-(2)") is none required with the note's condition beside it, unless the
+  note applies another zone's requirements.
 - **Garden suite (additional dwelling unit)** — the zones that permit one are read
   from the "Additional Dwelling Unit" row of each permitted-use table in
   8149/24 (the text keeps a blank cell as an extra space, so cells split on one

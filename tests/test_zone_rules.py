@@ -334,7 +334,8 @@ def test_an_exception_with_several_zones_keeps_each_zones_own_standards():
             'Zone Requirements (\'\'S-SD" Zone)\n'
             'FRONT YARD DEPTH (minimum): 6.0 metres\nREAR YARD DEPTH (minimum): 9.0 metres\n')
     rules = {'zones': {}, 'exceptions': exceptions_from_pages([page], {'file': 'f'})}
-    yards = lambda code: {k: v['value'] for k, v in resolve(code, rules).items()}
+    # Yards the text states; those its sections never name are "none required" (see _unasked_yards).
+    yards = lambda code: {k: v['value'] for k, v in resolve(code, rules).items() if not v.get('none_required')}
     assert rules['exceptions']['X238']['zone_sections'] == ['S1', 'S1-2', 'S1-3', 'S3', 'S-SD']
     assert yards('S1-X238') == {'front_yard': 4.5, 'rear_yard': 7.5} and yards('S1-3-X238') == {'front_yard': 4.0}
     assert yards('S-SD-X238') == {'front_yard': 6.0, 'rear_yard': 9.0}  # not the first zone's 4.5 and 7.5
@@ -540,3 +541,11 @@ def test_a_former_bylaws_zone_sections_in_feet_and_the_volumes_its_exceptions_ca
 def test_an_exception_heading_after_its_section_number():
     found = zone_rules.exceptions_from_pages(['15.92 Exception Zone 92 (By-law 173-75)\nProvisions\nFRONT YARD DEPTH (minimum): 6.0 metres\n'], {'document': 'd'})
     assert 'X92' in found
+
+
+def test_a_noted_dash_needs_none_but_keeps_its_condition():
+    rows = [['Requirement', 'ORMI', 'ORMC'], ['Minimum Interior Side Yard (m)', '3.0', '-(2)']]
+    page = 'Notes: 1. No accessory buildings shall exceed 10.0 m2. 2. Where the interior side yard abuts a Residential zone, the setback shall be 7.5 m. Table 12.7'
+    found, _ = rules_from_table(rows, page, {'document': 'By-law 8149/24', 'page': 134})
+    side = found['ORMC']['interior_side_yard']
+    assert side['value'] == 0.0 and 'abuts a Residential zone, the setback shall be 7.5 m' in side['note']

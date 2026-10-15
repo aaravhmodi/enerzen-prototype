@@ -827,3 +827,18 @@ def test_a_made_up_zone_takes_the_former_section_its_exception_sends_it_to():
              'exceptions': {'X40': {'text': 'any use of the M2S Zone as per Section 18.1 of By-law 2511; BUILDING '
                                             'RESTRICTIONS: Subject to Section 18.2 of By-law 2511;'}}}
     assert lot_rules.resolve('MC-12-X40', rules)['front_yard']['value'] == 15.24
+
+
+def test_a_made_up_zone_needs_no_yard_its_requirements_never_name():
+    from engine import lot_rules
+    text = ('Zone Requirements ("RM-1" Zone) No person shall within the lands designated "RM-1" ... except in '
+            'accordance Building Height: maximum 11.0 metres Front Yard Depth: minimum 3.0 metres '
+            'Zone Requirements ("S4-9" Zone) Front Yard Depth (minimum): 4.5 metres Rear Yard Depth (minimum): for lot '
+            'depths less than or equal to 40.0 metres: 7.5 metres')
+    rules = {'zones': {}, 'exceptions': {'X6': {'text': text, 'by_zone': {'RM-1': {'front_yard': {'value': 3.0}}},
+                                                'zone_sections': ['RM-1', 'S4-9']}}}
+    found = lot_rules.resolve('RM-1-X6', rules)
+    assert found['front_yard']['value'] == 3.0 and found['rear_yard']['value'] == 0.0 and found['rear_yard']['none_required']
+    assert found['interior_side_yard']['value'] == 0.0
+    s49 = lot_rules.resolve('S4-9-X6', rules)
+    assert 'rear_yard' not in s49 and s49['interior_side_yard']['value'] == 0.0  # named, though unread: still missing

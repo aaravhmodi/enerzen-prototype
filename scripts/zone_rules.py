@@ -238,8 +238,9 @@ def rules_from_table(table, page_text: str, source: dict, carry: dict | None = N
                 if zone:
                     put(zone.strip('()'), label, cell)
                     key = provision_key(label or '')
-                    if key and key[1] == 'minimum' and re.fullmatch(r'\s*[-–—]\s*', str(cell or '')):
-                        dashes.append((zone.strip('()'), key[0], label))
+                    dash = re.fullmatch(r'\s*[-–—]\s*(?:\((\d+)\))?\s*', str(cell or ''))
+                    if key and key[1] == 'minimum' and dash:
+                        dashes.append((zone.strip('()'), key[0], label, dash.group(1)))
         # A requirement the table reader lost the name of (the rural zones' rear yard, at the foot of
         # its page) is read from the page's text instead: "Minimum Rear Yard (m) - -" and under it
         # "Residential Uses 12.0 12.0", the first case stated.
@@ -256,11 +257,17 @@ def rules_from_table(table, page_text: str, source: dict, carry: dict | None = N
                             put(zone, f"{line.rstrip('-– ')} – {' '.join(below.split()[:-len(named)])}", cell)
                         break
         # A bare dash under a minimum is "none required" (the UT column of Table 13.3), unless a later row
-        # of a requirement split by use states it; a dash with a note ("-(1)": another zone's
-        # requirements apply) is left for the note.
-        for zone, key, label in dashes:
+        # of a requirement split by use states it. A dash with a note is none required with the note's
+        # own condition beside it ("-(2)": "Where the interior side yard abuts a Residential zone, the
+        # setback shall be 7.5 m"), unless the note sends the zone to another zone's requirements.
+        flat = ' '.join(page_text.split())
+        for zone, key, label, mark in dashes:
+            note = re.search(rf'(?:^|\s){mark}\.\s+(.+?)(?=\s\d+\.\s+[A-Z]|\sTable\s|$)', flat) if mark else None
+            if mark and (not note or re.search(r'requirements of the', note.group(1), re.I)):
+                continue
             out.setdefault(zone, {}).setdefault(key, {'value': 0.0, 'unit': None, 'raw': '-', 'none_required': True,
-                                                      'bound': 'minimum', 'label': ' '.join(str(label).split()), **source})
+                                                      'bound': 'minimum', 'label': ' '.join(str(label).split()), **source,
+                                                      **({'note': f'None required; {note.group(1).strip()}'} if note else {})})
         return out, unparsed
     first_col = _zone_cells([r[0] for r in rows[1:]])
     if sum(1 for z in first_col if z) >= 1 and any(provision_key(c or '') for c in rows[0][1:]):

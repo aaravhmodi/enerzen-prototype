@@ -258,7 +258,34 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
             if rule.get('applies_to') and not {base, designation} & set(rule['applies_to']):
                 continue
             resolved[key] = {**rule, 'from': said_by, 'overrides': resolved.get(key, {}).get('value')}
+    if not table:
+        _unasked_yards(designation, exceptions, rules, resolved)
     return {key: _for_kind(rule, joined) for key, rule in resolved.items()}
+
+
+YARD_WORDS = {'front_yard': r'front yard', 'rear_yard': r'rear yard', 'interior_side_yard': r'(?<!flankage )side yard',
+              'exterior_side_yard': r'flankage|exterior side'}
+
+
+def _unasked_yards(designation: str, exceptions: list[str], rules: dict, resolved: dict):
+    """A zone an exception makes up for itself ("RM-1": "No person shall within the lands designated
+    "RM-1" ... except in accordance with the following provisions") is regulated by those provisions
+    alone, so a yard its section never names is not required. Only a yard the section does not
+    mention at all: one it names in words not read (by lot depth, over a page break) stays missing."""
+    for exception in exceptions:
+        text = (rules.get('exceptions', {}).get(exception) or {}).get('text', '')
+        heads = list(re.finditer(r'Zone Requirements\s*\(([^)]{1,160})\)', text))
+        for i, head in enumerate(heads):
+            if designation not in re.findall(r'[A-Z0-9][A-Z0-9()-]*[A-Z0-9)]', head.group(1).upper()):
+                continue
+            body = text[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(text)]
+            body = re.split(r'(?:Uses Permitted|Holding Provisions?|Definitions)\s*\(', body)[0]
+            for key, words in YARD_WORDS.items():
+                if key not in resolved and not re.search(words, body, re.I):
+                    resolved[key] = {'value': 0.0, 'unit': 'm', 'bound': 'minimum', 'none_required': True,
+                                     'from': f'Exception {exception}', 'label': f"{key.replace('_', ' ')} (none set)",
+                                     'note': f'The zone requirements exception {exception} sets for "{designation}" name no such yard.'}
+            return
 
 
 def _envelope(parcel, rotation_deg: float, sides: dict):
@@ -351,7 +378,7 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                 by_side[side]['note'] = ("The zone's table sets a setback from the street line and no side or rear yard; "
                                          'its building separation and height rules apply instead.')
             if rule and rule.get('none_required'):
-                by_side[side]['note'] = "The zone's table sets no minimum for this kind of lot (a dash in the table)."
+                by_side[side]['note'] = rule.get('note') or "The zone's table sets no minimum for this kind of lot (a dash in the table)."
             # "6.0 m / 5.0 m adjacent to SNHS zone": the smaller figure on a side where the lot abuts that zone.
             near = (rule or {}).get('next_to')
             if near and parcel is not None and side in {_side_of(parcel.centroid, g, rotation)
