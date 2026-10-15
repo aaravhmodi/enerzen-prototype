@@ -2183,7 +2183,8 @@
    "setbacks": [],
    "yards": {
     "S4-9": {
-     "rear_yard": 7.5
+     "rear_yard": 7.5,
+     "interior_side_yard": 1.2
     }
    },
    "deeper": {
@@ -2192,7 +2193,24 @@
      10.0
     ]
    },
-   "note": "Rear yard 7.5 m on lots up to 40.0 m deep, 10.0 m on deeper lots, and 30.0 m where the rear yard abuts the CN Rail right-of-way."
+   "note": "Interior side yards by lot frontage: 1.2 m one side and 0.6 m the other up to 12.0 m, 1.2 m both sides to 14.9 m, 1.5 m both sides from 15.0 m. Rear yard 7.5 m on lots up to 40.0 m deep, 10.0 m on deeper lots, and 30.0 m where the rear yard abuts the CN Rail right-of-way.",
+   "other_side": {
+    "interior_side_yard": 0.6
+   },
+   "wider": {
+    "interior_side_yard": [
+     [
+      12.01,
+      1.2,
+      null
+     ],
+     [
+      15.0,
+      1.5,
+      null
+     ]
+    ]
+   }
   }
  ]
 }

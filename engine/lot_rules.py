@@ -235,8 +235,8 @@ def resolve(code: str | None, rules: dict, frontage_m: float | None = None, lane
         # the yards the text leaves to it, and anything the text states still has the last word.
         drawn = [(key, {'value': value, 'unit': 'm', 'document': figure['document'], 'page': figure['page'],
                         **({'common_wall': figure['common_wall']} if key == 'interior_side_yard' and figure.get('common_wall') else {}),
-                        **({'deeper': (figure.get('deeper') or {})[key], 'note': figure.get('note')}
-                           if key in (figure.get('deeper') or {}) else {})},
+                        **{k: (figure.get(k) or {})[key] for k in ('deeper', 'wider', 'other_side') if key in (figure.get(k) or {})},
+                        **({'note': figure.get('note')} if any(key in (figure.get(k) or {}) for k in ('deeper', 'wider')) else {})},
                   f"Exception {exception}, {figure['figure']}")
                  for figure in section.get('figures', [])
                  for key, value in (_own(figure.get('yards') or {}, designation, base) or {}).items()]
@@ -350,6 +350,16 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
     standards = resolve(code, rules, frontage, lane_lot, joined=bool(attached))
     if base in TAKES_ADJACENT and not standards and neighbours:
         standards = _most_restrictive([resolve(zone, rules) for zone in neighbours if zone != base], TAKES_ADJACENT[base])
+    # A yard set by the lot's size (X62): "for lot depths greater than 40.0 metres: 10.0 metres" is
+    # deeper [40.0, 10.0]; "for lot frontages 15.0 metres or greater: 1.5 metres on both sides" is one
+    # of wider [[12.0, 1.2, null], [15.0, 1.5, null]] (from that frontage on: the yard and the other side's).
+    for key, rule in list(standards.items()):
+        depth, width = (dimensions or {}).get('depth_m'), (dimensions or {}).get('width_m')
+        if rule.get('deeper') and depth and depth > rule['deeper'][0]:
+            standards[key] = rule = {**rule, 'value': rule['deeper'][1]}
+        for at_least, value, other in rule.get('wider') or ():
+            if width and width + 0.05 >= at_least:
+                standards[key] = rule = {**rule, 'value': value, 'other_side': other}
     # "> 4 ha: 15.0 / < 4 ha: 12.0" (the ORMA zone): a lot under the size named takes the second figure.
     for key, rule in standards.items():
         small = rule.get('small_lot')
@@ -367,9 +377,6 @@ def apply_to_lot(parcel, code: str | None, rules: dict, roads: list, dimensions:
                    'exterior_side_yard' if side == flank else 'interior_side_yard')
             # Without an exterior side yard in the by-law, the flank falls back to the interior one, said so.
             rule = standards.get(key) or (standards.get('interior_side_yard') if key == 'exterior_side_yard' else None)
-            # "for lot depths greater than 40.0 metres: 10.0 metres": [40.0, 10.0], the deeper lot's figure.
-            if rule and rule.get('deeper') and dimensions and dimensions.get('depth_m', 0) > rule['deeper'][0]:
-                rule = {**rule, 'value': rule['deeper'][1]}
             unasked = bool(street_line) and rule is None and key in ('rear_yard', 'interior_side_yard')
             if street_line and rule is None:
                 rule = {**street_line, 'value': 0.0} if unasked else street_line

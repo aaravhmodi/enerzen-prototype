@@ -892,3 +892,16 @@ def test_a_rear_yard_set_by_lot_depth_takes_the_deeper_figure_on_a_deep_lot():
         dims = {'width_m': 15, 'depth_m': depth, 'rotation_deg': 0, 'rectangularity': 1, 'street_side': 'S'}
         found = lot_rules.apply_to_lot(lot, 'S4-9-X62', rules, street, dims)
         assert found['setbacks_by_side']['N']['value'] == rear
+
+
+def test_side_yards_set_by_lot_frontage():
+    from shapely.geometry import box, LineString
+    from engine import lot_rules
+    rules = {'zones': {}, 'exceptions': {'X62': {'figures': [{'figure': 'Zone Requirements', 'document': 'd', 'page': 235, 'setbacks': [],
+        'yards': {'S4-9': {'interior_side_yard': 1.2}}, 'other_side': {'interior_side_yard': 0.6},
+        'wider': {'interior_side_yard': [[12.0, 1.2, None], [15.0, 1.5, None]]}}]}}}
+    street = [LineString([(-50, -5), (50, -5)])]
+    for width, sides in ((11, {1.2, 0.6}), (13, {1.2}), (16, {1.5})):
+        dims = {'width_m': width, 'depth_m': 30, 'rotation_deg': 0, 'rectangularity': 1, 'street_side': 'S'}
+        found = lot_rules.apply_to_lot(box(0, 0, width, 30), 'S4-9-X62', rules, street, dims)
+        assert {found['setbacks_by_side'][s]['value'] for s in 'EW'} == sides
