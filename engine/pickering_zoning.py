@@ -844,8 +844,12 @@ def lookup(latitude: float, longitude: float) -> dict:
     envelope = standards.pop('_envelope')
     # Durham publishes no water or sewer mains; the City's urban area is where the Regional Official
     # Plan plans full municipal services, and outside it a home is on a private well and septic system.
-    urban = [h for h in official_plan if re.search(r'urban_?area$', h['layer'], re.I) and h['distance_m'] == 0]
-    hamlet = [h for h in official_plan if re.search(r'hamlet', h['layer'], re.I) and h['distance_m'] == 0]
+    # The Region supplies the services, so its Official Plan's urban area decides; the City's own outline
+    # (wider in places, such as the Rouge valley estates) is used only when the Region's is not stored.
+    covers = lambda pattern: [h for h in official_plan if re.search(pattern, h['layer'], re.I)]
+    regional = covers(r'^Map \d.* - Urban Area$')
+    urban = [h for h in regional or covers(r'AMD_UrbanArea$') if (h['parcel_share_pct'] or 0) >= 50]
+    hamlet = [h for h in covers(r'hamlets?$') if (h['parcel_share_pct'] or 0) >= 50]
     servicing_status = {
         'municipal_expected': bool(urban), 'in_urban_area': bool(urban), 'in_hamlet': bool(hamlet),
         'source': (urban or hamlet or [{}])[0].get('source_url'),

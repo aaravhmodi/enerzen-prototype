@@ -803,6 +803,10 @@ def main(argv=None):
     manifest = scrape(args.out, arcgis_roots=roots, all_layers=not args.matched_only,
                       document_pages=[] if args.skip_documents else DOCUMENT_PAGES + args.page, ocr=not args.no_ocr,
                       escribe=None if args.skip_documents or args.skip_council else ESCRIBE)
+    if not args.skip_documents:
+        import dev_charges  # the charges a new home pays, from the City's and Region's current pamphlets
+        charges = dev_charges.scrape(args.out)
+        manifest['errors'] += charges['errors']
     by_category = {}
     for layer in manifest['layers']:
         key = layer['category'] or 'other'

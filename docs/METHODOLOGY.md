@@ -594,9 +594,12 @@ and O. Reg. 545/06. The API reads only that stored copy.
   unit in an ancillary building on serviced urban land, and the check says so.
 
 - **Servicing** — Durham publishes no water or sewer mains. A lot inside the
-  City's urban area (its Official Plan layer) is where the Regional Official
+  urban area is where the Regional Official
   Plan plans full municipal water and sewer; outside it a home is expected to
-  be on a private well and septic system. The Region confirms any connection.
+  be on a private well and septic system. The Region's own urban area (its
+  Official Plan maps) decides, at half the lot or more; the City's outline,
+  wider in places such as the Rouge valley estates, is used only when the
+  Region's is not stored. The Region confirms any connection.
 - **Development charges** — `scripts/dev_charges.py` reads the current
   pamphlets linked from the City's and the Region's development charges pages
   (City city-wide and Seaton; Region region-wide and Seaton water and sewer),
