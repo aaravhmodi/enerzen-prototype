@@ -315,6 +315,7 @@ def _apply_rules(layers, geom, code, rules) -> tuple[dict, dict | None]:
 
 
 COMPASS = {'north': 'N', 'south': 'S', 'east': 'E', 'west': 'W'}
+NAMED_STREET_M = 60.0
 
 
 def _sides_from_figures(layers, geom, lot: dict, dims: dict):
@@ -341,14 +342,19 @@ def _sides_from_figures(layers, geom, lot: dict, dims: dict):
             segment = shapely.geometry.LineString([a, b])
             if segment.length > 2 and segment.intersection(near_edge).length >= segment.length / 2:
                 on_edge.add(lot_rules._side_of(centre, segment.interpolate(0.5, normalized=True), rotation))
-    named = [(str(_pick(a, r'^full_?name$', r'^name$') or ''), g) for l in _street_layers(layers)
-             for i in l.tree.query(geom.buffer(lot_rules.FRONTING_M + 10)) for a, g in [l.features[l._indexed[int(i)]]]]
+    # A street the drawing names is looked for further off than a lot's own street: a highway's
+    # centreline sits deep in its right-of-way. Names compare without punctuation or a direction
+    # ("St. Martins Drive" is the City's "St Martins Drive"; "Kingston Road W" is Kingston Road).
+    plainly = lambda text: ' '.join(re.sub(r'[^a-z0-9 ]', ' ', text.lower()).split())
+    named = [(re.sub(r' [nesw]$', '', plainly(str(_pick(a, r'^full_?name$', r'^name$') or ''))), g)
+             for l in _street_layers(layers)
+             for i in l.tree.query(geom.buffer(NAMED_STREET_M)) for a, g in [l.features[l._indexed[int(i)]]]]
     found = {}
     for figure in lot['figure_setbacks']:
         for setback in figure['setbacks']:
             line, value = setback['from'].lower(), setback['value_m']
             sides = {lot_rules._side_of(centre, g, rotation) for name, g in named
-                     if name and name.lower() in line and g.distance(geom) <= lot_rules.FRONTING_M + 10}
+                     if name and re.search(rf'\b{re.escape(name)}\b', plainly(line)) and g.distance(geom) <= NAMED_STREET_M}
             # "south lot line (MD-H6 zone)": the bracket says what lies beyond the line, not which line.
             plain = re.sub(r'\([^)]*\)', '', line)
             if not sides and 'lot line' in plain and not re.search(r'\b(zone|item|block|plan|parcel|bank|with)\b|\d', plain):
