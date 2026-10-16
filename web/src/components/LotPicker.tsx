@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   CATEGORY_LABELS,
@@ -34,9 +34,15 @@ const DEFAULT_HIDDEN = ["other", "neighbourhoods", "addresses"];
 export default function LotPicker({
   onLot,
   initialSite,
+  lotWidth,
+  lotDepth,
+  onLotResize,
 }: {
   onLot: (lot: LotForForm) => void;
   initialSite?: Partial<SiteSpecInput> | null;
+  lotWidth?: number;
+  lotDepth?: number;
+  onLotResize?: (width: number, depth: number) => void;
 }) {
   const u = useUnits();
   const inputId = useId();
@@ -44,6 +50,7 @@ export default function LotPicker({
   const [chosen, setChosen] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [lookup, setLookup] = useState<Lookup | null>(null);
+  const [workingPoint, setWorkingPoint] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +89,10 @@ export default function LotPicker({
       setLookup(found);
       setMapData(around);
       const lot = lotForForm(found);
-      if (lot) onLot(lot);
+      if (lot) {
+        setWorkingPoint({ latitude: lot.latitude, longitude: lot.longitude });
+        onLot(lot);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "The lot could not be loaded.");
     } finally {
@@ -126,6 +136,12 @@ export default function LotPicker({
     : [];
   const address = lookup?.steps?.["1_property_identification"].from_city_data?.address;
   const categories = [...new Set(mapData?.layers.map((layer) => layer.category) ?? [])];
+  const workingLot = useMemo(
+    () => workingPoint && lotWidth != null && lotDepth != null
+      ? { ...workingPoint, width_m: lotWidth, depth_m: lotDepth }
+      : null,
+    [workingPoint, lotWidth, lotDepth],
+  );
 
   return (
     <div className="lot-picker">
@@ -203,7 +219,14 @@ export default function LotPicker({
             // Keep the loaded layers visible if a pan cannot load another area.
           }
         }}
+        workingLot={workingLot}
+        onLotResize={onLotResize}
       />
+      {workingPoint && (
+        <p className="lot-map-instructions" aria-live="polite">
+          Working lot shown in gold. Drag the round handles to adjust its width or depth; the dimensions below update with the map.
+        </p>
+      )}
       {categories.length > 0 && (
         <div className="zoning-legend section-card" aria-label="Map layers">
           {categories.map((category) => {

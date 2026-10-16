@@ -13,7 +13,6 @@ import {
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import LotPicker from "@/components/LotPicker";
-import { PICKERING_LOCATION } from "@/lib/zoning";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
 
@@ -431,10 +430,17 @@ export default function ProjectForm({
           <div className="space-y-5">
             <LotPicker
               initialSite={initialSite}
+              lotWidth={state.site.lot_width_m}
+              lotDepth={state.site.lot_depth_m}
+              onLotResize={(width, depth) =>
+                setState((current) => ({
+                  ...current,
+                  site: { ...current.site, lot_width_m: width, lot_depth_m: depth },
+                }))
+              }
               onLot={(lot) =>
                 setState((current) => ({
                   ...current,
-                  spec: { ...current.spec, location: PICKERING_LOCATION },
                   site: { ...current.site, ...lot },
                 }))
               }

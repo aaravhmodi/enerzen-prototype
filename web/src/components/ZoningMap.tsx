@@ -14,6 +14,8 @@ type Props = {
   onPick: (latitude: number, longitude: number) => void;
   // Called after the map settles at street zoom, to load the layers around the new view.
   onExplore?: (latitude: number, longitude: number) => void;
+  workingLot?: { latitude: number; longitude: number; width_m: number; depth_m: number } | null;
+  onLotResize?: (width_m: number, depth_m: number) => void;
 };
 
 const PICKERING_CENTER: [number, number] = [-79.09, 43.87];
@@ -95,7 +97,28 @@ function popupContent(
   return root;
 }
 
-export default function ZoningMap({ data, envelope, hidden, onPick, onExplore }: Props) {
+function lotRectangle(lot: NonNullable<Props["workingLot"]>): Feature {
+  const latMeters = 110_540;
+  const lngMeters = 111_320 * Math.cos((lot.latitude * Math.PI) / 180);
+  const halfLng = lot.width_m / (2 * lngMeters);
+  const halfLat = lot.depth_m / (2 * latMeters);
+  return {
+    type: "Feature",
+    properties: {},
+    geometry: {
+      type: "Polygon",
+      coordinates: [[
+        [lot.longitude - halfLng, lot.latitude - halfLat],
+        [lot.longitude + halfLng, lot.latitude - halfLat],
+        [lot.longitude + halfLng, lot.latitude + halfLat],
+        [lot.longitude - halfLng, lot.latitude + halfLat],
+        [lot.longitude - halfLng, lot.latitude - halfLat],
+      ]],
+    },
+  };
+}
+
+export default function ZoningMap({ data, envelope, hidden, onPick, onExplore, workingLot, onLotResize }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const added = useRef<{ layers: string[]; sources: string[]; byCategory: Map<string, string[]> }>({
@@ -106,13 +129,16 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore }:
   const names = useRef(new Map<string, string>());
   const pick = useRef(onPick);
   const explore = useRef(onExplore);
+  const resizeLot = useRef(onLotResize);
+  const lotMarkers = useRef<mapboxgl.Marker[]>([]);
   const fittedParcel = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     pick.current = onPick;
     explore.current = onExplore;
-  }, [onPick, onExplore]);
+    resizeLot.current = onLotResize;
+  }, [onPick, onExplore, onLotResize]);
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !container.current || map.current) return;
@@ -254,6 +280,20 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore }:
       state.layers.push("zn-envelope-line");
     }
 
+    if (workingLot && workingLot.width_m > 0 && workingLot.depth_m > 0) {
+      instance.addSource("zn-working-lot", { type: "geojson", data: lotRectangle(workingLot) });
+      state.sources.push("zn-working-lot");
+      instance.addLayer({
+        id: "zn-working-lot-fill", type: "fill", source: "zn-working-lot",
+        paint: { "fill-color": "#c58a28", "fill-opacity": 0.16 },
+      });
+      instance.addLayer({
+        id: "zn-working-lot-line", type: "line", source: "zn-working-lot",
+        paint: { "line-color": "#9b6410", "line-width": 3, "line-dasharray": [2, 1] },
+      });
+      state.layers.push("zn-working-lot-fill", "zn-working-lot-line");
+    }
+
     // Fly to a newly chosen lot; layers reloaded around a panned view leave the camera alone.
     const key = data.parcel ? JSON.stringify(data.parcel.geometry).slice(0, 200) : `${data.center.latitude},${data.center.longitude}`;
     if (data.explored || key === fittedParcel.current) return;
@@ -261,7 +301,59 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore }:
     const box = bounds(data.parcel);
     if (box) instance.fitBounds(box, { padding: 160, maxZoom: 17.5, duration: 900 });
     else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17.5, duration: 900 });
-  }, [data, envelope, ready]);
+  }, [data, envelope, ready, workingLot]);
+
+  useEffect(() => {
+    const instance = map.current;
+    lotMarkers.current.forEach((marker) => marker.remove());
+    lotMarkers.current = [];
+    if (!instance || !ready || !workingLot || !resizeLot.current) return;
+    const latMeters = 110_540;
+    const lngMeters = 111_320 * Math.cos((workingLot.latitude * Math.PI) / 180);
+    const halfLng = workingLot.width_m / (2 * lngMeters);
+    const halfLat = workingLot.depth_m / (2 * latMeters);
+    const handles = [
+      { axis: "width" as const, side: -1, coordinate: [workingLot.longitude - halfLng, workingLot.latitude] as [number, number] },
+      { axis: "width" as const, side: 1, coordinate: [workingLot.longitude + halfLng, workingLot.latitude] as [number, number] },
+      { axis: "depth" as const, side: -1, coordinate: [workingLot.longitude, workingLot.latitude - halfLat] as [number, number] },
+      { axis: "depth" as const, side: 1, coordinate: [workingLot.longitude, workingLot.latitude + halfLat] as [number, number] },
+    ];
+    for (const handle of handles) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "lot-map-handle";
+      element.setAttribute("aria-label", `Drag to adjust lot ${handle.axis}`);
+      element.title = `Drag to adjust lot ${handle.axis}`;
+      element.addEventListener("keydown", (event) => {
+        if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+        event.preventDefault();
+        const increase = event.key === "ArrowUp" || event.key === "ArrowRight";
+        const delta = increase ? 1 : -1;
+        resizeLot.current?.(
+          handle.axis === "width" ? Math.max(5, Math.min(500, workingLot.width_m + delta)) : workingLot.width_m,
+          handle.axis === "depth" ? Math.max(5, Math.min(500, workingLot.depth_m + delta)) : workingLot.depth_m,
+        );
+      });
+      const marker = new mapboxgl.Marker({ element, draggable: true, anchor: "center" })
+        .setLngLat(handle.coordinate)
+        .addTo(instance);
+      marker.on("dragend", () => {
+        const point = marker.getLngLat();
+        const width = handle.axis === "width"
+          ? Math.abs(point.lng - workingLot.longitude) * lngMeters * 2
+          : workingLot.width_m;
+        const depth = handle.axis === "depth"
+          ? Math.abs(point.lat - workingLot.latitude) * latMeters * 2
+          : workingLot.depth_m;
+        resizeLot.current?.(Math.max(5, Math.min(500, width)), Math.max(5, Math.min(500, depth)));
+      });
+      lotMarkers.current.push(marker);
+    }
+    return () => {
+      lotMarkers.current.forEach((marker) => marker.remove());
+      lotMarkers.current = [];
+    };
+  }, [workingLot, ready]);
 
   useEffect(() => {
     const instance = map.current;

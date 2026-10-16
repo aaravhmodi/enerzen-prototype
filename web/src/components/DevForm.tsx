@@ -11,7 +11,6 @@ import {
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import LotPicker from "@/components/LotPicker";
-import { PICKERING_LOCATION } from "@/lib/zoning";
 import WizardChrome, { WizardStep } from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
 
@@ -252,10 +251,12 @@ export default function DevForm({
               </p>
             </div>
             <LotPicker
+              lotWidth={state.lot_width_m}
+              lotDepth={state.lot_depth_m}
+              onLotResize={(width, depth) => setState((current) => ({ ...current, lot_width_m: width, lot_depth_m: depth }))}
               onLot={(lot) =>
                 setState((current) => ({
                   ...current,
-                  location: PICKERING_LOCATION,
                   lot_width_m: lot.lot_width_m ?? current.lot_width_m,
                   lot_depth_m: lot.lot_depth_m ?? current.lot_depth_m,
                   street_side: lot.street_side ?? current.street_side,
