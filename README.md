@@ -104,6 +104,8 @@ streamlit run ui/app.py
 docker compose up -d --build
 ```
 
+The API runs CPU-heavy optimization, report, site-plan, and AI requests through a bounded FIFO queue (one at a time per API process). Up to eight more can wait; further requests receive `503` with `Retry-After` instead of competing for memory. `GET /queue/status` reports the active and waiting counts. Keep one Uvicorn worker for this in-process queue; multi-process deployments need a shared queue such as Redis.
+
 The web app is at `http://<TAILSCALE_IP>:3000` and the API at `http://<TAILSCALE_IP>:8001`. The web app is built against that API address, and the API allows it through `CORS_ORIGINS`.
 
 ### Pickering zoning map

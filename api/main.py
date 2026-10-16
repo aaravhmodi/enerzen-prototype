@@ -12,7 +12,7 @@ import threading
 from contextlib import asynccontextmanager
 from typing import Literal, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -38,6 +38,22 @@ from engine.soft import SOFT_COST_FRACTION, permit_class, soft_cost, soft_timeli
 from engine.regulatory import toronto_zoning_lookup
 from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
 from engine.units import Units
+from api.request_queue import FIFORequestQueue, QueueFull
+
+try:
+    QUEUE_LIMIT = int(os.environ.get("API_QUEUE_MAX_WAITING", "8"))
+except ValueError:
+    QUEUE_LIMIT = 8
+REQUEST_QUEUE = FIFORequestQueue(QUEUE_LIMIT)
+
+
+def _queued_request():
+    """Hold one FIFO slot across a long-running modeling or AI request."""
+    try:
+        with REQUEST_QUEUE.slot():
+            yield
+    except QueueFull as exc:
+        raise HTTPException(503, str(exc), headers={"Retry-After": "10"}) from exc
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -225,6 +241,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/queue/status")
+def queue_status():
+    """Current in-process queue state for expensive operations."""
+    return REQUEST_QUEUE.snapshot()
+
+
 @app.get("/locations")
 def locations():
     return {"locations": location_names()}
@@ -380,7 +402,7 @@ def catalog():
 
 
 @app.post("/optimize")
-def run_optimize(req: OptimizeRequest):
+def run_optimize(req: OptimizeRequest, _queue_slot: None = Depends(_queued_request)):
     spec = req.spec.to_engine_spec()
     _validate_location(spec.location)
     _validate_mechanical_selection(req.spec)
@@ -400,7 +422,7 @@ def run_optimize(req: OptimizeRequest):
 
 
 @app.post("/parse-spec")
-def run_parse_spec(req: ParseSpecRequest):
+def run_parse_spec(req: ParseSpecRequest, _queue_slot: None = Depends(_queued_request)):
     try:
         return parse_freeform_spec(req.text)
     except AiUnavailableError as e:
@@ -408,7 +430,7 @@ def run_parse_spec(req: ParseSpecRequest):
 
 
 @app.post("/site-plan")
-def run_site_plan(req: SitePlanRequest):
+def run_site_plan(req: SitePlanRequest, _queue_slot: None = Depends(_queued_request)):
     spec = req.spec.to_engine_spec()
     site = req.site.to_engine_spec()
     layout = place_building(spec, site)
@@ -425,7 +447,7 @@ def run_site_plan(req: SitePlanRequest):
 
 
 @app.post("/report")
-def run_report(req: ReportRequest):
+def run_report(req: ReportRequest, _queue_slot: None = Depends(_queued_request)):
     """Path A nine-section feasibility report for one ranked configuration."""
     spec = req.spec.to_engine_spec()
     if not spec.location:
@@ -509,7 +531,7 @@ def _constraints_check(spec, catalog: dict) -> fz.Check:
 
 
 @app.post("/dev-report")
-def run_dev_report(req: DevReportRequest):
+def run_dev_report(req: DevReportRequest, _queue_slot: None = Depends(_queued_request)):
     """Path B nine-section feasibility report for one approved housing mix,
     ranked against the other approved mixes."""
     dev = req.spec.to_engine_spec()
@@ -587,7 +609,7 @@ def get_archetypes():
 
 
 @app.post("/dev-scenarios")
-def run_dev_scenarios(req: DevOptimizeRequest):
+def run_dev_scenarios(req: DevOptimizeRequest, _queue_slot: None = Depends(_queued_request)):
     """Path B steps 3-4: housing-mix scenarios that fit the land, before
     building performance is optimized."""
     dev = req.spec.to_engine_spec()
@@ -604,7 +626,7 @@ def run_dev_scenarios(req: DevOptimizeRequest):
 
 
 @app.post("/dev-optimize")
-def run_dev_optimize(req: DevOptimizeRequest):
+def run_dev_optimize(req: DevOptimizeRequest, _queue_slot: None = Depends(_queued_request)):
     """Path B steps 5-7: optimize building performance for the approved
     scenarios, run development calculations and rank them. Without
     approved mixes, screens and evaluates in one call."""
@@ -629,7 +651,7 @@ def run_dev_optimize(req: DevOptimizeRequest):
 
 
 @app.post("/dev-site-plan")
-def run_dev_site_plan(req: DevSitePlanRequest):
+def run_dev_site_plan(req: DevSitePlanRequest, _queue_slot: None = Depends(_queued_request)):
     dev = req.spec.to_engine_spec()
     _validate_location(dev.location)
     site = SiteSpec(
