@@ -74,6 +74,13 @@
   gap: 8px 18px;
   font-size: 15px;
 }
+.zoning-legend-panel { padding: 14px 16px; }
+.zoning-legend-panel > summary,
+.site-data-summary {
+  cursor: pointer;
+}
+.zoning-legend-panel > summary { color: #302936; font-size: 16px; font-weight: 600; }
+.zoning-legend { padding: 12px 0 0; }
 .zoning-legend label {
   display: flex;
   align-items: center;
@@ -504,6 +511,9 @@
   font-size: 15px;
   line-height: 1.5;
 }
+.site-data-summary { font-size: 15px; line-height: 1.5; }
+.site-data-hint { color: #777387; font-size: 13px; font-weight: 450; }
+.site-data-content { margin-top: 12px; }
 .lot-map-handle {
   width: 24px;
   height: 24px;

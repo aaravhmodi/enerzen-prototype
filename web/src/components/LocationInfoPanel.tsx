@@ -72,10 +72,11 @@ export default function LocationInfoPanel({
     : undefined;
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3 text-xs">
-      <p className="mb-2 flex items-center gap-1.5 font-semibold text-stone-600">
+    <details className="site-data-panel rounded-xl border border-stone-200 bg-stone-50/70 p-3 text-xs">
+      <summary className="site-data-summary flex items-center justify-between gap-3 font-semibold text-stone-600">
         <span aria-hidden>📍</span> Site data for {location}
-      </p>
+      </summary>
+      <div className="site-data-content">
 
       {loading && <p className="text-stone-400">Loading…</p>}
 
@@ -280,7 +281,8 @@ export default function LocationInfoPanel({
         are conservative regional defaults, not a site investigation — verify
         with a geotechnical report before final design.
       </p>
-    </div>
+      </div>
+    </details>
   );
 }
 

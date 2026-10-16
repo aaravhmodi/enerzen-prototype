@@ -19,6 +19,7 @@ import {
 } from "@/lib/zoning";
 import { useUnits } from "@/lib/units";
 import type { SiteSpecInput } from "@/lib/api";
+import type { Geometry } from "geojson";
 import ZoningReview from "@/components/ZoningReview";
 import "@/app/zoning/zoning.css";
 
@@ -28,7 +29,13 @@ const ZoningMap = dynamic(() => import("@/components/ZoningMap"), {
   loading: () => <div className="zoning-map zoning-map--empty">Loading map…</div>,
 });
 
-const DEFAULT_HIDDEN = ["other", "neighbourhoods", "addresses"];
+// Start with the zoning overlay only. Extra city layers are available on demand;
+// stacking every polygon layer at once makes lot boundaries hard to read.
+const DEFAULT_HIDDEN = [
+  "parcels", "official_plan", "floodplain", "natural_heritage", "heritage",
+  "easements", "rail", "provincial_plans", "servicing", "topography",
+  "addresses", "neighbourhoods", "roads", "other",
+];
 
 // Choose a Pickering lot by address or on the map, and hand its size, street side and by-law
 // setbacks to the form, so they are read from the City's data rather than typed in.
@@ -52,6 +59,7 @@ export default function LotPicker({
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [lookup, setLookup] = useState<Lookup | null>(null);
   const [workingPoint, setWorkingPoint] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [workingBoundary, setWorkingBoundary] = useState<Geometry | null>(null);
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchingAddresses, setSearchingAddresses] = useState(false);
@@ -125,6 +133,7 @@ export default function LotPicker({
       const [found, around] = await Promise.all([lookupPoint(latitude, longitude), mapAround(latitude, longitude, 400)]);
       setLookup(found);
       setMapData(around);
+      setWorkingBoundary(around.parcel?.geometry.type === "Polygon" ? around.parcel.geometry : null);
       const lot = lotForForm(found);
       if (lot) {
         setWorkingPoint({ latitude: lot.latitude, longitude: lot.longitude });
@@ -178,6 +187,10 @@ export default function LotPicker({
       ? { ...workingPoint, width_m: lotWidth, depth_m: lotDepth }
       : null,
     [workingPoint, lotWidth, lotDepth],
+  );
+  const editableLot = useMemo(
+    () => workingLot ? { ...workingLot, boundary: workingBoundary } : null,
+    [workingLot, workingBoundary],
   );
 
   return (
@@ -259,7 +272,6 @@ export default function LotPicker({
       </div>
       <ZoningMap
         data={mapData}
-        envelope={lookup?.buildable_area ?? null}
         hidden={hidden}
         onPick={(lat, lng) => void findAddressesAtPoint(lat, lng)}
         onExplore={async (lat, lng) => {
@@ -270,31 +282,39 @@ export default function LotPicker({
             // Keep the loaded layers visible if a pan cannot load another area.
           }
         }}
-        workingLot={workingLot}
-        onLotResize={onLotResize}
+        workingLot={editableLot}
+        onLotResize={(width, depth, boundary) => {
+          setWorkingBoundary(boundary);
+          onLotResize?.(width, depth);
+        }}
       />
       {workingPoint && (
         <p className="lot-map-instructions" aria-live="polite">
-          Working lot shown in gold. Drag the round handles to adjust its width or depth; the dimensions below update with the map.
+          {workingBoundary
+            ? "Selected parcel shown in gold. Drag a corner handle to adjust the boundary; the lot dimensions below update with the map."
+            : "No parcel outline is available for this address yet. The gold rectangle is an editable estimate; drag a corner handle to shape it."}
         </p>
       )}
       {categories.length > 0 && (
-        <div className="zoning-legend section-card" aria-label="Map layers">
-          {categories.map((category) => {
-            const color = mapData?.layers.find((layer) => layer.category === category)?.color ?? "#64748b";
-            const count = mapData?.layers
-              .filter((layer) => layer.category === category)
-              .reduce((total, layer) => total + layer.features.features.length, 0);
-            return (
-              <label key={category}>
-                <input type="checkbox" checked={!hidden.has(category)} onChange={() => toggleLayer(category)} />
-                <i style={{ background: color }} aria-hidden="true" />
-                {CATEGORY_LABELS[category] ?? category}
-                <small>{count}</small>
-              </label>
-            );
-          })}
-        </div>
+        <details className="zoning-legend-panel section-card">
+          <summary>Map layers ({categories.length})</summary>
+          <div className="zoning-legend" aria-label="Map layers">
+            {categories.map((category) => {
+              const color = mapData?.layers.find((layer) => layer.category === category)?.color ?? "#64748b";
+              const count = mapData?.layers
+                .filter((layer) => layer.category === category)
+                .reduce((total, layer) => total + layer.features.features.length, 0);
+              return (
+                <label key={category}>
+                  <input type="checkbox" checked={!hidden.has(category)} onChange={() => toggleLayer(category)} />
+                  <i style={{ background: color }} aria-hidden="true" />
+                  {CATEGORY_LABELS[category] ?? category}
+                  <small>{count}</small>
+                </label>
+              );
+            })}
+          </div>
+        </details>
       )}
       {lookup && (
         <details className="lot-picker-details section-card">

@@ -610,7 +610,7 @@ def map_features(latitude: float, longitude: float, radius_m: float = 250, per_l
     area = point.buffer(radius_m)
     # A shape far larger than the view (a floodplain, a land-use designation) is cut to twice the
     # view, or one lot's map would carry tens of megabytes of the rest of the city.
-    view = point.buffer(radius_m * 2).bounds
+    view = point.buffer(radius_m * 2)
     out, drawn, fabric = [], set(), _lot_fabric(layers)
     for layer in layers:
         # The City publishes the same roads, buildings and address points under several services, and
@@ -625,7 +625,9 @@ def map_features(latitude: float, longitude: float, radius_m: float = 250, per_l
             if not geom.intersects(area):
                 continue
             if shapely.get_num_coordinates(geom) > 400:
-                geom = shapely.clip_by_rect(geom, *view)
+                # A rectangular viewport clip creates conspicuous square fragments for
+                # large zoning and watershed polygons. Keep their true curved boundary.
+                geom = geom.intersection(view)
                 if geom.is_empty:
                     continue
             props = _clean(attrs)

@@ -8,14 +8,12 @@ import { CATEGORY_LABELS, MAPBOX_TOKEN, type MapData, type MapLayer } from "@/li
 
 type Props = {
   data: MapData | null;
-  // The area left to build on inside the lot's setbacks, drawn dashed over the lot.
-  envelope?: Geometry | null;
   hidden: Set<string>;
   onPick: (latitude: number, longitude: number) => void;
   // Called after the map settles at street zoom, to load the layers around the new view.
   onExplore?: (latitude: number, longitude: number) => void;
-  workingLot?: { latitude: number; longitude: number; width_m: number; depth_m: number } | null;
-  onLotResize?: (width_m: number, depth_m: number) => void;
+  workingLot?: { latitude: number; longitude: number; width_m: number; depth_m: number; boundary?: Geometry | null } | null;
+  onLotResize?: (width_m: number, depth_m: number, boundary: Geometry) => void;
 };
 
 const PICKERING_CENTER: [number, number] = [-79.09, 43.87];
@@ -111,7 +109,54 @@ function lotRectangle(lot: NonNullable<Props["workingLot"]>): Feature {
   };
 }
 
-export default function ZoningMap({ data, envelope, hidden, onPick, onExplore, workingLot, onLotResize }: Props) {
+function editableBoundary(lot: NonNullable<Props["workingLot"]>): Geometry {
+  return lot.boundary ?? lotRectangle(lot).geometry;
+}
+
+function editableCorners(geometry: Geometry): { index: number; coordinate: [number, number] }[] {
+  if (geometry.type !== "Polygon" || !geometry.coordinates[0] || geometry.coordinates[0].length < 4) return [];
+  const ring = geometry.coordinates[0];
+  const open = ring.slice(0, -1);
+  const minLng = Math.min(...open.map((point) => point[0]));
+  const maxLng = Math.max(...open.map((point) => point[0]));
+  const minLat = Math.min(...open.map((point) => point[1]));
+  const maxLat = Math.max(...open.map((point) => point[1]));
+  const targets: [number, number][] = [[minLng, minLat], [maxLng, minLat], [maxLng, maxLat], [minLng, maxLat]];
+  const used = new Set<number>();
+  return targets.flatMap(([lng, lat]) => {
+    let nearest = -1;
+    let distance = Infinity;
+    open.forEach((point, index) => {
+      if (used.has(index)) return;
+      const next = (point[0] - lng) ** 2 + (point[1] - lat) ** 2;
+      if (next < distance) { nearest = index; distance = next; }
+    });
+    if (nearest < 0) return [];
+    used.add(nearest);
+    return [{ index: nearest, coordinate: [open[nearest][0], open[nearest][1]] as [number, number] }];
+  });
+}
+
+function moveBoundaryCorner(geometry: Geometry, index: number, coordinate: [number, number]): Geometry {
+  if (geometry.type !== "Polygon") return geometry;
+  const rings = geometry.coordinates.map((ring) => ring.map((point) => [...point]));
+  const ring = rings[0];
+  ring[index] = coordinate;
+  ring[ring.length - 1] = [...ring[0]];
+  return { ...geometry, coordinates: rings };
+}
+
+function dimensions(geometry: Geometry, latitude: number): { width: number; depth: number } {
+  const points = positions(geometry);
+  const lngs = points.map((point) => point[0]);
+  const lats = points.map((point) => point[1]);
+  return {
+    width: (Math.max(...lngs) - Math.min(...lngs)) * 111_320 * Math.cos((latitude * Math.PI) / 180),
+    depth: (Math.max(...lats) - Math.min(...lats)) * 110_540,
+  };
+}
+
+export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot, onLotResize }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const added = useRef<{ layers: string[]; sources: string[]; byCategory: Map<string, string[]> }>({
@@ -183,14 +228,12 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore, w
     state.sources = [];
     state.byCategory = new Map();
     names.current = new Map();
-    if (!data || data.status !== "available") return;
-
     const track = (category: string, id: string) => {
       state.layers.push(id);
       state.byCategory.set(category, [...(state.byCategory.get(category) ?? []), id]);
     };
 
-    data.layers.forEach((layer, i) => {
+    if (data?.status === "available") data.layers.forEach((layer, i) => {
       const source = `zn-src-${i}`;
       const color = layer.color ?? "#64748b";
       instance.addSource(source, { type: "geojson", data: layer.features });
@@ -246,49 +289,21 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore, w
       }
     });
 
-    if (data.parcel) {
-      instance.addSource("zn-parcel", { type: "geojson", data: data.parcel });
-      state.sources.push("zn-parcel");
-      names.current.set("zn-parcel", "Selected lot");
-      instance.addLayer({
-        id: "zn-parcel-fill",
-        type: "fill",
-        source: "zn-parcel",
-        paint: { "fill-color": "#4c405b", "fill-opacity": 0.18 },
-      });
-      instance.addLayer({
-        id: "zn-parcel-line",
-        type: "line",
-        source: "zn-parcel",
-        paint: { "line-color": "#211d27", "line-width": 3 },
-      });
-      state.layers.push("zn-parcel-fill", "zn-parcel-line");
-    }
-    if (envelope) {
-      instance.addSource("zn-envelope", { type: "geojson", data: { type: "Feature", properties: {}, geometry: envelope } });
-      state.sources.push("zn-envelope");
-      instance.addLayer({
-        id: "zn-envelope-line",
-        type: "line",
-        source: "zn-envelope",
-        paint: { "line-color": "#2f6b3a", "line-width": 2, "line-dasharray": [2, 1.5] },
-      });
-      state.layers.push("zn-envelope-line");
-    }
-
     if (workingLot && workingLot.width_m > 0 && workingLot.depth_m > 0) {
-      instance.addSource("zn-working-lot", { type: "geojson", data: lotRectangle(workingLot) });
+      instance.addSource("zn-working-lot", { type: "geojson", data: { type: "Feature", properties: {}, geometry: editableBoundary(workingLot) } });
       state.sources.push("zn-working-lot");
       instance.addLayer({
         id: "zn-working-lot-fill", type: "fill", source: "zn-working-lot",
-        paint: { "fill-color": "#c58a28", "fill-opacity": 0.16 },
+        paint: { "fill-color": "#c58a28", "fill-opacity": 0.08 },
       });
       instance.addLayer({
         id: "zn-working-lot-line", type: "line", source: "zn-working-lot",
-        paint: { "line-color": "#9b6410", "line-width": 3, "line-dasharray": [2, 1] },
+        paint: { "line-color": "#b87918", "line-width": 3 },
       });
       state.layers.push("zn-working-lot-fill", "zn-working-lot-line");
     }
+
+    if (!data || data.status !== "available") return;
 
     // Fly to a newly chosen lot; layers reloaded around a panned view leave the camera alone.
     const key = data.parcel ? JSON.stringify(data.parcel.geometry).slice(0, 200) : `${data.center.latitude},${data.center.longitude}`;
@@ -297,51 +312,38 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore, w
     const box = bounds(data.parcel);
     if (box) instance.fitBounds(box, { padding: 160, maxZoom: 17.5, duration: 900 });
     else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17.5, duration: 900 });
-  }, [data, envelope, ready, workingLot]);
+  }, [data, ready, workingLot]);
 
   useEffect(() => {
     const instance = map.current;
     lotMarkers.current.forEach((marker) => marker.remove());
     lotMarkers.current = [];
     if (!instance || !ready || !workingLot || !resizeLot.current) return;
+    const boundary = editableBoundary(workingLot);
     const latMeters = 110_540;
     const lngMeters = 111_320 * Math.cos((workingLot.latitude * Math.PI) / 180);
-    const halfLng = workingLot.width_m / (2 * lngMeters);
-    const halfLat = workingLot.depth_m / (2 * latMeters);
-    const handles = [
-      { axis: "width" as const, side: -1, coordinate: [workingLot.longitude - halfLng, workingLot.latitude] as [number, number] },
-      { axis: "width" as const, side: 1, coordinate: [workingLot.longitude + halfLng, workingLot.latitude] as [number, number] },
-      { axis: "depth" as const, side: -1, coordinate: [workingLot.longitude, workingLot.latitude - halfLat] as [number, number] },
-      { axis: "depth" as const, side: 1, coordinate: [workingLot.longitude, workingLot.latitude + halfLat] as [number, number] },
-    ];
-    for (const handle of handles) {
+    for (const corner of editableCorners(boundary)) {
       const element = document.createElement("button");
       element.type = "button";
       element.className = "lot-map-handle";
-      element.setAttribute("aria-label", `Drag to adjust lot ${handle.axis}`);
-      element.title = `Drag to adjust lot ${handle.axis}`;
+      element.setAttribute("aria-label", "Drag to adjust this lot corner");
+      element.title = "Drag to adjust this lot corner";
       element.addEventListener("keydown", (event) => {
         if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
         event.preventDefault();
-        const increase = event.key === "ArrowUp" || event.key === "ArrowRight";
-        const delta = increase ? 1 : -1;
-        resizeLot.current?.(
-          handle.axis === "width" ? Math.max(5, Math.min(500, workingLot.width_m + delta)) : workingLot.width_m,
-          handle.axis === "depth" ? Math.max(5, Math.min(500, workingLot.depth_m + delta)) : workingLot.depth_m,
-        );
+        const sign = event.key === "ArrowDown" || event.key === "ArrowLeft" ? -1 : 1;
+        const next = moveBoundaryCorner(boundary, corner.index, [corner.coordinate[0] + sign * (1 / lngMeters), corner.coordinate[1] + sign * (1 / latMeters)]);
+        const size = dimensions(next, workingLot.latitude);
+        resizeLot.current?.(Math.max(5, Math.min(500, size.width)), Math.max(5, Math.min(500, size.depth)), next);
       });
       const marker = new mapboxgl.Marker({ element, draggable: true, anchor: "center" })
-        .setLngLat(handle.coordinate)
+        .setLngLat(corner.coordinate)
         .addTo(instance);
       marker.on("dragend", () => {
         const point = marker.getLngLat();
-        const width = handle.axis === "width"
-          ? Math.abs(point.lng - workingLot.longitude) * lngMeters * 2
-          : workingLot.width_m;
-        const depth = handle.axis === "depth"
-          ? Math.abs(point.lat - workingLot.latitude) * latMeters * 2
-          : workingLot.depth_m;
-        resizeLot.current?.(Math.max(5, Math.min(500, width)), Math.max(5, Math.min(500, depth)));
+        const next = moveBoundaryCorner(boundary, corner.index, [point.lng, point.lat]);
+        const size = dimensions(next, workingLot.latitude);
+        resizeLot.current?.(Math.max(5, Math.min(500, size.width)), Math.max(5, Math.min(500, size.depth)), next);
       });
       lotMarkers.current.push(marker);
     }
