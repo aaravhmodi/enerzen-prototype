@@ -162,13 +162,7 @@ export default function ZoningPage() {
       </div>
       <header className="app-header">
         <Link className="wordmark" href="/" aria-label="EnerZen home">
-          <span className="brand-symbol" aria-hidden="true">
-            e
-          </span>
-          enerzen
-          <span className="brand-dot" aria-hidden="true">
-            •
-          </span>
+          <img src="/brand/enerzen-logo.svg" alt="" aria-hidden="true" />
         </Link>
         <nav aria-label="Main navigation">
           <span className="pilot-chip">

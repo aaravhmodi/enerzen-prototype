@@ -27,6 +27,9 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     BaseDocTemplate, Frame, HRFlowable, ListFlowable, ListItem, PageTemplate,
     Paragraph, Preformatted, Spacer, Table, TableStyle,
@@ -36,11 +39,15 @@ ROOT = Path(__file__).parent.parent
 MD_PATH = ROOT / "docs" / "METHODOLOGY.md"
 PDF_PATH = ROOT / "docs" / "EnerZen_Methodology.pdf"
 DATA_PATH = ROOT / "data" / "assemblies.json"
+BRAND_ASSETS = ROOT / "web" / "public" / "brand"
 
-BRAND = colors.HexColor("#1A5276")
-MUTED = colors.HexColor("#666666")
-RULE = colors.HexColor("#D5DBDB")
-CODE_BG = colors.HexColor("#F4F6F7")
+pdfmetrics.registerFont(TTFont("Enerzen-Futura", str(BRAND_ASSETS / "futura-medium.ttf")))
+FONT = "Enerzen-Futura"
+
+BRAND = colors.HexColor("#2A3786")
+MUTED = colors.HexColor("#666D89")
+RULE = colors.HexColor("#D9DEF0")
+CODE_BG = colors.HexColor("#F3F4FA")
 
 PAGE_W, PAGE_H = letter
 MARGIN = 0.9 * inch
@@ -52,26 +59,26 @@ CONTENT_W = PAGE_W - 2 * MARGIN
 def build_styles():
     ss = getSampleStyleSheet()
     return {
-        "h1": ParagraphStyle("h1", parent=ss["Heading1"], fontName="Helvetica-Bold",
+        "h1": ParagraphStyle("h1", parent=ss["Heading1"], fontName=FONT,
                              fontSize=19, leading=23, spaceBefore=6, spaceAfter=10,
                              textColor=BRAND),
-        "h2": ParagraphStyle("h2", parent=ss["Heading2"], fontName="Helvetica-Bold",
+        "h2": ParagraphStyle("h2", parent=ss["Heading2"], fontName=FONT,
                              fontSize=13.5, leading=17, spaceBefore=16, spaceAfter=7,
                              textColor=BRAND),
-        "h3": ParagraphStyle("h3", parent=ss["Heading3"], fontName="Helvetica-Bold",
+        "h3": ParagraphStyle("h3", parent=ss["Heading3"], fontName=FONT,
                              fontSize=11, leading=14, spaceBefore=11, spaceAfter=5,
-                             textColor=colors.HexColor("#21618C")),
-        "body": ParagraphStyle("body", parent=ss["BodyText"], fontName="Helvetica",
+                             textColor=BRAND),
+        "body": ParagraphStyle("body", parent=ss["BodyText"], fontName=FONT,
                                fontSize=9.5, leading=13.5, spaceAfter=6,
                                alignment=TA_LEFT),
-        "bullet": ParagraphStyle("bullet", parent=ss["BodyText"], fontName="Helvetica",
+        "bullet": ParagraphStyle("bullet", parent=ss["BodyText"], fontName=FONT,
                                  fontSize=9.5, leading=13.5, spaceAfter=2),
         "code": ParagraphStyle("code", parent=ss["Code"], fontName="Courier",
                                fontSize=8.2, leading=10.5, textColor=colors.HexColor("#212F3D"),
                                backColor=CODE_BG, borderPadding=6, spaceBefore=4, spaceAfter=8),
-        "th": ParagraphStyle("th", fontName="Helvetica-Bold", fontSize=8.5, leading=11,
+        "th": ParagraphStyle("th", fontName=FONT, fontSize=8.5, leading=11,
                              textColor=colors.white),
-        "td": ParagraphStyle("td", fontName="Helvetica", fontSize=8.5, leading=11),
+        "td": ParagraphStyle("td", fontName=FONT, fontSize=8.5, leading=11),
     }
 
 
@@ -344,9 +351,11 @@ def catalog_tables(cat) -> str:
 
 def on_page(canvas, doc):
     canvas.saveState()
-    canvas.setFont("Helvetica", 7.5)
+    canvas.drawImage(ImageReader(str(BRAND_ASSETS / "enerzen-logo.png")),
+                     MARGIN, 0.48 * inch, width=0.55 * inch, height=0.284 * inch, mask="auto")
+    canvas.setFont(FONT, 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(MARGIN, 0.55 * inch, "EnerZen Performance Engine — Methodology")
+    canvas.drawString(MARGIN + 0.65 * inch, 0.55 * inch, "Performance Engine — Methodology")
     canvas.drawRightString(PAGE_W - MARGIN, 0.55 * inch, f"Page {doc.page}")
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.4)

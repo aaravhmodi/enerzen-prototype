@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import base64
 import json
 import streamlit as st
 import pandas as pd
@@ -33,9 +34,19 @@ SOLAR_LABELS  = {s["id"]: s["name"] for s in CATALOG["solar"]}
 BENCH = CATALOG["benchmarks"]
 LOCATION_NAMES = location_names()
 
-CHART_INK = "#18211D"
-CHART_MUTED = "#66706A"
-CHART_LINE = "#D9DDD8"
+CHART_INK = "#252D60"
+CHART_MUTED = "#666D89"
+CHART_LINE = "#D9DEF0"
+
+BRAND_ASSETS = Path(__file__).parent.parent / "web" / "public" / "brand"
+FONT_DATA = base64.b64encode((BRAND_ASSETS / "futura-medium.ttf").read_bytes()).decode("ascii")
+LOGO_DATA = base64.b64encode((BRAND_ASSETS / "enerzen-logo.svg").read_bytes()).decode("ascii")
+st.markdown(
+    f'<style>@font-face {{font-family: "Enerzen Futura"; '
+    f'src: url(data:font/ttf;base64,{FONT_DATA}) format("truetype"); '
+    'font-weight: 400 800; font-display: swap;}</style>',
+    unsafe_allow_html=True,
+)
 
 
 def chart_style(chart):
@@ -44,11 +55,11 @@ def chart_style(chart):
             .configure_view(stroke=None)
             .configure_axis(labelColor=CHART_MUTED, titleColor=CHART_MUTED,
                             domainColor=CHART_LINE, tickColor=CHART_LINE,
-                            gridColor=CHART_LINE, labelFont="Segoe UI",
-                            titleFont="Segoe UI", titleFontWeight=600)
+                            gridColor=CHART_LINE, labelFont="Enerzen Futura",
+                            titleFont="Enerzen Futura", titleFontWeight=600)
             .configure_legend(labelColor=CHART_MUTED, titleColor=CHART_MUTED,
-                              labelFont="Segoe UI", titleFont="Segoe UI")
-            .configure_text(font="Segoe UI", color=CHART_INK))
+                              labelFont="Enerzen Futura", titleFont="Enerzen Futura")
+            .configure_text(font="Enerzen Futura", color=CHART_INK))
 
 ZONE_LABELS = {
     "6":  "Zone 6 — Toronto / Southern ON",
@@ -64,35 +75,35 @@ LABEL_NAMES = {
 st.markdown("""
 <style>
     :root {
-        --ink: #18211d;
-        --muted: #66706a;
-        --paper: #f5f4ef;
-        --surface: #fffefa;
-        --line: #d9ddd8;
-        --forest: #214e3b;
-        --forest-dark: #17382b;
-        --sage: #dfe9df;
-        --selected: #d8e6dc;
-        --selected-hover: #c9dccc;
-        --hover: #edf2ed;
-        --control-border: #aeb7b0;
-        --focus: #f1c453;
-        --disabled: #eceeea;
-        --disabled-text: #707873;
-        --success-bg: #e5eee5;
-        --warning-bg: #f4eadb;
+        --ink: #252d60;
+        --muted: #666d89;
+        --paper: #f8f9fc;
+        --surface: #ffffff;
+        --line: #d9def0;
+        --forest: #2a3786;
+        --forest-dark: #202b6e;
+        --sage: #e9ebf5;
+        --selected: #e2e6f5;
+        --selected-hover: #d2daf0;
+        --hover: #f0f2fa;
+        --control-border: #aeb7d0;
+        --focus: #d0b455;
+        --disabled: #eceef4;
+        --disabled-text: #70758a;
+        --success-bg: #e9f0e8;
+        --warning-bg: #f8efd7;
         --error-bg: #f2e2df;
-        --amber: #7b4d18;
+        --amber: #80671d;
         --red: #9f3f35;
     }
     html, body, [class*="css"], button, input, select, textarea {
-        font-family: Aptos, "Segoe UI Variable", "Segoe UI", Arial, sans-serif !important;
+        font-family: "Enerzen Futura", Arial, sans-serif !important;
     }
     .stApp { background: var(--paper); color: var(--ink); }
     .block-container { padding: 2.1rem 2.5rem 5rem; max-width: 1180px; }
     header[data-testid="stHeader"] { background: transparent; }
     #MainMenu, footer { visibility: hidden; }
-    h1, h2, h3, h4, h5, h6 { font-family: Aptos, "Segoe UI Variable", "Segoe UI", Arial,
+    h1, h2, h3, h4, h5, h6 { font-family: "Enerzen Futura", Arial,
                               sans-serif !important; color:var(--ink) !important;
                               letter-spacing:-.025em; font-weight:720 !important; }
     h3 { font-size: 1.7rem !important; margin-top: 2.2rem !important; }
@@ -100,11 +111,11 @@ st.markdown("""
     p, label, .stCaption { color: var(--muted); }
     .brand-row { display:flex; align-items:center; justify-content:space-between;
                  border-bottom:1px solid var(--line); padding-bottom:1rem; margin-bottom:2.8rem; }
-    .wordmark { font-size:1rem; font-weight:750; letter-spacing:.12em; color:var(--forest); }
+    .wordmark img { display:block; width:140px; height:auto; }
     .edition { font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
     .eyebrow { color:var(--forest); font-size:.72rem; font-weight:750; letter-spacing:.14em;
                text-transform:uppercase; margin-bottom:.65rem; }
-    .hero-title { font-family:Aptos, "Segoe UI Variable", "Segoe UI", Arial, sans-serif;
+    .hero-title { font-family:"Enerzen Futura", Arial, sans-serif;
                   font-size:3.05rem; line-height:1.04; font-weight:730; letter-spacing:-.045em;
                   max-width:760px; color:var(--ink); margin:0 0 .9rem; }
     .hero-copy { font-size:1.03rem; line-height:1.6; max-width:690px; color:var(--muted);
@@ -113,7 +124,7 @@ st.markdown("""
                       font-weight:750; letter-spacing:.14em; text-transform:uppercase; }
     .result-intro { border-top:1px solid var(--line); border-bottom:1px solid var(--line);
                     padding:1.25rem 0; margin:1.2rem 0 1.6rem; color:var(--muted); }
-    [data-testid="stSidebar"] { background:#e9ece6; border-right:1px solid var(--line); }
+    [data-testid="stSidebar"] { background:#eaedf7; border-right:1px solid var(--line); }
     [data-testid="stSidebar"] .block-container { padding:1.8rem 1.35rem 3rem; }
     [data-testid="stSidebar"] h2 { font-size:1.45rem !important; margin-bottom:.2rem; }
     [data-testid="stSidebar"] .stMarkdown p { margin-bottom:.35rem; }
@@ -124,7 +135,7 @@ st.markdown("""
                                   border-radius:3px; padding:1rem 1.05rem; min-height:108px; }
     [data-testid="stMetricLabel"] { font-size:.72rem; font-weight:700; letter-spacing:.06em;
                                     text-transform:uppercase; color:var(--muted); }
-    [data-testid="stMetricValue"] { font-family:Aptos, "Segoe UI Variable", "Segoe UI", Arial,
+    [data-testid="stMetricValue"] { font-family:"Enerzen Futura", Arial,
                                     sans-serif !important; font-size:1.7rem; font-weight:700;
                                     color:var(--ink); letter-spacing:-.025em; }
     .pill { display:inline-flex; align-items:center; border:1px solid currentColor;
@@ -202,7 +213,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="brand-row"><div class="wordmark">ENERZEN</div>'
+st.markdown(f'<div class="brand-row"><div class="wordmark"><img '
+            f'src="data:image/svg+xml;base64,{LOGO_DATA}" alt="Enerzen"></div>'
             '<div class="edition">Ontario · Performance study</div></div>',
             unsafe_allow_html=True)
 st.markdown('<div class="eyebrow">Residential systems configurator</div>'
@@ -487,7 +499,7 @@ bars = alt.Chart(compare).mark_bar(cornerRadiusEnd=4).encode(
     x=alt.X("eui:Q", title="Energy use intensity (kWh/m²/yr)"),
     y=alt.Y("label:N", sort=None, title=None),
     color=alt.Color("kind:N", scale=alt.Scale(
-        domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#214E3B"]), legend=None),
+        domain=["Benchmark", "EnerZen"], range=["#B8BDB7", "#2A3786"]), legend=None),
     tooltip=["label", "eui"],
 )
 labels = bars.mark_text(align="left", dx=4, color=CHART_MUTED).encode(
@@ -535,7 +547,7 @@ util_chart = alt.Chart(util_long).mark_bar().encode(
     x=alt.X("month:N", sort=None, title=None),
     y=alt.Y("cost:Q", title="Cost ($)", stack="zero"),
     color=alt.Color("Energy:N", scale=alt.Scale(
-        domain=["electricity", "gas"], range=["#214E3B", "#7B4D18"]),
+        domain=["electricity", "gas"], range=["#2A3786", "#D0B455"]),
         legend=alt.Legend(title=None, orient="top")),
     tooltip=["month", "Energy", "cost"],
 ).properties(height=240)
@@ -558,7 +570,7 @@ pts = alt.Chart(opts).mark_circle(size=90, opacity=0.75).encode(
     y=alt.Y("eui:Q", title="Net EUI (kWh/m²/yr)"),
     color=alt.Color("status:N", scale=alt.Scale(
         domain=["Net Zero", "NZR", "Below NZR"],
-        range=["#567A61", "#214E3B", "#9F3F35"]), title=None),
+        range=["#5862A6", "#2A3786", "#9F3F35"]), title=None),
     tooltip=["cost", "eui", "status"],
 )
 st.altair_chart(chart_style(pts.properties(height=320)), width="stretch")

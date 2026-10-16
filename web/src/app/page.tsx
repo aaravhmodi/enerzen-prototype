@@ -356,13 +356,7 @@ export default function Home() {
           onClick={() => choose("welcome")}
           aria-label="EnerZen home"
         >
-          <span className="brand-symbol" aria-hidden="true">
-            e
-          </span>
-          enerzen
-          <span className="brand-dot" aria-hidden="true">
-            •
-          </span>
+          <img src="/brand/enerzen-logo.svg" alt="" aria-hidden="true" />
         </button>
         <nav aria-label="Main navigation">
           <div className="unit-toggle" role="group" aria-label="Units">
@@ -789,7 +783,7 @@ export default function Home() {
       </main>
       <footer className="app-footer">
         <span>
-          enerzen <span className="footer-divider">/</span> Thoughtful by
+          <img src="/brand/enerzen-symbol.svg" alt="" aria-hidden="true" /> Enerzen <span className="footer-divider">/</span> Thoughtful by
           design.
         </span>
         <span>

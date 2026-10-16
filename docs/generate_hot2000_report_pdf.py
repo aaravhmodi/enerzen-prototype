@@ -14,11 +14,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from generate_pdf import (  # noqa: E402
-    MARGIN, MUTED, PAGE_H, PAGE_W, RULE, CONTENT_W,
+    MARGIN, MUTED, PAGE_H, PAGE_W, RULE, CONTENT_W, BRAND_ASSETS, FONT,
     build_styles, md_to_flowables,
 )
 
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate
 
 ROOT = Path(__file__).parent.parent
@@ -30,9 +31,11 @@ TITLE = "EnerZen — HOT2000 Surrogate Model Progress Report"
 
 def on_page(canvas, doc):
     canvas.saveState()
-    canvas.setFont("Helvetica", 7.5)
+    canvas.drawImage(ImageReader(str(BRAND_ASSETS / "enerzen-logo.png")),
+                     MARGIN, 0.48 * 72, width=0.55 * 72, height=0.284 * 72, mask="auto")
+    canvas.setFont(FONT, 7.5)
     canvas.setFillColor(MUTED)
-    canvas.drawString(MARGIN, 0.55 * 72, "EnerZen R&D — HOT2000 Surrogate Model")
+    canvas.drawString(MARGIN + 0.65 * 72, 0.55 * 72, "R&D — HOT2000 Surrogate Model")
     canvas.drawRightString(PAGE_W - MARGIN, 0.55 * 72, f"Page {doc.page}")
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.4)

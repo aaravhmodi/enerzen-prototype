@@ -4,6 +4,7 @@ lives in engine/feasibility.py; this module only lays it out."""
 
 from datetime import date
 from io import BytesIO
+from pathlib import Path
 
 from reportlab.graphics.shapes import Circle, Drawing, Polygon as RLPolygon, Rect, String
 from reportlab.lib import colors
@@ -11,6 +12,7 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
@@ -23,15 +25,16 @@ from engine.soft import SOFT_COST_FRACTION, soft_cost
 from engine.units import Units
 from engine import svg_kit
 
-# The website's visual language: warm paper, charcoal ink, a trace of lavender.
-INK = colors.HexColor("#27252c")
-SOFT = colors.HexColor("#6f6878")
-MUTED = colors.HexColor("#8e819a")
-ACCENT = colors.HexColor("#6e5a86")
-PAPER = colors.HexColor("#faf9f7")
+# The shared Enerzen identity.
+INK = colors.HexColor("#252d60")
+SOFT = colors.HexColor("#5d668e")
+MUTED = colors.HexColor("#737b9a")
+ACCENT = colors.HexColor("#2a3786")
+PAPER = colors.HexColor("#f8f9fc")
 CARD = colors.HexColor("#ffffff")
-LINE = colors.HexColor("#e4dfe9")
-TINT = colors.HexColor("#f4f0f8")
+LINE = colors.HexColor("#d9def0")
+TINT = colors.HexColor("#e9ebf5")
+BRAND_ASSETS = Path(__file__).parent.parent / "web" / "public" / "brand"
 
 # Status band: (fill, accent bar).
 STATUS_COLORS = {
@@ -42,16 +45,12 @@ STATUS_DEFAULT = (colors.HexColor("#f3e9ed"), colors.HexColor("#9a4d5c"))
 
 
 def _register_fonts() -> tuple[str, str, str]:
-    """Geist (the website's typeface, SIL OFL, engine/fonts); Helvetica if missing."""
-    from pathlib import Path
-    folder = Path(__file__).parent / "fonts"
-    names = ("Geist", "Geist-Medium", "Geist-SemiBold")
-    files = ("Geist-Regular.ttf", "Geist-Medium.ttf", "Geist-SemiBold.ttf")
+    """Use the supplied Futura across the PDF, with a safe fallback."""
     try:
-        for name, file in zip(names, files):
-            if name not in pdfmetrics.getRegisteredFontNames():
-                pdfmetrics.registerFont(TTFont(name, str(folder / file)))
-        return names
+        name = "Enerzen-Futura"
+        if name not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(name, str(BRAND_ASSETS / "futura-medium.ttf")))
+        return (name, name, name)
     except Exception:
         return ("Helvetica", "Helvetica", "Helvetica-Bold")
 
@@ -150,13 +149,12 @@ def _doc(out, title, footer):
         canvas.setStrokeColor(LINE)
         canvas.setLineWidth(0.6)
         canvas.line(0.65 * inch, 0.55 * inch, 7.85 * inch, 0.55 * inch)
-        canvas.setFont(FONT_MEDIUM, 9)
-        canvas.setFillColor(INK)
-        canvas.drawString(0.65 * inch, 0.34 * inch, "enerzen")
+        canvas.drawImage(ImageReader(str(BRAND_ASSETS / "enerzen-logo.png")),
+                         0.65 * inch, 0.27 * inch, width=0.52 * inch, height=0.268 * inch,
+                         mask="auto")
         canvas.setFont(FONT, 7)
         canvas.setFillColor(MUTED)
-        canvas.drawString(0.65 * inch + canvas.stringWidth("enerzen", FONT_MEDIUM, 9) + 8, 0.345 * inch,
-                          f"/  {footer}")
+        canvas.drawString(1.27 * inch, 0.345 * inch, f"/  {footer}")
         canvas.drawRightString(7.85 * inch, 0.345 * inch, f"{doc.page:02d}")
         canvas.restoreState()
 
