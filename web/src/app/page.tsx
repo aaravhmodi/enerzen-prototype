@@ -403,21 +403,15 @@ export default function Home() {
           <section className="hero animate-screen-in">
             <div className="hero-copy">
               <p className="micro-label">
-                <span className="status-dot" /> A clearer way to build
+                <span className="status-dot" /> AI-powered early planning
               </p>
               <h1
                 ref={heading}
                 tabIndex={-1}
-                aria-label="Know what works before you build."
+                aria-label="Net-zero housing, planned with AI."
               >
                 <span className="hero-title-line" aria-hidden="true">
-                  <span className="word-reveal">Know what </span>
-                  <span
-                    className="word-reveal"
-                    style={{ animationDelay: "80ms" }}
-                  >
-                    works
-                  </span>
+                  <span className="word-reveal">Net-zero housing</span>
                 </span>
                 <span
                   className="hero-title-line muted-title"
@@ -427,19 +421,19 @@ export default function Home() {
                     className="word-reveal"
                     style={{ animationDelay: "160ms" }}
                   >
-                    before you{" "}
+                    planned with{" "}
                   </span>
                   <span
                     className="word-reveal"
                     style={{ animationDelay: "240ms" }}
                   >
-                    build.
+                    AI.
                   </span>
                 </span>
               </h1>
               <p className="hero-description description-reveal">
-                Compare home designs and housing mixes against your site,
-                budget, energy goals, and local rules before design work begins.
+                Compare home designs and housing mixes against your site rules,
+                budget, energy and carbon goals before committing to design.
               </p>
               <div className="hero-actions">
                 <button
