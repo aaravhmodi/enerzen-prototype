@@ -408,15 +408,15 @@ export default function Home() {
               <h1
                 ref={heading}
                 tabIndex={-1}
-                aria-label="AI-powered tool for better homes."
+                aria-label="Know what works before you build."
               >
                 <span className="hero-title-line" aria-hidden="true">
-                  <span className="word-reveal">AI-powered </span>
+                  <span className="word-reveal">Know what </span>
                   <span
                     className="word-reveal"
                     style={{ animationDelay: "80ms" }}
                   >
-                    tool
+                    works
                   </span>
                 </span>
                 <span
@@ -427,20 +427,19 @@ export default function Home() {
                     className="word-reveal"
                     style={{ animationDelay: "160ms" }}
                   >
-                    for better{" "}
+                    before you{" "}
                   </span>
                   <span
                     className="word-reveal"
                     style={{ animationDelay: "240ms" }}
                   >
-                    homes.
+                    build.
                   </span>
                 </span>
               </h1>
               <p className="hero-description description-reveal">
-                From the first idea to a more thoughtful home or community.
-                Explore the space between what you imagine and what your site
-                can become.
+                Compare home designs and housing mixes against your site,
+                budget, energy goals, and local rules before design work begins.
               </p>
               <div className="hero-actions">
                 <button
