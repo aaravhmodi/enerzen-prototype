@@ -517,3 +517,25 @@
 }
 .lot-map-handle:active { cursor: grabbing; }
 .lot-map-handle:focus-visible { outline: 3px solid #211d27; outline-offset: 3px; }
+.lot-picker-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  color: #454154;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.lot-picker-spinner {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  border: 3px solid #ded9e6;
+  border-top-color: #755394;
+  border-radius: 50%;
+  animation: lot-picker-spin 0.8s linear infinite;
+}
+@keyframes lot-picker-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .lot-picker-spinner { animation: none; border-top-color: #755394; border-right-color: #755394; }
+}

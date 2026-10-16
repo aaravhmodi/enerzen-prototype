@@ -320,6 +320,49 @@ export async function searchAddresses(query: string, signal?: AbortSignal): Prom
   return found;
 }
 
+// Turn a map click into address choices near that point. Reverse geocoding finds
+// the nearest street/address, then the existing address index supplies nearby
+// individual parcels along that street where possible.
+export async function addressesAtPoint(latitude: number, longitude: number, signal?: AbortSignal): Promise<Candidate[]> {
+  if (!MAPBOX_TOKEN) return [];
+  const params = new URLSearchParams({
+    longitude: String(longitude), latitude: String(latitude), country: "ca",
+    types: "address,street", limit: "5", access_token: MAPBOX_TOKEN,
+  });
+  const response = await fetch(`https://api.mapbox.com/search/geocode/v6/reverse?${params}`, { signal });
+  if (!response.ok) throw new Error("Nearby addresses could not be found.");
+  const body = await response.json();
+  const reverse: Candidate[] = (body.features ?? []).flatMap((feature: {
+    properties?: { full_address?: string; name?: string; feature_type?: string };
+    geometry?: { coordinates?: [number, number] };
+  }) => {
+    const [lng, lat] = feature.geometry?.coordinates ?? [];
+    const label = feature.properties?.full_address ?? feature.properties?.name;
+    return label && Number.isFinite(lat) && Number.isFinite(lng)
+      ? [{ label, latitude: lat, longitude: lng, source: "mapbox" as const, detail: "Near the map pin" }]
+      : [];
+  });
+  const street = (body.features ?? []).find((feature: { properties?: { feature_type?: string } }) =>
+    feature.properties?.feature_type === "street")?.properties?.name;
+  const nearby = street ? await searchAddresses(street, signal).catch(() => []) : [];
+  const distance = (candidate: Candidate) => {
+    const dy = (candidate.latitude - latitude) * 110_540;
+    const dx = (candidate.longitude - longitude) * 111_320 * Math.cos((latitude * Math.PI) / 180);
+    return Math.hypot(dx, dy);
+  };
+  const combined = [...reverse, ...nearby.filter((candidate) => distance(candidate) <= 120)];
+  const seen = new Set<string>();
+  return combined
+    .filter((candidate) => {
+      const key = `${candidate.label.toLowerCase()}|${candidate.latitude.toFixed(5)}|${candidate.longitude.toFixed(5)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return distance(candidate) <= 120;
+    })
+    .sort((a, b) => distance(a) - distance(b))
+    .slice(0, 8);
+}
+
 export const lookupPoint = (latitude: number, longitude: number) =>
   getJson<Lookup>(
     `/locations/${encodeURIComponent(PICKERING_LOCATION)}/zoning?latitude=${latitude}&longitude=${longitude}`,

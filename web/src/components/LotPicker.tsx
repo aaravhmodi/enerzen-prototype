@@ -8,6 +8,7 @@ import {
   lookupPoint,
   lotForForm,
   mapAround,
+  addressesAtPoint,
   searchBylaws,
   searchAddresses,
   type Candidate,
@@ -53,6 +54,8 @@ export default function LotPicker({
   const [workingPoint, setWorkingPoint] = useState<{ latitude: number; longitude: number } | null>(null);
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchingAddresses, setSearchingAddresses] = useState(false);
+  const [pointSearch, setPointSearch] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hidden, setHidden] = useState(() => new Set(DEFAULT_HIDDEN));
   const [bylawQuery, setBylawQuery] = useState("");
@@ -64,21 +67,55 @@ export default function LotPicker({
 
   useEffect(() => {
     const text = query.trim();
-    if (text.length < 2 || text === chosen) return;
+    if (pointSearch || text.length < 2 || text === chosen) return;
     const timer = window.setTimeout(async () => {
       abort.current?.abort();
       const controller = new AbortController();
       abort.current = controller;
+      setSearchingAddresses(true);
       try {
         setCandidates(await searchAddresses(text, controller.signal));
       } catch {
         // A search typed over by the next keystroke is aborted; nothing to show.
+      } finally {
+        if (!controller.signal.aborted) setSearchingAddresses(false);
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [query, chosen]);
+  }, [query, chosen, pointSearch]);
+
+  const findAddressesAtPoint = useCallback(async (latitude: number, longitude: number) => {
+    abort.current?.abort();
+    const controller = new AbortController();
+    abort.current = controller;
+    setPointSearch(true);
+    setChosen(null);
+    setQuery(`Near ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+    setCandidates([]);
+    setSearchingAddresses(true);
+    setError(null);
+    try {
+      const nearby = await addressesAtPoint(latitude, longitude, controller.signal);
+      setCandidates(nearby.length ? nearby : [{
+        label: `Use map pin · ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+        latitude, longitude, source: "mapbox", detail: "No nearby street address found",
+      }]);
+    } catch (e) {
+      if (!controller.signal.aborted) {
+        setCandidates([{
+          label: `Use map pin · ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+          latitude, longitude, source: "mapbox", detail: "Address lookup unavailable",
+        }]);
+        setError(e instanceof Error ? e.message : "Nearby addresses could not be found.");
+      }
+    } finally {
+      if (!controller.signal.aborted) setSearchingAddresses(false);
+    }
+  }, []);
 
   const choose = useCallback(async (label: string, latitude: number, longitude: number) => {
+    abort.current?.abort();
+    setPointSearch(false);
     setQuery(label);
     setChosen(label);
     setCandidates([]);
@@ -158,7 +195,7 @@ export default function LotPicker({
           placeholder="Address, roll number or PIN, or click the map"
           value={query}
           autoComplete="off"
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { setPointSearch(false); setCandidates([]); setQuery(e.target.value); }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && candidates[0]) {
               e.preventDefault();
@@ -167,6 +204,15 @@ export default function LotPicker({
             }
           }}
         />
+        {searchingAddresses && (
+          <p className="lot-picker-thinking" role="status">
+            <span className="lot-picker-spinner" aria-hidden="true" />
+            {pointSearch ? "Finding addresses near the pin" : "Searching addresses"}
+          </p>
+        )}
+        {pointSearch && candidates.length > 0 && !searchingAddresses && (
+          <p className="zr-muted">Choose the address that matches this map location.</p>
+        )}
         {candidates.length > 0 && query !== chosen && (
           <ul className="zoning-candidates" role="listbox">
             {candidates.map((c) => (
@@ -179,7 +225,12 @@ export default function LotPicker({
             ))}
           </ul>
         )}
-        {loading && <p className="zr-muted">Reading the City&apos;s data and the by-law for this lot…</p>}
+        {loading && (
+          <p className="lot-picker-thinking" role="status">
+            <span className="lot-picker-spinner" aria-hidden="true" />
+            Reading the City&apos;s data and the by-law for this address
+          </p>
+        )}
         {error && <p className="zr-warning">{error}</p>}
         {!loading && lookup && lot && (
           <div className="zr-muted" aria-live="polite">
@@ -210,7 +261,7 @@ export default function LotPicker({
         data={mapData}
         envelope={lookup?.buildable_area ?? null}
         hidden={hidden}
-        onPick={(lat, lng) => void choose(`${lat.toFixed(5)}, ${lng.toFixed(5)}`, lat, lng)}
+        onPick={(lat, lng) => void findAddressesAtPoint(lat, lng)}
         onExplore={async (lat, lng) => {
           try {
             const around = await mapAround(lat, lng, 400);

@@ -61,8 +61,6 @@ function bounds(feature: Feature | null): mapboxgl.LngLatBoundsLike | null {
 function popupContent(
   hits: mapboxgl.GeoJSONFeature[],
   names: Map<string, string>,
-  lngLat: mapboxgl.LngLat,
-  onPick: Props["onPick"],
 ) {
   const root = document.createElement("div");
   root.className = "zoning-popup";
@@ -89,11 +87,6 @@ function popupContent(
     root.append(block);
     if (seen.size >= 4) break;
   }
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "Review this lot";
-  button.onclick = () => onPick(lngLat.lat, lngLat.lng);
-  root.append(button);
   return root;
 }
 
@@ -160,10 +153,13 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore, w
     });
     instance.on("click", (event) => {
       const hits = instance.queryRenderedFeatures(event.point);
-      new mapboxgl.Popup({ maxWidth: "320px" })
-        .setLngLat(event.lngLat)
-        .setDOMContent(popupContent(hits, names.current, event.lngLat, (lat, lng) => pick.current(lat, lng)))
-        .addTo(instance);
+      pick.current(event.lngLat.lat, event.lngLat.lng);
+      if (hits.length) {
+        new mapboxgl.Popup({ maxWidth: "320px" })
+          .setLngLat(event.lngLat)
+          .setDOMContent(popupContent(hits, names.current))
+          .addTo(instance);
+      }
     });
     map.current = instance;
     // A map built while hidden (a form step not yet shown) measures nothing; redraw when its box changes.
