@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, type CSSProperties } from "react";
-import Link from "next/link";
 import ProjectForm, { FormState } from "@/components/ProjectForm";
 import ResultsPanel from "@/components/ResultsPanel";
 import SitePlanView from "@/components/SitePlanView";
@@ -377,9 +376,6 @@ export default function Home() {
           <span className="pilot-chip">
             <span /> Pickering pilot
           </span>
-          <Link className="quiet-button" href="/zoning">
-            Zoning map <span aria-hidden="true">↗</span>
-          </Link>
           {screen !== "welcome" && (
             <button
               className="quiet-button"

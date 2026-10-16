@@ -196,7 +196,7 @@ export default function ZoningMap({ data, envelope, hidden, onPick, onExplore }:
             id: `${source}-label`,
             type: "symbol",
             source,
-            layout: { "text-field": ["coalesce", ["get", "_zone"], ""], "text-size": 12 },
+            layout: { "text-field": ["coalesce", ["get", "_zone"], ""], "text-size": 15 },
             paint: { "text-color": "#302936", "text-halo-color": "#ffffff", "text-halo-width": 1.4 },
           });
           track(layer.category, `${source}-label`);

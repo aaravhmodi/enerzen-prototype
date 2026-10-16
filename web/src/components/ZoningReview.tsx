@@ -101,7 +101,7 @@ function Checklist({ items, label }: { items: string[]; label: string }) {
   );
 }
 
-export default function ZoningReview({ lookup }: { lookup: Lookup }) {
+export default function ZoningReview({ lookup, embedded = false }: { lookup: Lookup; embedded?: boolean }) {
   const u = useUnits();
   if (!lookup.steps) {
     return (
@@ -140,7 +140,7 @@ export default function ZoningReview({ lookup }: { lookup: Lookup }) {
           <p className="tile-value">{onLot.length ? onLot.map(([c]) => CATEGORY_LABELS[c] ?? c).join(", ") : "None found"}</p>
         </div>
       </div>
-      {lookup.query && (
+      {lookup.query && !embedded && (
         <a className="quiet-button zr-use-lot" href={workspaceLink(lookup)}>
           Use this lot in the workspace <span aria-hidden="true">↗</span>
         </a>

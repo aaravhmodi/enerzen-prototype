@@ -49,6 +49,7 @@
 .zoning-candidates small {
   color: #8a8590;
   white-space: nowrap;
+  font-size: 14px;
 }
 .zoning-map {
   height: min(68vh, 680px);
@@ -67,11 +68,11 @@
   font-size: 14px;
 }
 .zoning-legend {
-  padding: 12px 16px;
+  padding: 14px 16px;
   display: flex;
   flex-wrap: wrap;
   gap: 8px 18px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .zoning-legend label {
   display: flex;
@@ -80,13 +81,14 @@
   cursor: pointer;
 }
 .zoning-legend i {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 3px;
   display: inline-block;
 }
 .zoning-legend small {
   color: #9a95a0;
+  font-size: 13px;
 }
 .zoning-right {
   display: grid;
@@ -146,7 +148,7 @@
   font-size: 14px;
 }
 .zr-step h4 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -155,14 +157,14 @@
 }
 .zr-muted {
   color: #7b7682;
-  font-size: 13px;
+  font-size: 14px;
 }
 .zr-disclaimer {
-  font-size: 12px;
+  font-size: 14px;
   color: #7b7682;
 }
 .zr-warning {
-  font-size: 13px;
+  font-size: 15px;
   color: #8a3b2b;
   background: #fbefe9;
   border-radius: 10px;
@@ -175,19 +177,19 @@
   gap: 6px 16px;
 }
 .zr-attrs {
-  font-size: 12px;
+  font-size: 14px;
 }
 .zr-facts dt,
 .zr-attrs dt {
   color: #8a8590;
-  font-size: 11px;
+  font-size: 14px;
 }
 .zr-facts dd,
 .zr-attrs dd {
   overflow-wrap: anywhere;
 }
 .zr-more {
-  font-size: 12px;
+  font-size: 14px;
   color: #595e7f;
   text-decoration: underline;
   width: fit-content;
@@ -215,7 +217,7 @@
 .zr-source {
   font-weight: 400;
   color: #8a8590;
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
 }
 .zr-step a,
@@ -232,7 +234,7 @@
 }
 .zr-overlay summary span {
   color: #8a8590;
-  font-size: 12px;
+  font-size: 14px;
 }
 .zr-overlay[open] summary {
   margin-bottom: 6px;
@@ -245,11 +247,11 @@
   gap: 3px;
 }
 .zr-tag {
-  font-size: 12px;
+  font-size: 14px;
   color: #595e7f;
 }
 .zr-pages {
-  font-size: 13px;
+  font-size: 14px;
 }
 .zoning-right blockquote {
   border-left: 3px solid #d6d9e8;
@@ -430,8 +432,69 @@
 .lot-picker {
   display: grid;
   gap: 12px;
+  font-size: 16px;
+}
+.lot-picker-intro {
+  margin: 0 0 14px;
+  max-width: 68ch;
+  color: #595e7f;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.lot-picker .tile-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+.lot-picker .input {
+  min-height: 48px;
+  font-size: 16px;
+}
+.lot-picker-details {
+  padding: 18px;
+}
+.lot-picker-details > summary {
+  color: #252d60;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.lot-picker-details[open] > summary {
+  margin-bottom: 16px;
+}
+.lot-picker .zr-step-body,
+.lot-picker .zr-facts,
+.lot-picker .zr-attrs,
+.lot-picker .zr-checklist,
+.lot-picker .zr-hit-head,
+.lot-picker .zr-refs blockquote,
+.lot-picker .zoning-bylaw-form {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.lot-picker .zr-facts dt,
+.lot-picker .zr-attrs dt,
+.lot-picker .zr-step .tile-label,
+.lot-picker .zr-checklist .tile-label {
+  font-size: 14px;
+}
+.lot-picker .zoning-bylaw-form > div {
+  align-items: stretch;
+}
+.lot-picker .zoning-bylaw-form button {
+  min-height: 48px;
+  font-size: 15px;
+}
+.lot-picker .zoning-map--empty,
+.lot-picker .zoning-popup {
+  font-size: 16px;
+  line-height: 1.55;
+}
+.lot-picker .zoning-popup button {
+  min-height: 44px;
+  font-size: 15px;
 }
 .lot-picker .zoning-map {
-  height: 380px;
-  min-height: 300px;
+  height: clamp(380px, 48vh, 560px);
+  min-height: 360px;
 }

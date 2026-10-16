@@ -430,6 +430,7 @@ export default function ProjectForm({
         {step === 1 && (
           <div className="space-y-5">
             <LotPicker
+              initialSite={initialSite}
               onLot={(lot) =>
                 setState((current) => ({
                   ...current,

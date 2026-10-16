@@ -255,16 +255,6 @@ export default function LocationInfoPanel({
                   ))}
               </div>
             )}
-            {hasZoningCoordinates && location?.startsWith("Pickering") && (
-              <a
-                className="mt-1 mr-3 inline-block text-[10px] font-medium text-amber-700 underline"
-                href={`/zoning?lat=${latitude}&lng=${longitude}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Full zoning review and by-laws
-              </a>
-            )}
             {(zoningSource ?? detail.regulatory_intelligence.source_url) && (
               <a
                 className="mt-1 inline-block text-[10px] font-medium text-amber-700 underline"
