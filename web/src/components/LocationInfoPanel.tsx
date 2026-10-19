@@ -74,7 +74,7 @@ export default function LocationInfoPanel({
   return (
     <details className="site-data-panel rounded-xl border border-stone-200 bg-stone-50/70 p-3 text-xs">
       <summary className="site-data-summary flex items-center justify-between gap-3 font-semibold text-stone-600">
-        <span aria-hidden>📍</span> Site data for {location}
+        <span aria-hidden>📍</span> Site data for {location.replace(/ \(.*\)$/, "")}
       </summary>
       <div className="site-data-content">
 

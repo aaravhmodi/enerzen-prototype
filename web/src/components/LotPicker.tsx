@@ -217,8 +217,15 @@ export default function LotPicker({
         </p>
         {pilot?.boundary && (
           <p className="zr-muted">
-            EnerZen covers <strong>{pilot.name}</strong> for now, outlined in green on the map: every zoning rule there
-            is read straight from the current by-law text.
+            EnerZen covers the <strong>{pilot.name}</strong> neighbourhood for now, outlined in green on the map. The
+            outline is the City of Pickering&apos;s official neighbourhood boundary
+            {pilot.profile && (
+              <>
+                {" "}(<a href={pilot.profile} target="_blank" rel="noreferrer">City profile</a>)
+              </>
+            )}
+            ; street names on the base map are only for finding your way. Every zoning rule inside it is read straight
+            from the current by-law text.
             {pilot.unverified?.features.length
               ? ` ${pilot.unverified.features.length} of its ${pilot.lots} lots are greyed out because one of their rules could not be read that way.`
               : ""}

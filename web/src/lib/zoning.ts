@@ -150,6 +150,8 @@ export type PilotCheck = { name: string; inside: boolean; issues: string[] };
 export type PilotArea = {
   name: string;
   boundary: import("geojson").Geometry | null;
+  profile?: string | null;
+  label_point?: import("geojson").Point;
   lots?: number;
   verified?: number;
   unverified?: import("geojson").FeatureCollection;

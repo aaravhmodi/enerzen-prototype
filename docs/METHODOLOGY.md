@@ -587,6 +587,9 @@ and O. Reg. 545/06. The API reads only that stored copy.
   nor blank, and no cell of its zone's table went unread
   (`pickering_zoning.rule_issues`). Amberlea lots that fail are greyed out on the
   map with the reason, and the lookup refuses lots outside Amberlea.
+  The outline is the City's Neighbourhoods layer (identical in its two map
+  services, and the boundary its Amberlea neighbourhood profile maps); the base
+  map's own neighbourhood names, which don't follow it, are hidden.
 
 - **Permitted uses** — every row of 8149/24's permitted-use tables is read: a
   use's name may wrap over several lines, then one cell per zone column, a

@@ -333,14 +333,24 @@ export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot,
       id: "zn-pilot-line", type: "line", source: "zn-pilot",
       paint: { "line-color": "#047857", "line-width": 3, "line-dasharray": [3, 1.5] },
     });
+    if (pilot.label_point) {
+      instance.addSource("zn-pilot-label", { type: "geojson", data: { type: "Feature", properties: {}, geometry: pilot.label_point } });
+      instance.addLayer({
+        id: "zn-pilot-label", type: "symbol", source: "zn-pilot-label",
+        layout: { "text-field": pilot.name, "text-size": 16 },
+        paint: { "text-color": "#047857", "text-halo-color": "#ffffff", "text-halo-width": 2 },
+      });
+    }
+    // The base map's own neighbourhood names (e.g. Dunbarton, Liverpool) don't follow the City's boundaries.
+    if (instance.getLayer("settlement-subdivision-label")) instance.setLayoutProperty("settlement-subdivision-label", "visibility", "none");
     // Start on the pilot neighbourhood until a lot is chosen.
     if (!fittedParcel.current) {
       const box = bounds({ type: "Feature", properties: {}, geometry: pilot.boundary });
       if (box) instance.fitBounds(box, { padding: 40, duration: 0 });
     }
     return () => {
-      for (const id of ["zn-pilot-line", "zn-pilot-unverified"]) if (instance.getLayer(id)) instance.removeLayer(id);
-      for (const id of ["zn-pilot", "zn-pilot-unverified"]) if (instance.getSource(id)) instance.removeSource(id);
+      for (const id of ["zn-pilot-label", "zn-pilot-line", "zn-pilot-unverified"]) if (instance.getLayer(id)) instance.removeLayer(id);
+      for (const id of ["zn-pilot", "zn-pilot-label", "zn-pilot-unverified"]) if (instance.getSource(id)) instance.removeSource(id);
     };
   }, [pilot, ready]);
 

@@ -1231,8 +1231,9 @@ def rule_issues(lot: dict, rules: dict) -> list[str]:
 @lru_cache(maxsize=1)
 def _pilot_area(store: str, stamp: str):
     _, layers = load_store()
-    boundary = next((geom for layer in layers if layer.meta['category'] == 'neighbourhoods'
-                     for attrs, geom in layer.features if attrs.get('Nhood') == PILOT_NEIGHBOURHOOD), None)
+    boundary, nhood = next(((geom, attrs) for layer in layers if layer.meta['category'] == 'neighbourhoods'
+                            for attrs, geom in layer.features if attrs.get('Nhood') == PILOT_NEIGHBOURHOOD),
+                           (None, None))
     if boundary is None:
         return None, None
     rules = zone_rules()
@@ -1249,6 +1250,11 @@ def _pilot_area(store: str, stamp: str):
                                'properties': {'address': _pick(attrs, r'addr|civic'), 'issues': issues}})
     return boundary, {
         'name': PILOT_NEIGHBOURHOOD, 'boundary': mapping(_to_wgs84(boundary)),
+        # The City's own neighbourhood profile, which maps the same boundary.
+        'profile': nhood.get('Neighbourhood_Profile'),
+        # Where the name goes on the map: the point farthest inside the outline.
+        'label_point': mapping(_to_wgs84(shapely.ops.polylabel(boundary, 10) if boundary.geom_type == 'Polygon'
+                                         else boundary.representative_point())),
         'lots': lots, 'verified': lots - len(unverified),
         'unverified': {'type': 'FeatureCollection', 'features': unverified},
     }
