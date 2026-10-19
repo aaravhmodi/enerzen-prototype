@@ -17,7 +17,8 @@ from dataclasses import dataclass, field
 
 from engine.archetypes import ARCHETYPES, Archetype
 from engine.multi_site import place_units, _all_placed
-from engine.optimizer import ProjectSpec, baseline_cost, optimize
+from engine.finance import rental_pro_forma
+from engine.optimizer import ProjectSpec, baseline_cost, load_catalog, optimize
 from engine.soft import soft_cost, soft_timeline
 from engine.site import SiteSpec
 from engine.location import resolve as resolve_location
@@ -61,6 +62,7 @@ class DevMixResult:
     lifecycle_carbon_30yr_kg_co2e_m2: float = 0.0
     lifecycle_cost_30yr: float = 0.0
     configurations: dict = field(default_factory=dict)  # {archetype_id: selected systems}
+    rental: dict = field(default_factory=dict)  # finance.rental_pro_forma: market rent and MLI Select
     weighted_score: float = field(repr=False, default=0.0)
 
 
@@ -263,6 +265,9 @@ def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict], best: dict | None = None
         def area_avg(field_name: str) -> float:
             return round(sum(getattr(best[t], field_name) * a for t, a in area.items()) / total_area, 1)
 
+        by_bedrooms = {}
+        for t, n in dwellings.items():
+            by_bedrooms[ARCHETYPES[t].bedrooms] = by_bedrooms.get(ARCHETYPES[t].bedrooms, 0) + n
         largest = max(mix, key=lambda t: (ARCHETYPES[t].storeys, ARCHETYPES[t].units_per_building))
         arch = ARCHETYPES[largest]
         timeline = soft_timeline(arch.typology, arch.storeys,
@@ -285,6 +290,8 @@ def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict], best: dict | None = None
             lifecycle_carbon_30yr_kg_co2e_m2=area_avg("lifecycle_carbon_30yr_kg_co2e_m2"),
             lifecycle_cost_30yr=round(sum(best[t].lifecycle_cost_30yr * n for t, n in dwellings.items())),
             configurations={t: f"{best[t].wall_id} wall · {best[t].roof_id} roof · {best[t].mechanical_id}" for t in mix},
+            rental=rental_pro_forma(by_bedrooms, round(hard + soft_cost(hard)), area_avg("eui_kwh_m2_yr"),
+                                    load_catalog()["benchmarks"]["eui_kwh_m2_yr"]["code_built_new"]),
         ))
 
     weights = _normalized_weights(dev.weights)

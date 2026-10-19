@@ -1,6 +1,6 @@
 "use client";
 
-import type { DevMixResult } from "@/lib/api";
+import type { DevMixResult, RentalProForma } from "@/lib/api";
 import { fmtCad, useUnits } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
@@ -72,6 +72,46 @@ export default function DevRecommendation({ mix, softFraction }: { mix: DevMixRe
           </div>
         ))}
       </div>
+      {mix.rental && <Rental r={mix.rental} />}
     </section>
+  );
+}
+
+const BEDROOMS = ["Studio", "1-bed", "2-bed", "3-bed+"];
+
+// Market rent from CMHC and the MLI Select terms the community's energy performance reaches.
+function Rental({ r }: { r: RentalProForma }) {
+  const m = r.mli_select;
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  return (
+    <div className="dev-rental">
+      <h3>Rent and financing</h3>
+      <p>
+        At today&apos;s market rents these {r.homes} homes would lease for <strong>{fmtCad(r.monthly_rent)}/month</strong>{" "}
+        ({fmtCad(r.annual_effective_rent)}/year after {pct(r.vacancy_rate)} vacancy
+        {r.gross_yield_on_cost != null && `, a ${(r.gross_yield_on_cost * 100).toFixed(1)}% gross yield on cost`}). Apartments
+        built since 2015 in the Toronto area&apos;s suburbs lease for about {fmtCad(r.new_building_monthly_rent)}/month for the same homes.
+      </p>
+      <p className="zr-muted">
+        {Object.entries(r.rents_used)
+          .map(([b, v]) => `${v.homes} × ${BEDROOMS[Number(b)]} at ${fmtCad(v.monthly)} (${v.area})`)
+          .join(" · ")}
+        . Asking rents of vacant units,{" "}
+        <a href={r.url} target="_blank" rel="noreferrer">{r.source}</a>.
+      </p>
+      {m.eligible ? (
+        <p>
+          <a href={m.url} target="_blank" rel="noreferrer">CMHC MLI Select</a>: energy use is about{" "}
+          {pct(m.energy_better_than_code)} below a code-built home, worth <strong>{m.energy_points} points</strong> if an
+          energy model against NBC 2020 Tier 1 confirms it. 50 points allow up to 95% of cost as the loan (
+          {fmtCad(m.max_loan_at_50_points)}) over 40 years, 70 points 45 years, and 100 points 50 years with limited
+          recourse, at a debt coverage of at least {m.min_dcr.toFixed(2)}. Points can be added by renting{" "}
+          {m.affordability_options.map((o) => `${o.homes} homes (${o.points} pts)`).join(", ")} at 30% of median renter
+          income for 10 years, or through accessibility ({m.accessibility_options.map((o) => `${o.option}: ${o.points} pts`).join("; ")}).
+        </p>
+      ) : (
+        <p className="zr-muted">MLI Select needs at least 5 rental homes.</p>
+      )}
+    </div>
   );
 }

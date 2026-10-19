@@ -313,6 +313,32 @@ export type DevMixResult = {
   lifecycle_carbon_30yr_kg_co2e_m2: number;
   lifecycle_cost_30yr: number;
   configurations: Record<string, string>;
+  rental?: RentalProForma;
+};
+
+// engine/finance.rental_pro_forma: CMHC market rent and MLI Select financing.
+export type RentalProForma = {
+  homes: number;
+  monthly_rent: number;
+  annual_gross_rent: number;
+  vacancy_rate: number;
+  annual_effective_rent: number;
+  new_building_monthly_rent: number;
+  rents_used: Record<string, { monthly: number; area: string; homes: number }>;
+  gross_yield_on_cost: number | null;
+  source: string;
+  url: string;
+  mli_select: {
+    eligible: boolean;
+    energy_better_than_code: number;
+    energy_points: number;
+    affordability_options: { homes: number; points: number }[];
+    accessibility_options: { option: string; points: number }[];
+    tiers: { points: number; amortization_years: number; max_loan_to_cost: number; limited_recourse?: boolean }[];
+    min_dcr: number;
+    max_loan_at_50_points: number;
+    url: string;
+  };
 };
 
 // A housing mix that fits the land, before building performance is optimized.

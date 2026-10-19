@@ -9,7 +9,11 @@ retail rates in assemblies.json → energy_rates.
 Lifecycle cost: upfront construction (less any solar rebate) plus the present
 value of annual energy bills over the study period, with energy-price
 escalation discounted back to today.
+
+Rental pro forma: market rent from CMHC's survey and the MLI Select financing
+the building's energy performance reaches (rental_pro_forma).
 """
+import math
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -113,4 +117,71 @@ def lifecycle_cost(construction_cost: float, annual_energy_cost: float,
         "energy_pv": round(pv_energy, 0),
         "total": round(upfront + pv_energy, 0),
         "years": years,
+    }
+
+
+# CMHC Rental Market Survey, October 2025 (Toronto CMA data tables). A new lease in Pickering is priced
+# from the asking rents of vacant apartments in Zone 28, Pickering/Ajax/Uxbridge (table 1.1.9); CMHC
+# suppresses the zone's studio and 1-bedroom figures, so those are Durham Region's.
+CMHC_RENTS = {
+    'source': 'CMHC Rental Market Survey, October 2025 (Toronto CMA tables 1.1.1, 1.1.9, 1.2.2)',
+    'url': 'https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/'
+           'data-tables/rental-market/rental-market-report-data-tables',
+    'monthly_by_bedrooms': {0: 1462, 1: 1661, 2: 2091, 3: 2403},
+    'area_by_bedrooms': {0: 'Durham Region', 1: 'Durham Region', 2: 'Pickering/Ajax/Uxbridge',
+                         3: 'Pickering/Ajax/Uxbridge'},
+    # Apartments built 2015 or later in the CMA's suburban zones (18-31): what newer buildings lease for.
+    'new_building_monthly_by_bedrooms': {0: 1746, 1: 2197, 2: 2813, 3: 3131},
+    'vacancy_rate': 0.018,  # Zone 28, all apartments
+}
+
+# CMHC MLI Select for new construction (cmhc-schl.gc.ca, page of 2026-09-21). Energy is measured against
+# NBC 2020 Tier 1 (Part 9) by a qualified energy modeller.
+MLI_SELECT = {
+    'url': 'https://www.cmhc-schl.gc.ca/professionals/project-funding-and-mortgage-financing/'
+           'mortgage-loan-insurance/multi-unit-insurance/mliselect',
+    'min_homes': 5,
+    'energy_points': [(0.20, 20), (0.40, 35), (0.70, 50)],  # share better than NBC 2020 Tier 1
+    'affordability_points': [(0.10, 50), (0.15, 70), (0.25, 100)],  # share of homes at 30% of median renter income, 10 years
+    'accessibility_points': [('15% of homes accessible (CSA B651:23)', 20), ('100% universal design', 30)],
+    'tiers': [{'points': 50, 'amortization_years': 40, 'max_loan_to_cost': 0.95},
+              {'points': 70, 'amortization_years': 45, 'max_loan_to_cost': 0.95},
+              {'points': 100, 'amortization_years': 50, 'max_loan_to_cost': 0.95, 'limited_recourse': True}],
+    'min_dcr': 1.10,
+}
+
+
+def rental_pro_forma(homes_by_bedrooms: dict, total_project_cost: float, eui: float, code_eui: float) -> dict:
+    """Market rent for these homes and what MLI Select financing their energy performance reaches.
+    `homes_by_bedrooms` is {bedrooms: homes}; 3 stands for 3 or more."""
+    homes = {}
+    for b, n in homes_by_bedrooms.items():
+        homes[min(b, 3)] = homes.get(min(b, 3), 0) + n
+    count = sum(homes.values())
+    monthly = sum(n * CMHC_RENTS['monthly_by_bedrooms'][b] for b, n in homes.items())
+    new_monthly = sum(n * CMHC_RENTS['new_building_monthly_by_bedrooms'][b] for b, n in homes.items())
+    gross = 12 * monthly
+    # shortcut: screens against a code-built home's EUI, not an NBC 2020 Tier 1 model of this building.
+    better = max(0.0, 1 - eui / code_eui) if code_eui else 0.0
+    energy = max((p for share, p in MLI_SELECT['energy_points'] if better >= share), default=0)
+    return {
+        'homes': count, 'monthly_rent': round(monthly), 'annual_gross_rent': round(gross),
+        'vacancy_rate': CMHC_RENTS['vacancy_rate'],
+        'annual_effective_rent': round(gross * (1 - CMHC_RENTS['vacancy_rate'])),
+        'new_building_monthly_rent': round(new_monthly),
+        'rents_used': {b: {'monthly': CMHC_RENTS['monthly_by_bedrooms'][b], 'area': CMHC_RENTS['area_by_bedrooms'][b],
+                           'homes': n} for b, n in sorted(homes.items()) if n},
+        'gross_yield_on_cost': round(gross / total_project_cost, 4) if total_project_cost else None,
+        'source': CMHC_RENTS['source'], 'url': CMHC_RENTS['url'],
+        'mli_select': {
+            'eligible': count >= MLI_SELECT['min_homes'],
+            'energy_better_than_code': round(better, 3), 'energy_points': energy,
+            # The fewest affordable homes that reach each affordability level.
+            'affordability_options': [{'homes': math.ceil(round(count * share, 6)), 'points': p}
+                                      for share, p in MLI_SELECT['affordability_points']],
+            'accessibility_options': [{'option': o, 'points': p} for o, p in MLI_SELECT['accessibility_points']],
+            'tiers': MLI_SELECT['tiers'], 'min_dcr': MLI_SELECT['min_dcr'],
+            'max_loan_at_50_points': round(MLI_SELECT['tiers'][0]['max_loan_to_cost'] * total_project_cost),
+            'url': MLI_SELECT['url'],
+        },
     }

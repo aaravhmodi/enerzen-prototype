@@ -988,6 +988,32 @@ applications and no rezoning):
 
 The hard construction timeline is the build schedule in section 7.
 
+### 6.10 Rent and MLI Select (community path)
+
+`engine/finance.py` (`rental_pro_forma`) prices each recommended community's
+homes at market rent, by bedrooms (four or more rent as three), from CMHC's
+Rental Market Survey of October 2025 (Toronto CMA data tables):
+
+| | Studio | 1-bed | 2-bed | 3-bed+ |
+|---|---|---|---|---|
+| Asking rent of vacant units (table 1.1.9) | $1,462 (Durham Region) | $1,661 (Durham Region) | $2,091 (Zone 28) | $2,403 (Zone 28) |
+| Apartments built 2015+, zones 18-31 (table 1.2.2) | $1,746 | $2,197 | $2,813 | $3,131 |
+
+Zone 28 is Pickering/Ajax/Uxbridge; CMHC suppresses its studio and 1-bedroom
+figures, so those come from Durham Region. Vacancy is Zone 28's 1.8% (table
+1.1.1). The newer-building rents are shown for comparison, not used.
+
+MLI Select (CMHC, new construction): a project of 5 or more rental homes earns
+20, 35 or 50 energy points for using at least 20%, 40% or 70% less energy than
+NBC 2020 Tier 1. The engine screens this against a code-built new home's
+130 kWh/m2/yr (`catalog.benchmarks`), since it does not model the NBC 2020
+reference building; CMHC requires that model. Affordability (10%, 15% or 25% of
+homes at 30% of median renter income for 10 years: 50, 70 or 100 points) and
+accessibility (20 or 30 points) are the owner's choices, so they are listed
+with the number of homes each needs, not assumed. 50 points allow up to 95% of
+cost as the loan over 40 years, 70 points 45 years and 100 points 50 years with
+limited recourse, at a debt coverage ratio of at least 1.10.
+
 ---
 
 ## 7. Build schedule
