@@ -7,13 +7,18 @@ import {
   fetchLocations,
   runParseSpec,
   ArchetypeInfo,
+  FieldError,
   OptimizationWeights,
   ProjectSpecInput,
   SiteSpecInput,
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import LotPicker from "@/components/LotPicker";
-import WizardChrome, { WizardStep } from "@/components/WizardChrome";
+import WizardChrome, {
+  Field,
+  FieldErrorContext,
+  WizardStep,
+} from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
 
 export type FormState = {
@@ -67,13 +72,26 @@ const STEPS: WizardStep[] = [
   { label: "Priorities", caption: "Review + rank" },
 ];
 
+// The step each API field is entered on, so an error can send the user back to it.
+export const PROJECT_FIELD_STEP: Record<string, number> = {
+  location: 0, typology: 0, storeys: 0, floor_area_m2: 0,
+  lot_width_m: 1, lot_depth_m: 1, street_side: 1, front_setback_m: 1,
+  side_setback_m: 1, rear_setback_m: 1, latitude: 1, longitude: 1,
+  orientation: 2, footprint_length_m: 2, footprint_width_m: 2,
+  target_label: 3, budget_per_unit: 3, window_to_wall_ratio: 3,
+  solar_option_id: 3, mechanical_option_id: 3,
+};
+
 export default function ProjectForm({
   onSubmit,
   submitting,
   initialSite,
+  error,
 }: {
   onSubmit: (state: FormState) => void;
   submitting: boolean;
+  // An evaluation error; one naming a field sends the user back to it.
+  error?: FieldError | null;
   // A lot chosen on the zoning map; the form opens on its Site step.
   initialSite?: Partial<SiteSpecInput> | null;
 }) {
@@ -96,6 +114,19 @@ export default function ProjectForm({
   const [parsing, setParsing] = useState(false);
   const [assumptions, setAssumptions] = useState<string[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
+
+  // A new error that names one of this form's fields sends the user to its step.
+  const [seenError, setSeenError] = useState(error);
+  if (error !== seenError) {
+    setSeenError(error);
+    const target = error?.field ? PROJECT_FIELD_STEP[error.field] : undefined;
+    setFieldError(target === undefined ? null : error!);
+    if (target !== undefined) setStep(target);
+  }
+  // Editing the field the error named clears it.
+  const touch = (key: string) =>
+    setFieldError((current) => (current?.field === key ? null : current));
 
   useEffect(() => {
     fetchLocations()
@@ -115,19 +146,23 @@ export default function ProjectForm({
   const updateSpec = <K extends keyof ProjectSpecInput>(
     key: K,
     value: ProjectSpecInput[K],
-  ) =>
+  ) => {
+    touch(key);
     setState((current) => ({
       ...current,
       spec: { ...current.spec, [key]: value },
     }));
+  };
   const updateSite = <K extends keyof SiteSpecInput>(
     key: K,
     value: SiteSpecInput[K],
-  ) =>
+  ) => {
+    touch(key);
     setState((current) => ({
       ...current,
       site: { ...current.site, [key]: value },
     }));
+  };
   const updateWeight = (key: keyof OptimizationWeights, value: number) =>
     setState((current) => ({
       ...current,
@@ -205,19 +240,32 @@ export default function ProjectForm({
     }
   }
 
-  const canContinue =
+  // Why the current step can't continue yet, or null when it can.
+  const blocker =
     step === 0
-      ? Boolean(state.spec.location) &&
-        state.spec.floor_area_m2 > 0 &&
-        state.spec.storeys > 0
+      ? !state.spec.location
+        ? "Choose a location to continue."
+        : !(state.spec.storeys > 0)
+          ? "Enter at least 1 storey to continue."
+          : !(state.spec.floor_area_m2 > 0)
+            ? "Enter a floor area to continue."
+            : null
       : step === 1
-        ? state.site.lot_width_m > 0 && state.site.lot_depth_m > 0
+        ? !(state.site.lot_width_m > 0)
+          ? "Enter the lot width to continue."
+          : !(state.site.lot_depth_m > 0)
+            ? "Enter the lot depth to continue."
+            : null
         : step === 3
-          ? state.spec.budget_per_unit > 0 &&
-            (mechanicalOptions.length === 0 || usableSystems.length > 0)
-          : true;
+          ? !(state.spec.budget_per_unit > 0)
+            ? "Enter a budget per unit to continue."
+            : mechanicalOptions.length > 0 && usableSystems.length === 0
+              ? "Allow at least one mechanical system to continue."
+              : null
+          : null;
 
   return (
+    <FieldErrorContext.Provider value={fieldError}>
     <form
       onSubmit={(event) => {
         event.preventDefault();
@@ -291,7 +339,8 @@ export default function ProjectForm({
         onNext={() =>
           setStep((current) => Math.min(STEPS.length - 1, current + 1))
         }
-        nextDisabled={!canContinue}
+        nextDisabled={blocker !== null}
+        nextHint={blocker}
         nextLabel={step === STEPS.length - 2 ? "Set priorities" : "Continue"}
         isLastStep={step === STEPS.length - 1}
         submitting={submitting}
@@ -348,7 +397,7 @@ export default function ProjectForm({
               )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Location">
+              <Field label="Location" name="location">
                 <select
                   className="input"
                   value={state.spec.location ?? ""}
@@ -368,7 +417,7 @@ export default function ProjectForm({
                   )}
                 </select>
               </Field>
-              <Field label="Typology">
+              <Field label="Typology" name="typology">
                 <select
                   className="input"
                   value={state.spec.typology}
@@ -381,7 +430,7 @@ export default function ProjectForm({
                   <option value="murb">MURB</option>
                 </select>
               </Field>
-              <Field label="Storeys">
+              <Field label="Storeys" name="storeys">
                 <input
                   type="number"
                   className="input"
@@ -392,7 +441,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label={`Floor area (${u.areaUnit})`}>
+              <Field label={`Floor area (${u.areaUnit})`} name="floor_area_m2">
                 <input
                   type="number"
                   className="input"
@@ -451,7 +500,7 @@ export default function ProjectForm({
               longitude={state.site.longitude}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={`Lot width (E–W, ${u.lengthUnit})`}>
+              <Field label={`Lot width (E–W, ${u.lengthUnit})`} name="lot_width_m">
                 <input
                   type="number"
                   className="input"
@@ -466,7 +515,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label={`Lot depth (N–S, ${u.lengthUnit})`}>
+              <Field label={`Lot depth (N–S, ${u.lengthUnit})`} name="lot_depth_m">
                 <input
                   type="number"
                   className="input"
@@ -506,6 +555,7 @@ export default function ProjectForm({
               ).map((key) => (
                 <Field
                   key={key}
+                  name={key}
                   label={`${key.replace("_setback_m", "")} setback (${u.lengthUnit})`}
                 >
                   <input
@@ -525,7 +575,7 @@ export default function ProjectForm({
               ))}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Latitude (optional)">
+              <Field label="Latitude (optional)" name="latitude">
                 <input
                   type="number"
                   className="input"
@@ -539,7 +589,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Longitude (optional)">
+              <Field label="Longitude (optional)" name="longitude">
                 <input
                   type="number"
                   className="input"
@@ -615,7 +665,7 @@ export default function ProjectForm({
               ))}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Orientation">
+              <Field label="Orientation" name="orientation">
                 <select
                   className="input"
                   value={state.spec.orientation}
@@ -632,7 +682,10 @@ export default function ProjectForm({
                   <option value="W">West</option>
                 </select>
               </Field>
-              <Field label={`Footprint length × width (${u.lengthUnit})`}>
+              <Field
+                label={`Footprint length × width (${u.lengthUnit})`}
+                name={["footprint_length_m", "footprint_width_m"]}
+              >
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -675,7 +728,7 @@ export default function ProjectForm({
         {step === 3 && (
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Energy target">
+              <Field label="Energy target" name="target_label">
                 <select
                   className="input"
                   value={state.spec.target_label}
@@ -688,7 +741,7 @@ export default function ProjectForm({
                   <option value="passive_house">Passive House</option>
                 </select>
               </Field>
-              <Field label="Budget per unit (CAD)">
+              <Field label="Budget per unit (CAD)" name="budget_per_unit">
                 <input
                   type="number"
                   className="input"
@@ -699,7 +752,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Window-to-wall ratio">
+              <Field label="Window-to-wall ratio" name="window_to_wall_ratio">
                 <input
                   type="number"
                   className="input"
@@ -715,7 +768,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Solar option">
+              <Field label="Solar option" name="solar_option_id">
                 <select
                   className="input"
                   value={state.spec.solar_option_id}
@@ -730,7 +783,7 @@ export default function ProjectForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Mechanical strategy">
+              <Field label="Mechanical strategy" name="mechanical_option_id">
                 <select
                   className="input"
                   value={state.spec.mechanical_option_id ?? ""}
@@ -889,21 +942,7 @@ export default function ProjectForm({
         )}
       </WizardChrome>
     </form>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block text-xs">
-      <span className="mb-1.5 block font-medium text-stone-500">{label}</span>
-      {children}
-    </label>
+    </FieldErrorContext.Provider>
   );
 }
 

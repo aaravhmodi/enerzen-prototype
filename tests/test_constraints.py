@@ -48,7 +48,7 @@ def test_api_reports_the_gate_and_explains_an_empty_result():
     assert ok["gate"]["passed"] >= len(ok["results"])
     with pytest.raises(HTTPException) as err:
         run_optimize(OptimizeRequest(spec=ProjectSpecIn(budget_per_unit=1, **req)))
-    assert err.value.status_code == 422 and "over budget" in err.value.detail
+    assert err.value.status_code == 422 and "over budget" in err.value.detail["message"]
 
 
 def test_selecting_an_excluded_system_is_refused():
@@ -90,7 +90,7 @@ def test_dev_scenarios_names_why_every_type_is_excluded():
                      location="Pickering (Dunbarton)", allowed_types=["garden_suite"], min_bedrooms=2)
     with pytest.raises(HTTPException) as err:
         run_dev_scenarios(DevOptimizeRequest(spec=spec))
-    assert "bedroom" in err.value.detail
+    assert err.value.detail["field"] == "allowed_types" and "bedroom" in err.value.detail["message"]
 
 
 def test_dev_exclusions_reach_the_optimizer():

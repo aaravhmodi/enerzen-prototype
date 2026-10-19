@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, type CSSProperties } from "react";
-import ProjectForm, { FormState } from "@/components/ProjectForm";
+import ProjectForm, { FormState, PROJECT_FIELD_STEP } from "@/components/ProjectForm";
 import ResultsPanel from "@/components/ResultsPanel";
 import SitePlanView from "@/components/SitePlanView";
-import DevForm from "@/components/DevForm";
+import DevForm, { DEV_FIELD_STEP } from "@/components/DevForm";
 import DevResults from "@/components/DevResults";
 import MultiSitePlanView from "@/components/MultiSitePlanView";
 import DevScenarioReview from "@/components/DevScenarioReview";
@@ -12,7 +12,7 @@ import DevRecommendation from "@/components/DevRecommendation";
 import Architecture from "@/components/Architecture";
 import { fmtCad, setUnitSystem, useUnits, type UnitSystem } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
-import type { SiteSpecInput } from "@/lib/api";
+import { errorInfo, type FieldError, type SiteSpecInput } from "@/lib/api";
 import {
   ConfigResult,
   ExcludedType,
@@ -82,7 +82,7 @@ export default function Home() {
 
   // ── Single-unit state ──────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<FieldError | null>(null);
   const [results, setResults] = useState<ConfigResult[] | null>(null);
   const [soft, setSoft] = useState<SoftSummary | null>(null);
   const [gate, setGate] = useState<GateBreakdown | null>(null);
@@ -96,7 +96,7 @@ export default function Home() {
 
   // ── Development-plan state ─────────────────────────────────────────────────
   const [devSubmitting, setDevSubmitting] = useState(false);
-  const [devError, setDevError] = useState<string | null>(null);
+  const [devError, setDevError] = useState<FieldError | null>(null);
   const [devMixes, setDevMixes] = useState<DevMixResult[] | null>(null);
   const [devSvg, setDevSvg] = useState<string | null>(null);
   const [devConcept, setDevConcept] = useState<string | null>(null);
@@ -127,6 +127,7 @@ export default function Home() {
           normalizeWeights(state.weights),
           20,
           state.site,
+          u.system,
         ),
         runSitePlan(state.spec, state.site, false, u.system),
         pause(MIN_EXPLORE_MS),
@@ -141,7 +142,7 @@ export default function Home() {
         concept: siteRes.concept_render_b64,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      setError(errorInfo(e, "Something went wrong"));
       setResults(null);
       setSiteData(null);
     } finally {
@@ -162,7 +163,7 @@ export default function Home() {
       );
       downloadPdf(pdf_b64, "enerzen-feasibility-report.pdf");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Report generation failed");
+      setError(errorInfo(e, "Report generation failed"));
     } finally {
       setDownloadingReport(false);
     }
@@ -176,7 +177,7 @@ export default function Home() {
       const { pdf_b64 } = await runDevReport(lastDevSpec, approvedMixes, devMixes[selectedMix].units, u.system);
       downloadPdf(pdf_b64, "enerzen-development-feasibility-report.pdf");
     } catch (e) {
-      setDevError(e instanceof Error ? e.message : "Report generation failed");
+      setDevError(errorInfo(e, "Report generation failed"));
     } finally {
       setDownloadingDevReport(false);
     }
@@ -184,7 +185,7 @@ export default function Home() {
 
   async function handleDevSubmit(spec: DevSpecInput) {
     if (devIterations >= 3) {
-      setDevError("The site plan review is limited to 3 iterations. Approve a scenario to continue.");
+      setDevError({ message: "The site plan review is limited to 3 iterations. Approve a scenario to continue." });
       return;
     }
     setDevPhase("scenarios");
@@ -207,7 +208,7 @@ export default function Home() {
       setDevStage("review");
       setViewResults(true);
     } catch (e) {
-      setDevError(e instanceof Error ? e.message : "Something went wrong");
+      setDevError(errorInfo(e, "Something went wrong"));
     } finally {
       setDevSubmitting(false);
     }
@@ -223,7 +224,7 @@ export default function Home() {
       setDevConcept(concept_render_b64);
       return true;
     } catch {
-      setDevError("This site view could not be generated. Please try again.");
+      setDevError({ message: "This site view could not be generated. Please try again." });
       return false;
     } finally {
       setDevSubmitting(false);
@@ -242,7 +243,7 @@ export default function Home() {
     if (!lastDevSpec || !scenarios) return;
     const mixes = scenarios.filter((_, i) => approved[i]).map((scenario) => scenario.units);
     if (mixes.length === 0) {
-      setDevError("Tick at least one scenario to carry into performance optimization.");
+      setDevError({ message: "Tick at least one scenario to carry into performance optimization." });
       return;
     }
     setDevPhase("performance");
@@ -263,7 +264,7 @@ export default function Home() {
       setDevConcept(concept_render_b64);
       setDevStage("final");
     } catch (e) {
-      setDevError(e instanceof Error ? e.message : "Something went wrong");
+      setDevError(errorInfo(e, "Something went wrong"));
     } finally {
       setDevSubmitting(false);
       setViewResults(true);
@@ -296,6 +297,12 @@ export default function Home() {
 
   const busy = submitting || devSubmitting;
   const exploring = busy && !viewResults && (screen === "single" || screen === "development");
+  // Errors naming a field of the visible form are shown at that field instead.
+  const atField = (e: FieldError | null, steps: Record<string, number>) => !!e?.field && e.field in steps;
+  const pageError =
+    screen === "single"
+      ? !viewResults && atField(error, PROJECT_FIELD_STEP) ? null : error
+      : devStage === "brief" && atField(devError, DEV_FIELD_STEP) ? null : devError;
   const exploringContext: ExploringContext =
     screen === "single"
       ? {
@@ -562,6 +569,7 @@ export default function Home() {
             initialSite={lot}
             onSubmit={handleSingleSubmit}
             submitting={submitting}
+            error={error}
           />
         </div>
         <div hidden={screen !== "development" || viewResults || exploring}>
@@ -569,6 +577,7 @@ export default function Home() {
             onSubmit={handleDevSubmit}
             submitting={devSubmitting}
             iteration={devIterations}
+            error={devStage === "brief" ? devError : null}
           />
         </div>
         {exploring && (
@@ -577,9 +586,11 @@ export default function Home() {
             context={exploringContext}
           />
         )}
-        {(screen === "single" ? error : devError) && (
+        {/* Errors naming a form field are shown at that field instead. */}
+        {pageError && (
           <div role="alert" className="error-message">
-            {screen === "single" ? error : devError}
+            {pageError.message}
+            {pageError.fix && <span className="block">{pageError.fix}</span>}
           </div>
         )}
         {busy && viewResults && (

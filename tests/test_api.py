@@ -28,7 +28,10 @@ def test_optimize_rejects_site_that_cannot_fit():
         run_optimize(OptimizeRequest(spec=spec, site=site))
     except HTTPException as error:
         assert error.status_code == 422
-        assert "Site feasibility gate failed" in str(error.detail)
+        # 20 m footprint vs 12 m lot less two 1.2 m side setbacks: the width is the binding side.
+        assert error.detail["field"] == "lot_width_m"
+        assert "20 m" in error.detail["message"] and "9.6 m" in error.detail["message"]
+        assert "10.4 m wider" in error.detail["fix"]
     else:
         raise AssertionError("Expected the site feasibility gate to reject the request")
 

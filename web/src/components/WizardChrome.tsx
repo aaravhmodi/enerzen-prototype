@@ -1,8 +1,58 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
+import type { FieldError } from "@/lib/api";
 
 export type WizardStep = { label: string; caption: string };
+
+// The error the form is sending the user back to; fields read it by name.
+export const FieldErrorContext = createContext<FieldError | null>(null);
+
+// For a field wrapper: when the current error names this field, mark its
+// control invalid, focus it and scroll it into view.
+export function useFieldError(name?: string | string[]) {
+  const error = useContext(FieldErrorContext);
+  const ref = useRef<HTMLLabelElement>(null);
+  const active = name && error?.field && [name].flat().includes(error.field) ? error : null;
+  useEffect(() => {
+    const control = ref.current?.querySelector<HTMLElement>("input, select, textarea, button");
+    if (!active || !control) return;
+    control.setAttribute("aria-invalid", "true");
+    control.focus({ preventScroll: true });
+    ref.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return () => control.removeAttribute("aria-invalid");
+  }, [active]);
+  return { ref, error: active };
+}
+
+export function Field({
+  label,
+  name,
+  children,
+}: {
+  label: string;
+  // API field name(s) this input sets, so errors naming it land here.
+  name?: string | string[];
+  children: React.ReactNode;
+}) {
+  const { ref, error } = useFieldError(name);
+  return (
+    <label ref={ref} className="block text-xs">
+      <span className="mb-1.5 block font-medium text-stone-500">{label}</span>
+      {children}
+      {error && <FieldErrorText error={error} />}
+    </label>
+  );
+}
+
+export function FieldErrorText({ error }: { error: FieldError }) {
+  return (
+    <span role="alert" className="mt-1.5 block text-xs leading-5 text-red-700">
+      {error.message}
+      {error.fix && <span className="block font-medium text-stone-700">{error.fix}</span>}
+    </span>
+  );
+}
 
 export default function WizardChrome({
   steps,
@@ -14,6 +64,7 @@ export default function WizardChrome({
   onBack,
   onNext,
   nextDisabled = false,
+  nextHint,
   nextLabel = "Continue",
   isLastStep = false,
   submitting = false,
@@ -31,6 +82,8 @@ export default function WizardChrome({
   onBack: () => void;
   onNext: () => void;
   nextDisabled?: boolean;
+  // Why Continue is disabled, shown beside it.
+  nextHint?: string | null;
   nextLabel?: string;
   isLastStep?: boolean;
   submitting?: boolean;
@@ -41,6 +94,8 @@ export default function WizardChrome({
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    // A field the user was sent back to keeps focus.
+    if (document.activeElement?.getAttribute("aria-invalid") === "true") return;
     heading.current?.focus({ preventScroll: true });
   }, [currentStep]);
   function advance() {
@@ -161,8 +216,8 @@ export default function WizardChrome({
           >
             ← Back
           </button>
-          <span className="wizard-action-note">
-            Your choices stay as you go.
+          <span className="wizard-action-note" role="status">
+            {nextDisabled && nextHint ? nextHint : "Your choices stay as you go."}
           </span>
           {isLastStep ? (
             <button

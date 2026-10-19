@@ -99,6 +99,21 @@ export type SiteLayout = {
   notes: string[];
 };
 
+// An error the form can send the user back to: `field` names the input
+// (the API's field name) and `fix` says how to resolve it.
+export type FieldError = { message: string; field?: string; fix?: string };
+
+export class ApiError extends Error {
+  constructor(message: string, readonly field?: string, readonly fix?: string) {
+    super(message);
+  }
+}
+
+export function errorInfo(e: unknown, fallback: string): FieldError {
+  if (e instanceof ApiError) return { message: e.message, field: e.field, fix: e.fix };
+  return { message: e instanceof Error ? e.message : fallback };
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
@@ -106,8 +121,15 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail ?? `${path} failed with ${res.status}`);
+    const { detail } = await res.json().catch(() => ({}));
+    // FastAPI input validation: [{loc: ["body", "spec", "lot_width_m"], msg}, ...]
+    if (Array.isArray(detail)) {
+      const first = detail[0] ?? {};
+      const field = (first.loc ?? []).filter((part: unknown) => typeof part === "string").at(-1);
+      throw new ApiError(first.msg ?? "Some inputs are not valid.", field === "body" ? undefined : field);
+    }
+    if (detail && typeof detail === "object") throw new ApiError(detail.message, detail.field, detail.fix ?? undefined);
+    throw new ApiError(detail ?? `${path} failed with ${res.status}`);
   }
   return res.json();
 }
@@ -207,9 +229,10 @@ export async function runOptimize(
   spec: ProjectSpecInput,
   weights?: OptimizationWeights,
   top_n = 20,
-  site?: SiteSpecInput
+  site?: SiteSpecInput,
+  units: UnitSystem = "metric"
 ): Promise<{ results: ConfigResult[]; soft: SoftSummary; gate: GateBreakdown }> {
-  return postJson("/optimize", { spec, weights, top_n, site });
+  return postJson("/optimize", { spec, weights, top_n, site, units });
 }
 
 export async function runSitePlan(

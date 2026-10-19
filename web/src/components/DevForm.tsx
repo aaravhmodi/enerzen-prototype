@@ -8,10 +8,16 @@ import {
   ArchetypeInfo,
   DevelopmentWeights,
   DevSpecInput,
+  FieldError,
 } from "@/lib/api";
 import LocationInfoPanel from "@/components/LocationInfoPanel";
 import LotPicker from "@/components/LotPicker";
-import WizardChrome, { WizardStep } from "@/components/WizardChrome";
+import WizardChrome, {
+  Field,
+  FieldErrorContext,
+  FieldErrorText,
+  WizardStep,
+} from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
 
 const DEFAULT: DevSpecInput = {
@@ -40,14 +46,25 @@ const STEPS: WizardStep[] = [
   { label: "Review", caption: "Generate plan" },
 ];
 
+// The step each API field is entered on, so an error can send the user back to it.
+export const DEV_FIELD_STEP: Record<string, number> = {
+  location: 0, total_budget_cad: 0, lot_width_m: 0, lot_depth_m: 0,
+  street_side: 1, orientation: 1, front_setback_m: 1, side_setback_m: 1, rear_setback_m: 1,
+  allowed_types: 2, min_bedrooms: 2, max_storeys: 2,
+  target_label: 3,
+};
+
 export default function DevForm({
   onSubmit,
   submitting,
   iteration,
+  error,
 }: {
   onSubmit: (spec: DevSpecInput) => void;
   submitting: boolean;
   iteration: number;
+  // A scenario error; one naming a field sends the user back to it.
+  error?: FieldError | null;
 }) {
   const u = useUnits();
   const [state, setState] = useState<DevSpecInput>(DEFAULT);
@@ -58,6 +75,20 @@ export default function DevForm({
   const [mechanicalOptions, setMechanicalOptions] = useState<
     { id: string; name: string }[]
   >([]);
+  const [fieldError, setFieldError] = useState<FieldError | null>(null);
+
+  // A new error that names one of this form's fields sends the user to its step.
+  const [seenError, setSeenError] = useState(error);
+  if (error !== seenError) {
+    setSeenError(error);
+    const target = error?.field ? DEV_FIELD_STEP[error.field] : undefined;
+    setFieldError(target === undefined ? null : error!);
+    if (target !== undefined) setStep(target);
+    if (error?.field?.endsWith("_setback_m")) setShowSetbacks(true);
+  }
+  // Editing the field the error named clears it.
+  const touch = (key: string) =>
+    setFieldError((current) => (current?.field === key ? null : current));
 
   useEffect(() => {
     fetchLocations()
@@ -99,10 +130,12 @@ export default function DevForm({
     mechanicalOptions.some((m) => !state.excluded_mechanical_ids.includes(m.id));
 
   function set<K extends keyof DevSpecInput>(key: K, value: DevSpecInput[K]) {
+    touch(key);
     setState((s) => ({ ...s, [key]: value }));
   }
 
   function toggleType(id: string) {
+    touch("allowed_types");
     setState((s) => {
       const has = s.allowed_types.includes(id);
       const next = has
@@ -116,30 +149,39 @@ export default function DevForm({
     setState((s) => ({ ...s, weights: { ...s.weights, [key]: value } }));
   }
 
+  const mixBlocker =
+    state.allowed_types.length === 0
+      ? "Select at least one housing type to continue."
+      : eligibleTypes.length === 0
+        ? "Every selected type is ruled out by the bedroom or storey limits. Relax a limit or select another type."
+        : !systemsLeft
+          ? "Every mechanical system is excluded. Allow at least one to continue."
+          : null;
+  // Why the current step can't continue yet, or null when it can.
+  const blocker =
+    step === 0
+      ? !(state.lot_width_m > 0)
+        ? "Enter the lot width to continue."
+        : !(state.lot_depth_m > 0)
+          ? "Enter the lot depth to continue."
+          : !(state.total_budget_cad > 0)
+            ? "Enter a total budget to continue."
+            : null
+      : step === 2
+        ? mixBlocker
+        : step === STEPS.length - 1
+          ? (mixBlocker ??
+            (iteration >= 3 ? "The site plan review is limited to 3 iterations." : null))
+          : null;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (
-      step !== STEPS.length - 1 ||
-      submitting ||
-      iteration >= 3 ||
-      eligibleTypes.length === 0 ||
-      !systemsLeft
-    )
-      return;
+    if (step !== STEPS.length - 1 || submitting || blocker) return;
     onSubmit(state);
   }
 
-  const canContinue =
-    step === 0
-      ? state.lot_width_m > 0 &&
-        state.lot_depth_m > 0 &&
-        state.total_budget_cad > 0
-      : step === 2
-        ? eligibleTypes.length > 0 && systemsLeft
-        : true;
-  const canSubmit = eligibleTypes.length > 0 && systemsLeft && iteration < 3;
-
   return (
+    <FieldErrorContext.Provider value={fieldError}>
     <form onSubmit={handleSubmit}>
       <WizardChrome
         steps={STEPS}
@@ -198,7 +240,8 @@ export default function DevForm({
         onNext={() =>
           setStep((current) => Math.min(STEPS.length - 1, current + 1))
         }
-        nextDisabled={step === STEPS.length - 1 ? !canSubmit : !canContinue}
+        nextDisabled={blocker !== null}
+        nextHint={blocker}
         nextLabel={step === 3 ? "Review brief" : "Continue"}
         isLastStep={step === STEPS.length - 1}
         submitLabel="Generate site plans"
@@ -207,7 +250,7 @@ export default function DevForm({
         {step === 0 && (
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Location">
+              <Field label="Location" name="location">
                 <select
                   className="input"
                   value={state.location}
@@ -223,7 +266,7 @@ export default function DevForm({
                   )}
                 </select>
               </Field>
-              <Field label="Total budget (CAD)">
+              <Field label="Total budget (CAD)" name="total_budget_cad">
                 <input
                   type="number"
                   className="input"
@@ -267,7 +310,7 @@ export default function DevForm({
               }
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={`Lot width (E–W, ${u.lengthUnit})`}>
+              <Field label={`Lot width (E–W, ${u.lengthUnit})`} name="lot_width_m">
                 <input
                   type="number"
                   className="input"
@@ -283,7 +326,7 @@ export default function DevForm({
                   }
                 />
               </Field>
-              <Field label={`Lot depth (N–S, ${u.lengthUnit})`}>
+              <Field label={`Lot depth (N–S, ${u.lengthUnit})`} name="lot_depth_m">
                 <input
                   type="number"
                   className="input"
@@ -362,14 +405,14 @@ export default function DevForm({
                       "rear_setback_m",
                     ] as const
                   ).map((key) => (
-                    <label
+                    <Field
                       key={key}
-                      className="text-[10px] capitalize text-stone-400"
+                      name={key}
+                      label={`${key.replace("_setback_m", "")} setback (${u.lengthUnit})`}
                     >
-                      {key.replace("_setback_m", "")} ({u.lengthUnit})
                       <input
                         type="number"
-                        className="input mt-1"
+                        className="input"
                         min={0}
                         step={u.lengthStep(0.1)}
                         value={u.lengthInput(state[key])}
@@ -377,7 +420,7 @@ export default function DevForm({
                           set(key, u.lengthFromInput(parseFloat(e.target.value)))
                         }
                       />
-                    </label>
+                    </Field>
                   ))}
                 </div>
               )}
@@ -442,7 +485,7 @@ export default function DevForm({
               })}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Minimum bedrooms per home">
+              <Field label="Minimum bedrooms per home" name="min_bedrooms">
                 <select
                   className="input"
                   value={state.min_bedrooms}
@@ -456,7 +499,7 @@ export default function DevForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Maximum storeys">
+              <Field label="Maximum storeys" name="max_storeys">
                 <select
                   className="input"
                   value={state.max_storeys ?? ""}
@@ -492,6 +535,9 @@ export default function DevForm({
                   ))}
                 </div>
               </fieldset>
+            )}
+            {fieldError?.field === "allowed_types" && (
+              <FieldErrorText error={fieldError} />
             )}
             {state.allowed_types.length === 0 ? (
               <p className="text-xs text-red-500">
@@ -619,21 +665,7 @@ export default function DevForm({
         )}
       </WizardChrome>
     </form>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block text-xs">
-      <span className="mb-1.5 block font-medium text-stone-500">{label}</span>
-      {children}
-    </label>
+    </FieldErrorContext.Provider>
   );
 }
 

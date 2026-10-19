@@ -15,7 +15,7 @@ from typing import Literal, Optional
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from engine.ai import (
     AiUnavailableError,
@@ -36,7 +36,7 @@ from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize_w
 from engine.report import generate_development_report, generate_unit_report
 from engine.soft import SOFT_COST_FRACTION, permit_class, soft_cost, soft_timeline
 from engine.regulatory import toronto_zoning_lookup
-from engine.site import SiteLayout, SiteSpec, place_building, site_plan_svg
+from engine.site import SiteLayout, SiteSpec, buildable_envelope, place_building, site_plan_svg
 from engine.units import Units
 from api.request_queue import FIFORequestQueue, QueueFull
 
@@ -84,38 +84,45 @@ app.add_middleware(
 class ProjectSpecIn(BaseModel):
     typology: str
     climate_zone: str = "6"
-    floor_area_m2: float
-    storeys: int
+    floor_area_m2: float = Field(gt=0)
+    storeys: int = Field(ge=1, le=12)
     orientation: str
-    window_to_wall_ratio: float
-    budget_per_unit: float
+    window_to_wall_ratio: float = Field(ge=0, le=1)
+    budget_per_unit: float = Field(gt=0)
     target_label: str
     solar_option_id: str = "PV0"
     mechanical_option_id: Optional[str] = None
     location: Optional[str] = None
-    num_units: int = 1
+    num_units: int = Field(1, ge=1)
     has_ac: bool = True
     allow_gas: bool = True
     excluded_mechanical_ids: list[str] = []
-    footprint_length_m: Optional[float] = None
-    footprint_width_m: Optional[float] = None
+    footprint_length_m: Optional[float] = Field(None, gt=0)
+    footprint_width_m: Optional[float] = Field(None, gt=0)
 
     def to_engine_spec(self) -> ProjectSpec:
         return ProjectSpec(**self.model_dump())
 
 
+Side = Literal["N", "S", "E", "W"]
+
+
 class SiteSpecIn(BaseModel):
-    lot_width_m: float
-    lot_depth_m: float
-    street_side: str
-    front_setback_m: float = 6.0
-    side_setback_m: float = 1.2
-    rear_setback_m: float = 7.5
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    lot_width_m: float = Field(gt=0)
+    lot_depth_m: float = Field(gt=0)
+    street_side: Side
+    front_setback_m: float = Field(6.0, ge=0)
+    side_setback_m: float = Field(1.2, ge=0)
+    rear_setback_m: float = Field(7.5, ge=0)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
 
     def to_engine_spec(self) -> SiteSpec:
         return SiteSpec(**self.model_dump(exclude={"latitude", "longitude"}))
+
+
+# Display units for drawings, reports and error messages. Inputs and results are always SI.
+UnitSystem = Literal["metric", "imperial"]
 
 
 class OptimizeRequest(BaseModel):
@@ -123,10 +130,7 @@ class OptimizeRequest(BaseModel):
     weights: Optional[dict] = None
     top_n: int = 20
     site: Optional[SiteSpecIn] = None
-
-
-# Display units for drawings and reports. Inputs and results are always SI.
-UnitSystem = Literal["metric", "imperial"]
+    units: UnitSystem = "metric"
 
 
 class SitePlanRequest(BaseModel):
@@ -150,20 +154,20 @@ class ParseSpecRequest(BaseModel):
 
 
 class DevSpecIn(BaseModel):
-    lot_width_m: float
-    lot_depth_m: float
-    street_side: str = "N"
-    front_setback_m: float = 6.0
-    side_setback_m: float = 1.2
-    rear_setback_m: float = 7.5
-    total_budget_cad: float
+    lot_width_m: float = Field(gt=0)
+    lot_depth_m: float = Field(gt=0)
+    street_side: Side = "N"
+    front_setback_m: float = Field(6.0, ge=0)
+    side_setback_m: float = Field(1.2, ge=0)
+    rear_setback_m: float = Field(7.5, ge=0)
+    total_budget_cad: float = Field(gt=0)
     location: str
     target_label: str = "nzr"
     allowed_types: list[str]
     orientation: str = "S"
     weights: Optional[dict] = None
-    min_bedrooms: int = 0
-    max_storeys: Optional[int] = None
+    min_bedrooms: int = Field(0, ge=0)
+    max_storeys: Optional[int] = Field(None, ge=1)
     excluded_mechanical_ids: list[str] = []
 
     def to_engine_spec(self) -> DevSpec:
@@ -209,9 +213,14 @@ def _serialize_layout(layout: SiteLayout) -> dict:
     return dataclasses.asdict(layout)
 
 
+def _field_error(field: str, message: str, fix: Optional[str] = None) -> HTTPException:
+    """A 422 the form can route back to the input that caused it."""
+    return HTTPException(422, {"field": field, "message": message, "fix": fix})
+
+
 def _validate_location(location: Optional[str]) -> None:
     if location and location not in location_names():
-        raise HTTPException(422, f"Unknown location {location!r}. Must be one of the /locations values.")
+        raise _field_error("location", f"Unknown location {location!r}.", "Choose a location from the list.")
 
 
 def _validate_mechanical_selection(spec: ProjectSpecIn) -> None:
@@ -222,16 +231,46 @@ def _validate_mechanical_selection(spec: ProjectSpecIn) -> None:
         None,
     )
     if option is None:
-        raise HTTPException(422, f"Unknown mechanical option {spec.mechanical_option_id!r}.")
+        raise _field_error("mechanical_option_id", f"Unknown mechanical option {spec.mechanical_option_id!r}.",
+                           "Pick another system, or let the engine optimize across the catalog.")
     if not spec.allow_gas and option.get("type") == "gas":
-        raise HTTPException(422, "The selected mechanical option burns natural gas, but gas systems are disabled.")
+        raise _field_error("mechanical_option_id", "This system burns natural gas, but gas systems are disabled.",
+                           "Pick an electric system, or allow natural gas systems.")
     if option["id"] in spec.excluded_mechanical_ids:
-        raise HTTPException(422, "The selected mechanical option is one the brief excludes.")
+        raise _field_error("mechanical_option_id", "This system is one the brief excludes.",
+                           "Pick another system, or remove it from the excluded list.")
 
 
 def _gate_message(gate: dict) -> str:
     return (f"No configurations fit the given budget and target: {gate['evaluated']} evaluated, "
             f"{gate['over_budget']} over budget, {gate['missed_target']} missed the target.")
+
+
+def _gate_error(gate: dict) -> HTTPException:
+    # Point at whichever constraint ruled out more configurations.
+    if gate["over_budget"] >= gate["missed_target"]:
+        return _field_error("budget_per_unit", _gate_message(gate),
+                            "Raise the budget per unit, or choose a less demanding energy target.")
+    return _field_error("target_label", _gate_message(gate),
+                        "Choose a less demanding energy target, or raise the budget per unit.")
+
+
+def _site_fit_error(layout: SiteLayout, site: SiteSpec, units: Units) -> HTTPException:
+    """Name the lot dimension the footprint overflows and by how much."""
+    envelope = buildable_envelope(site)
+    over_w = layout.building_w_m - envelope.width
+    over_d = layout.building_h_m - envelope.height
+    if over_w >= over_d:
+        field, dim, need, room, over, verb = ("lot_width_m", "width", layout.building_w_m,
+                                              envelope.width, over_w, "wider")
+    else:
+        field, dim, need, room, over, verb = ("lot_depth_m", "depth", layout.building_h_m,
+                                              envelope.height, over_d, "deeper")
+    return _field_error(
+        field,
+        f"The footprint needs {units.length(need)} of lot {dim}, but the setbacks leave {units.length(max(room, 0))}.",
+        f"Make the lot at least {units.length(over)} {verb}, reduce the setbacks, "
+        "or choose a smaller floor area or more storeys.")
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────────
@@ -353,6 +392,12 @@ def pickering_map(latitude: float, longitude: float, radius_m: float = 250):
     return pickering_zoning.map_features(latitude, longitude, max(25.0, min(radius_m, 1000.0)))
 
 
+@app.get("/municipal/pickering/pilot")
+def pickering_pilot():
+    """The neighbourhood offered for site selection, and its lots whose rules can't all be verified."""
+    return pickering_zoning.pilot_area()
+
+
 @app.get("/municipal/pickering/documents")
 def pickering_documents():
     """Every stored by-law, plan and regulation, grouped by framework."""
@@ -409,11 +454,10 @@ def run_optimize(req: OptimizeRequest, _queue_slot: None = Depends(_queued_reque
     if req.site is not None:
         layout = place_building(spec, req.site.to_engine_spec())
         if not layout.fits_on_lot or not layout.setbacks_ok:
-            notes = "; ".join(layout.notes) or "The building does not fit within the supplied site constraints."
-            raise HTTPException(422, f"Site feasibility gate failed: {notes}")
+            raise _site_fit_error(layout, req.site.to_engine_spec(), Units(req.units))
     results, gate = optimize_with_gate(spec, req.weights)
     if not results:
-        raise HTTPException(422, _gate_message(gate))
+        raise _gate_error(gate)
     return {
         "results": [_serialize_result(r) for r in results[: req.top_n]],
         "gate": gate,
@@ -451,7 +495,7 @@ def run_report(req: ReportRequest, _queue_slot: None = Depends(_queued_request))
     """Path A nine-section feasibility report for one ranked configuration."""
     spec = req.spec.to_engine_spec()
     if not spec.location:
-        raise HTTPException(422, "A location is required to generate a report.")
+        raise _field_error("location", "A location is required to generate a report.", "Choose a location.")
     _validate_location(spec.location)
     _validate_mechanical_selection(req.spec)
     resolved = resolve_location(spec.location)
@@ -475,7 +519,7 @@ def run_report(req: ReportRequest, _queue_slot: None = Depends(_queued_request))
     weights = _normalized(req.weights, ("cost", "speed", "carbon", "energy"))
     results, gate = optimize_with_gate(spec, weights)
     if not results:
-        raise HTTPException(422, _gate_message(gate))
+        raise _gate_error(gate)
     if req.top_n_index >= len(results):
         raise HTTPException(422, f"top_n_index out of range (only {len(results)} results).")
     top = results[req.top_n_index]
@@ -616,12 +660,13 @@ def run_dev_scenarios(req: DevOptimizeRequest, _queue_slot: None = Depends(_queu
     _validate_location(dev.location)
     excluded = excluded_types(dev)
     if dev.allowed_types and len(excluded) == len(dev.allowed_types):
-        raise HTTPException(422, "Every selected housing type is ruled out by the brief: "
-                                 + "; ".join(e["reason"] for e in excluded) + ".")
+        raise _field_error("allowed_types", "Every selected housing type is ruled out by the brief: "
+                           + "; ".join(e["reason"] for e in excluded) + ".",
+                           "Select another housing type, or relax the bedroom or storey limits.")
     scenarios = screen_dev_mixes(dev, req.top_n)
     if not scenarios:
-        raise HTTPException(422, "No housing mix fits inside the setbacks within the budget. "
-                                 "Try a larger lot, smaller setbacks, another housing type or a higher budget.")
+        raise _field_error("total_budget_cad", "No housing mix fits inside the setbacks within the budget.",
+                           "Raise the budget or enlarge the lot, or try smaller setbacks or another housing type.")
     return {"scenarios": [dataclasses.asdict(s) for s in scenarios], "excluded_types": excluded}
 
 
