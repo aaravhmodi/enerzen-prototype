@@ -1076,8 +1076,11 @@ def lookup(latitude: float, longitude: float) -> dict:
             '6_planning_frameworks': {
                 'zoning_bylaw_references': _document_refs(manifest, searched_codes, bylaw_numbers),
                 'council_amendments_naming_this_lot': lot_amendments(manifest, property_id, searched_codes),
-                'official_plan_designation': [_pick(h['attributes'], r'desig', r'land_?use', r'name')
-                                              for h in official_plan],
+                # The City's land-use designation (Schedule I) when it covers the lot; other layers'
+                # names (a road, an area label) only when it doesn't.
+                'official_plan_designation': list(dict.fromkeys(
+                    [d for h in official_plan if (d := _pick(h['attributes'], r'desig', r'land_?use'))]
+                    or [_pick(h['attributes'], r'name') for h in official_plan])),
                 'provincial': ['Provincial Planning Statement (2024)'] +
                               [h['layer'] for h in overlays['provincial_plans']],
                 'all_documents': {group: [{'title': d['title'], 'url': d['url'], 'file': d['file'],
