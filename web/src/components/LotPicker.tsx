@@ -149,7 +149,13 @@ export default function LotPicker({
         setError(refusal);
         return;
       }
-      setWorkingBoundary(around.parcel?.geometry.type === "Polygon" ? around.parcel.geometry : null);
+      // The City's parcel fabric stores every lot as a one-part MultiPolygon.
+      const outline = around.parcel?.geometry;
+      setWorkingBoundary(
+        outline?.type === "Polygon" ? outline
+          : outline?.type === "MultiPolygon" && outline.coordinates.length === 1 ? { type: "Polygon", coordinates: outline.coordinates[0] }
+          : null,
+      );
       const lot = lotForForm(found);
       if (lot) {
         setWorkingPoint({ latitude: lot.latitude, longitude: lot.longitude });

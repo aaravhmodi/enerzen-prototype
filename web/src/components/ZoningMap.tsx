@@ -349,6 +349,8 @@ export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot,
       if (box) instance.fitBounds(box, { padding: 40, duration: 0 });
     }
     return () => {
+      // On unmount the map is already removed, and with it these layers.
+      if (map.current !== instance) return;
       for (const id of ["zn-pilot-label", "zn-pilot-line", "zn-pilot-unverified"]) if (instance.getLayer(id)) instance.removeLayer(id);
       for (const id of ["zn-pilot", "zn-pilot-label", "zn-pilot-unverified"]) if (instance.getSource(id)) instance.removeSource(id);
     };
