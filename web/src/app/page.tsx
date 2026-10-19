@@ -111,6 +111,7 @@ export default function Home() {
   const [selectedScenario, setSelectedScenario] = useState(0);
   const [rejectedMixes, setRejectedMixes] = useState<RejectedMix[]>([]);
   const [excludedTypes, setExcludedTypes] = useState<ExcludedType[]>([]);
+  const [zoningNotes, setZoningNotes] = useState<string[]>([]);
   const [approvedMixes, setApprovedMixes] = useState<Record<string, number>[]>([]);
   const [downloadingDevReport, setDownloadingDevReport] = useState(false);
   const [softFraction, setSoftFraction] = useState(0.25);
@@ -196,11 +197,12 @@ export default function Home() {
     setLastDevSpec(spec);
     try {
       const minimum = pause(MIN_EXPLORE_MS);
-      const { scenarios: found, excluded_types } = await runDevScenarios(spec);
+      const { scenarios: found, excluded_types, zoning } = await runDevScenarios(spec);
       const { svg } = await runDevSitePlan(spec, found[0].units, false, u.system);
       await minimum;
       setScenarios(found);
       setExcludedTypes(excluded_types ?? []);
+      setZoningNotes(zoning ?? []);
       setApproved(found.map(() => true));
       setSelectedScenario(0);
       setDevSvg(svg);
@@ -689,6 +691,7 @@ export default function Home() {
                   <div className="reveal-item" style={at(1)}>
                     <DevScenarioReview
                       excluded={excludedTypes}
+                      zoning={zoningNotes}
                       scenarios={scenarios}
                       selectedIndex={selectedScenario}
                       approved={approved}

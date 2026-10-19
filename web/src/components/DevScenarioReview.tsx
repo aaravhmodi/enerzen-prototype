@@ -11,11 +11,13 @@ export default function DevScenarioReview({
   selectedIndex,
   approved,
   excluded = [],
+  zoning = [],
   onSelect,
   onToggle,
 }: {
   scenarios: DevScenario[];
   excluded?: ExcludedType[];
+  zoning?: string[];
   selectedIndex: number;
   approved: boolean[];
   onSelect: (index: number) => void;
@@ -65,6 +67,16 @@ export default function DevScenarioReview({
           </li>
         ))}
       </ol>
+      {zoning.length > 0 && (
+        <div className="scenario-excluded">
+          <p className="micro-label">Held to the lot&apos;s zoning</p>
+          <ul>
+            {zoning.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {excluded.length > 0 && (
         <div className="scenario-excluded">
           <p className="micro-label">Ruled out by the brief</p>

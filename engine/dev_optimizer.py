@@ -41,6 +41,9 @@ class DevSpec:
     min_bedrooms: int = 0               # hard constraint: every dwelling has at least this many
     max_storeys: int | None = None      # hard constraint: no building taller than this
     excluded_mechanical_ids: list = field(default_factory=list)  # hard constraint: never use these systems
+    # The lot's zoning, when known: {"zone", "permitted_types" (archetype IDs, or None when the zone's uses
+    # are only in an exception's text), "min_lot_area_m2"}. See zoning_issue.
+    zoning: dict | None = None
 
 
 @dataclass
@@ -129,9 +132,16 @@ def _screening_cost_per_dwelling(arch: Archetype, dev: DevSpec) -> float:
     return baseline_cost(_arch_project_spec(arch, dev))
 
 
+# Houses a garden suite can sit behind: Planning Act s.35.1 allows an additional unit in an ancillary
+# building on a lot with a detached, semi-detached or row house, so never on its own or beside a MURB.
+HOUSES = ("three_bhk", "townhouse")
+
+
 def excluded_types(dev: DevSpec) -> list[dict]:
-    """Allowed catalog types the hard constraints rule out, each with its reason."""
+    """Allowed catalog types the hard constraints or the lot's zoning rule out, each with its reason."""
     out = []
+    zoning = dev.zoning or {}
+    permitted = zoning.get("permitted_types")
     for t in dev.allowed_types:
         arch = ARCHETYPES.get(t)
         if arch is None:
@@ -141,7 +151,49 @@ def excluded_types(dev: DevSpec) -> list[dict]:
                                            f"{'' if arch.bedrooms == 1 else 's'}; the brief needs at least {dev.min_bedrooms}"})
         elif dev.max_storeys is not None and arch.storeys > dev.max_storeys:
             out.append({"id": t, "reason": f"{arch.name} is {arch.storeys} storeys; the brief allows at most {dev.max_storeys}"})
+        elif permitted is not None and t not in permitted:
+            out.append({"id": t, "reason": f"Zone {zoning.get('zone')} does not permit a {arch.name}; it would need a rezoning"})
+    dropped = {e["id"] for e in out}
+    if "garden_suite" in dev.allowed_types and "garden_suite" not in dropped             and not any(t in dev.allowed_types and t not in dropped for t in HOUSES):
+        out.append({"id": "garden_suite", "reason": "A garden suite is an additional unit behind a house, so it needs "
+                                                    "the 3-Bedroom Unit or Townhouse in the mix"})
     return out
+
+
+def max_houses(dev: DevSpec) -> int | None:
+    """Houses the parcel could hold if divided into lots of the zone's minimum area; None when unknown.
+    An existing lot below the minimum still takes one house."""
+    minimum = (dev.zoning or {}).get("min_lot_area_m2")
+    return max(1, int(dev.lot_width_m * dev.lot_depth_m // minimum)) if minimum else None
+
+
+def zoning_issue(dev: DevSpec, mix: dict) -> str | None:
+    """Why a mix breaks the lot's zoning or the additional-unit rules; None when it doesn't."""
+    houses = sum(_dwellings(t, mix.get(t, 0)) for t in HOUSES)
+    suites = mix.get("garden_suite", 0)
+    if suites > houses:
+        return (f"{suites} garden suite{'s' if suites != 1 else ''} need{'s' if suites == 1 else ''} as many houses; "
+                f"the mix has {houses}")
+    cap = max_houses(dev)
+    if cap is not None and houses > cap:
+        return (f"{houses} houses need {houses} lots of at least {dev.zoning['min_lot_area_m2']:g} m² "
+                f"(zone {dev.zoning.get('zone')}); the parcel divides into at most {cap}")
+    return None
+
+
+def zoning_notes(dev: DevSpec) -> list[str]:
+    """The zoning rules the mixes were held to, in words."""
+    zoning = dev.zoning or {}
+    notes = ["At most one garden suite per house: it is an additional unit in an ancillary building (Planning Act s.35.1)."]
+    if zoning.get("permitted_types") is not None:
+        names = [ARCHETYPES[t].name.split("(")[0].strip() for t in zoning["permitted_types"] if t in ARCHETYPES]
+        notes.insert(0, f"Zone {zoning.get('zone')} permits: {', '.join(names) or 'none of the catalog types'}.")
+    elif zoning.get("zone"):
+        notes.insert(0, f"Zone {zoning['zone']}'s uses are set in its exception text; confirm the housing types with the City.")
+    if (cap := max_houses(dev)) is not None:
+        notes.append(f"At most {cap} houses: the parcel divided into lots of the zone's {zoning['min_lot_area_m2']:g} m² "
+                     "minimum, which needs a plan of subdivision or consents.")
+    return notes
 
 
 def screen_dev_mixes(dev: DevSpec, top_n: int = 10) -> list[DevScenario]:
@@ -179,7 +231,7 @@ def screen_dev_mixes(dev: DevSpec, top_n: int = 10) -> list[DevScenario]:
         if sum(counts) == 0:
             continue
         cost = sum(floor_cost[t] * _dwellings(t, c) for t, c in mix.items())
-        if cost > dev.total_budget_cad:
+        if cost > dev.total_budget_cad or zoning_issue(dev, mix):
             continue
         if not _all_placed(place_units(mix, site), mix):
             continue
@@ -242,6 +294,9 @@ def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict], best: dict | None = None
         failed = [dropped[t] for t in mix if t in dropped]
         if failed:
             rejected.append({"units": mix, "mix_label": label, "reason": "; ".join(failed)})
+            continue
+        if issue := zoning_issue(dev, mix):
+            rejected.append({"units": mix, "mix_label": label, "reason": issue})
             continue
         missing = [ARCHETYPES[t].name for t in mix if best.get(t) is None]
         if missing:

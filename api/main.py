@@ -26,7 +26,7 @@ from engine.ai import (
 )
 from engine.archetypes import ARCHETYPES, archetype_list
 from engine.dev_optimizer import (DevSpec, best_configurations, evaluate_dev_mixes, excluded_types,
-                                  optimize_dev_mix, screen_dev_mixes)
+                                  optimize_dev_mix, screen_dev_mixes, zoning_notes)
 from engine import feasibility as fz
 from engine.location import location_names, resolve as resolve_location
 from engine.municipal import is_pickering, pickering_context
@@ -169,9 +169,33 @@ class DevSpecIn(BaseModel):
     min_bedrooms: int = Field(0, ge=0)
     max_storeys: Optional[int] = Field(None, ge=1)
     excluded_mechanical_ids: list[str] = []
+    # The chosen lot, so its zoning can limit the mix.
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
 
     def to_engine_spec(self) -> DevSpec:
-        return DevSpec(**self.model_dump())
+        return DevSpec(**self.model_dump(exclude={"latitude", "longitude"}),
+                       zoning=_lot_zoning(self.location, self.latitude, self.longitude))
+
+
+# The by-law uses pickering_zoning.permitted_uses matches to each catalog type.
+_UNIT_TYPES = {"Garden Suite": "garden_suite", "3-Bedroom house": "three_bhk", "Townhouse": "townhouse", "MURB": "murb"}
+
+
+def _lot_zoning(location: str, latitude: Optional[float], longitude: Optional[float]) -> Optional[dict]:
+    """The chosen Pickering lot's zone, the catalog types it permits and its minimum lot area."""
+    if latitude is None or longitude is None or not is_pickering(location):
+        return None
+    found = pickering_zoning.lookup(latitude, longitude)
+    lot = ((found.get("steps") or {}).get("3_proposed_development") or {}).get("lot_standards") or {}
+    uses = found.get("permitted_uses")
+    if not lot.get("zone") and not uses:
+        return None
+    return {
+        "zone": (uses or {}).get("zone") or lot.get("zone"),
+        "permitted_types": [_UNIT_TYPES[u] for u in uses["enerzen_units"] if u in _UNIT_TYPES] if uses else None,
+        "min_lot_area_m2": ((lot.get("standards") or {}).get("lot_area") or {}).get("value"),
+    }
 
 
 class DevOptimizeRequest(BaseModel):
@@ -662,12 +686,13 @@ def run_dev_scenarios(req: DevOptimizeRequest, _queue_slot: None = Depends(_queu
     if dev.allowed_types and len(excluded) == len(dev.allowed_types):
         raise _field_error("allowed_types", "Every selected housing type is ruled out by the brief: "
                            + "; ".join(e["reason"] for e in excluded) + ".",
-                           "Select another housing type, or relax the bedroom or storey limits.")
+                           "Select another housing type, relax the bedroom or storey limits, or pick a lot whose zone permits it.")
     scenarios = screen_dev_mixes(dev, req.top_n)
     if not scenarios:
-        raise _field_error("total_budget_cad", "No housing mix fits inside the setbacks within the budget.",
+        raise _field_error("total_budget_cad", "No housing mix fits inside the setbacks, the lot's zoning and the budget.",
                            "Raise the budget or enlarge the lot, or try smaller setbacks or another housing type.")
-    return {"scenarios": [dataclasses.asdict(s) for s in scenarios], "excluded_types": excluded}
+    return {"scenarios": [dataclasses.asdict(s) for s in scenarios], "excluded_types": excluded,
+            "zoning": zoning_notes(dev)}
 
 
 @app.post("/dev-optimize")

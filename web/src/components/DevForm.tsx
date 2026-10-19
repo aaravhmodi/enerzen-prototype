@@ -30,6 +30,9 @@ const WEIGHT_TIPS: Record<string, string> = {
   yield: "How much fitting more homes on the land counts when ranking mixes.",
 };
 
+// engine/dev_optimizer.HOUSES: the types a garden suite can sit behind.
+const HOUSES = ["three_bhk", "townhouse"];
+
 const DEFAULT: DevSpecInput = {
   lot_width_m: 30,
   lot_depth_m: 50,
@@ -119,6 +122,9 @@ export default function DevForm({
       return `Fewer than ${state.min_bedrooms} bedrooms`;
     if (state.max_storeys !== null && archetype.storeys > state.max_storeys)
       return `Taller than ${state.max_storeys} storey${state.max_storeys === 1 ? "" : "s"}`;
+    if (archetype.id === "garden_suite" && !archetypes.some((a) => HOUSES.includes(a.id)
+        && state.allowed_types.includes(a.id) && ruledOut(a) === null))
+      return "Needs the 3-Bedroom Unit or Townhouse: a garden suite sits behind a house";
     return null;
   }
 
@@ -316,6 +322,8 @@ export default function DevForm({
                   front_setback_m: lot.front_setback_m ?? current.front_setback_m,
                   side_setback_m: lot.side_setback_m ?? current.side_setback_m,
                   rear_setback_m: lot.rear_setback_m ?? current.rear_setback_m,
+                  latitude: lot.latitude,
+                  longitude: lot.longitude,
                 }))
               }
             />

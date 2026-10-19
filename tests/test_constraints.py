@@ -76,7 +76,8 @@ def test_min_bedrooms_drops_small_types_with_a_reason():
 
 def test_max_storeys_drops_tall_types():
     dev = _dev(max_storeys=1)
-    assert [e["id"] for e in excluded_types(dev)] == ["three_bhk"]
+    # With no house left, the garden suite has nothing to sit behind.
+    assert [e["id"] for e in excluded_types(dev)] == ["three_bhk", "garden_suite"]
     assert all(s.units.get("three_bhk", 0) == 0 for s in screen_dev_mixes(dev))
 
 
@@ -98,3 +99,25 @@ def test_dev_exclusions_reach_the_optimizer():
     from engine.dev_optimizer import _arch_project_spec
     spec = _arch_project_spec(ARCHETYPES["garden_suite"], _dev(excluded_mechanical_ids=["M1"]))
     assert spec.excluded_mechanical_ids == ["M1"]
+
+
+def test_zoning_limits_the_mix():
+    from engine.dev_optimizer import zoning_issue, zoning_notes
+    zoning = {"zone": "R1F", "permitted_types": ["garden_suite", "three_bhk"], "min_lot_area_m2": 450}
+    dev = DevSpec(lot_width_m=30, lot_depth_m=40, street_side="S", total_budget_cad=5_000_000,
+                  location="Pickering (Dunbarton)", allowed_types=["garden_suite", "three_bhk", "murb"], zoning=zoning)
+    # The zone has no apartments, so the MURB needs a rezoning.
+    assert [e["id"] for e in excluded_types(dev)] == ["murb"]
+    # A garden suite is accessory to a house, and 1,200 m² divides into two 450 m² lots.
+    assert zoning_issue(dev, {"garden_suite": 2, "three_bhk": 1}).startswith("2 garden suites")
+    assert zoning_issue(dev, {"three_bhk": 3}).endswith("at most 2")
+    assert zoning_issue(dev, {"garden_suite": 2, "three_bhk": 2}) is None
+    assert all(s.units.get("garden_suite", 0) <= s.units.get("three_bhk", 0) and s.units.get("three_bhk", 0) <= 2
+               for s in screen_dev_mixes(dev))
+    assert any("at most 2 houses" in n.lower() for n in zoning_notes(dev))
+
+
+def test_garden_suite_alone_is_ruled_out():
+    dev = DevSpec(lot_width_m=30, lot_depth_m=40, street_side="S", total_budget_cad=5_000_000,
+                  location="Pickering (Dunbarton)", allowed_types=["garden_suite"])
+    assert [e["id"] for e in excluded_types(dev)] == ["garden_suite"]

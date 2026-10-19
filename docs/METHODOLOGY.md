@@ -1257,6 +1257,26 @@ Suite 1, 3-Bedroom Unit 3, Townhouse 3, and MURB 1 (its units are 1- and
 2-bedroom per `MURB.pdf`, so 1 is the guaranteed minimum). A custom Path A
 brief has no bedroom model, so its bedroom count is not verified.
 
+The lot's zoning also limits the mix (`dev_optimizer.zoning_issue`). When the
+brief carries a chosen Pickering lot, the API looks up its zone
+(`api._lot_zoning`) and:
+
+- drops catalog types whose by-law use the zone's permitted-use table does
+  not list (Garden Suite = Additional Dwelling Unit, 3-Bedroom Unit =
+  Detached Dwelling, Townhouse = Street/Block Townhouse, MURB = Apartment),
+  with "it would need a rezoning" as the reason. An exception zone whose
+  uses are only in its own text is not limited and the notes say so;
+- caps the houses (3-Bedroom Units and Townhouse units) at the parcel's area
+  divided by the zone's minimum lot area, at least one. This assumes the
+  parcel is divided by plan of subdivision or consent; it does not check
+  frontage on a public road or the new road such a division would need.
+
+Whatever the lot, a garden suite is an additional unit in an ancillary
+building on a lot with a detached, semi-detached or row house (Planning Act
+s.35.1), so a mix never has more garden suites than houses, and a brief with
+no house type rules garden suites out. `/dev-scenarios` returns these rules
+as `zoning` notes, shown above the scenario list.
+
 ### 11.3 Pareto ranking
 
 Configuration B **dominates** A when B is at least as good as A on all four

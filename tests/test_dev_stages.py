@@ -38,5 +38,5 @@ def test_a_murb_counts_all_of_its_dwellings():
 
 def test_over_budget_scenario_is_rejected_with_a_reason():
     dev = _dev(total_budget_cad=50_000)
-    _, rejected = evaluate_dev_mixes(dev, [{"garden_suite": 2}])
+    _, rejected = evaluate_dev_mixes(dev, [{"garden_suite": 1, "three_bhk": 1}])
     assert rejected and "budget" in rejected[0]["reason"]

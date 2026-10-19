@@ -286,6 +286,9 @@ export type DevSpecInput = {
   min_bedrooms: number;
   max_storeys: number | null;
   excluded_mechanical_ids: string[];
+  // The chosen lot, so the API can hold the mix to its zoning.
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type DevelopmentWeights = {
@@ -364,7 +367,7 @@ export async function fetchArchetypes(): Promise<ArchetypeInfo[]> {
 export async function runDevScenarios(
   spec: DevSpecInput,
   top_n = 10
-): Promise<{ scenarios: DevScenario[]; excluded_types: ExcludedType[] }> {
+): Promise<{ scenarios: DevScenario[]; excluded_types: ExcludedType[]; zoning?: string[] }> {
   return postJson("/dev-scenarios", { spec, top_n });
 }
 
