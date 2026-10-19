@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef } from "react";
 import type { FieldError } from "@/lib/api";
+import InfoTooltip from "@/components/InfoTooltip";
 
 export type WizardStep = { label: string; caption: string };
 
@@ -28,9 +29,12 @@ export function useFieldError(name?: string | string[]) {
 export function Field({
   label,
   name,
+  tip,
   children,
 }: {
   label: string;
+  // What the value means and how EnerZen uses it, behind an info icon.
+  tip?: string;
   // API field name(s) this input sets, so errors naming it land here.
   name?: string | string[];
   children: React.ReactNode;
@@ -38,7 +42,10 @@ export function Field({
   const { ref, error } = useFieldError(name);
   return (
     <label ref={ref} className="block text-xs">
-      <span className="mb-1.5 block font-medium text-stone-500">{label}</span>
+      <span className="mb-1.5 flex items-center gap-1 font-medium text-stone-500">
+        {label}
+        {tip && <InfoTooltip text={tip} />}
+      </span>
       {children}
       {error && <FieldErrorText error={error} />}
     </label>

@@ -20,6 +20,16 @@ import WizardChrome, {
   WizardStep,
 } from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
+import InfoTooltip from "@/components/InfoTooltip";
+
+// What each priority slider changes in the ranking.
+const WEIGHT_TIPS: Record<string, string> = {
+  cost: "How much lower construction cost counts when ranking options.",
+  energy: "How much lower yearly energy use counts when ranking options.",
+  speed: "How much faster factory and site construction counts when ranking options.",
+  carbon: "How much lower embodied carbon in the materials counts when ranking options.",
+  yield: "How much fitting more homes on the land counts when ranking mixes.",
+};
 
 export type FormState = {
   spec: ProjectSpecInput;
@@ -397,7 +407,7 @@ export default function ProjectForm({
               )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Location" name="location">
+              <Field label="Location" name="location" tip="Sets the climate zone and snow and rain loads from the Ontario Building Code's climate table for this place.">
                 <select
                   className="input"
                   value={state.spec.location ?? ""}
@@ -417,7 +427,7 @@ export default function ProjectForm({
                   )}
                 </select>
               </Field>
-              <Field label="Typology" name="typology">
+              <Field label="Typology" name="typology" tip="The kind of building. It decides which catalogue designs are compared.">
                 <select
                   className="input"
                   value={state.spec.typology}
@@ -430,7 +440,7 @@ export default function ProjectForm({
                   <option value="murb">MURB</option>
                 </select>
               </Field>
-              <Field label="Storeys" name="storeys">
+              <Field label="Storeys" name="storeys" tip="Floors above grade, 1 to 12. The floor area is split across them to size the footprint.">
                 <input
                   type="number"
                   className="input"
@@ -441,7 +451,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label={`Floor area (${u.areaUnit})`} name="floor_area_m2">
+              <Field label={`Floor area (${u.areaUnit})`} name="floor_area_m2" tip="Total heated floor area across all storeys, not the footprint.">
                 <input
                   type="number"
                   className="input"
@@ -455,7 +465,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Minimum bedrooms">
+              <Field label="Minimum bedrooms" tip="Designs with fewer bedrooms than this are left out.">
                 <select
                   className="input"
                   value={state.minBedrooms}
@@ -500,7 +510,7 @@ export default function ProjectForm({
               longitude={state.site.longitude}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={`Lot width (E–W, ${u.lengthUnit})`} name="lot_width_m">
+              <Field label={`Lot width (E–W, ${u.lengthUnit})`} name="lot_width_m" tip={"Lot frontage measured east to west. Filled in from the City's lot outline when you pick a lot."}>
                 <input
                   type="number"
                   className="input"
@@ -515,7 +525,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label={`Lot depth (N–S, ${u.lengthUnit})`} name="lot_depth_m">
+              <Field label={`Lot depth (N–S, ${u.lengthUnit})`} name="lot_depth_m" tip={"Lot depth measured north to south. Filled in from the City's lot outline when you pick a lot."}>
                 <input
                   type="number"
                   className="input"
@@ -557,6 +567,7 @@ export default function ProjectForm({
                   key={key}
                   name={key}
                   label={`${key.replace("_setback_m", "")} setback (${u.lengthUnit})`}
+                  tip={"Distance the home must stay from the lot line on that side. Filled in from the by-law when you pick a lot; the front faces the street-facing side."}
                 >
                   <input
                     type="number"
@@ -575,7 +586,7 @@ export default function ProjectForm({
               ))}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Latitude (optional)" name="latitude">
+              <Field label="Latitude (optional)" name="latitude" tip="Filled in when you pick a lot. Used to look up zoning and solar exposure for the exact spot.">
                 <input
                   type="number"
                   className="input"
@@ -589,7 +600,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Longitude (optional)" name="longitude">
+              <Field label="Longitude (optional)" name="longitude" tip="Filled in when you pick a lot. Used to look up zoning and solar exposure for the exact spot.">
                 <input
                   type="number"
                   className="input"
@@ -665,7 +676,7 @@ export default function ProjectForm({
               ))}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Orientation" name="orientation">
+              <Field label="Orientation" name="orientation" tip="The direction the main side, with most of the windows, faces. It changes solar gain and heating need.">
                 <select
                   className="input"
                   value={state.spec.orientation}
@@ -685,6 +696,7 @@ export default function ProjectForm({
               <Field
                 label={`Footprint length × width (${u.lengthUnit})`}
                 name={["footprint_length_m", "footprint_width_m"]}
+                tip="Outside length and width of the ground floor. Leave blank and EnerZen uses the floor area divided by storeys."
               >
                 <div className="flex gap-2">
                   <input
@@ -728,7 +740,7 @@ export default function ProjectForm({
         {step === 3 && (
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Energy target" name="target_label">
+              <Field label="Energy target" name="target_label" tip="The performance level every design must reach. Higher targets need better envelopes and cost more.">
                 <select
                   className="input"
                   value={state.spec.target_label}
@@ -741,7 +753,7 @@ export default function ProjectForm({
                   <option value="passive_house">Passive House</option>
                 </select>
               </Field>
-              <Field label="Budget per unit (CAD)" name="budget_per_unit">
+              <Field label="Budget per unit (CAD)" name="budget_per_unit" tip="Most you would spend on construction for one home, Class D. Designs that cost more are rejected.">
                 <input
                   type="number"
                   className="input"
@@ -752,7 +764,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Window-to-wall ratio" name="window_to_wall_ratio">
+              <Field label="Window-to-wall ratio" name="window_to_wall_ratio" tip="Share of the outside wall that is window, from 0 to 1. 0.2 means 20%. More glass adds daylight and solar gain but loses more heat.">
                 <input
                   type="number"
                   className="input"
@@ -768,7 +780,7 @@ export default function ProjectForm({
                   }
                 />
               </Field>
-              <Field label="Solar option" name="solar_option_id">
+              <Field label="Solar option" name="solar_option_id" tip="Rooftop solar panels to offset the home's electricity use.">
                 <select
                   className="input"
                   value={state.spec.solar_option_id}
@@ -783,7 +795,7 @@ export default function ProjectForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Mechanical strategy" name="mechanical_option_id">
+              <Field label="Mechanical strategy" name="mechanical_option_id" tip="Heating, cooling and ventilation equipment. It drives energy use and operating cost.">
                 <select
                   className="input"
                   value={state.spec.mechanical_option_id ?? ""}
@@ -890,7 +902,10 @@ export default function ProjectForm({
                 ).map(([key, label]) => (
                   <label key={key} className="block text-xs">
                     <span className="mb-1 flex items-center justify-between font-medium text-stone-600">
-                      <span>{label}</span>
+                      <span className="flex items-center gap-1">
+                        {label}
+                        <InfoTooltip text={WEIGHT_TIPS[key]} />
+                      </span>
                       <span className="font-semibold text-emerald-700">
                         {state.weights[key]}%
                       </span>

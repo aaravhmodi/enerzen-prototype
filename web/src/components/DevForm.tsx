@@ -19,6 +19,16 @@ import WizardChrome, {
   WizardStep,
 } from "@/components/WizardChrome";
 import { useUnits } from "@/lib/units";
+import InfoTooltip from "@/components/InfoTooltip";
+
+// What each priority slider changes in the ranking.
+const WEIGHT_TIPS: Record<string, string> = {
+  cost: "How much lower construction cost counts when ranking options.",
+  energy: "How much lower yearly energy use counts when ranking options.",
+  speed: "How much faster factory and site construction counts when ranking options.",
+  carbon: "How much lower embodied carbon in the materials counts when ranking options.",
+  yield: "How much fitting more homes on the land counts when ranking mixes.",
+};
 
 const DEFAULT: DevSpecInput = {
   lot_width_m: 30,
@@ -250,7 +260,7 @@ export default function DevForm({
         {step === 0 && (
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Location" name="location">
+              <Field label="Location" name="location" tip="Sets the climate zone and snow and rain loads from the Ontario Building Code's climate table for this place.">
                 <select
                   className="input"
                   value={state.location}
@@ -266,7 +276,7 @@ export default function DevForm({
                   )}
                 </select>
               </Field>
-              <Field label="Total budget (CAD)" name="total_budget_cad">
+              <Field label="Total budget (CAD)" name="total_budget_cad" tip="Most you would spend on construction for every home on the lot together, Class D. Mixes above it are left out.">
                 <input
                   type="number"
                   className="input"
@@ -310,7 +320,7 @@ export default function DevForm({
               }
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={`Lot width (E–W, ${u.lengthUnit})`} name="lot_width_m">
+              <Field label={`Lot width (E–W, ${u.lengthUnit})`} name="lot_width_m" tip={"Lot frontage measured east to west. Filled in from the City's lot outline when you pick a lot."}>
                 <input
                   type="number"
                   className="input"
@@ -326,7 +336,7 @@ export default function DevForm({
                   }
                 />
               </Field>
-              <Field label={`Lot depth (N–S, ${u.lengthUnit})`} name="lot_depth_m">
+              <Field label={`Lot depth (N–S, ${u.lengthUnit})`} name="lot_depth_m" tip={"Lot depth measured north to south. Filled in from the City's lot outline when you pick a lot."}>
                 <input
                   type="number"
                   className="input"
@@ -409,6 +419,7 @@ export default function DevForm({
                       key={key}
                       name={key}
                       label={`${key.replace("_setback_m", "")} setback (${u.lengthUnit})`}
+                      tip={"Distance the home must stay from the lot line on that side. Filled in from the by-law when you pick a lot; the front faces the street-facing side."}
                     >
                       <input
                         type="number"
@@ -485,7 +496,7 @@ export default function DevForm({
               })}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Minimum bedrooms per home" name="min_bedrooms">
+              <Field label="Minimum bedrooms per home" name="min_bedrooms" tip="Home types with fewer bedrooms than this are left out of the mix.">
                 <select
                   className="input"
                   value={state.min_bedrooms}
@@ -499,7 +510,7 @@ export default function DevForm({
                   ))}
                 </select>
               </Field>
-              <Field label="Maximum storeys" name="max_storeys">
+              <Field label="Maximum storeys" name="max_storeys" tip="Home types taller than this are left out. The by-law's height limit still applies.">
                 <select
                   className="input"
                   value={state.max_storeys ?? ""}
@@ -602,7 +613,10 @@ export default function DevForm({
                 ).map(([key, label]) => (
                   <label key={key} className="block text-xs">
                     <span className="mb-1 flex items-center justify-between font-medium text-stone-600">
-                      <span>{label}</span>
+                      <span className="flex items-center gap-1">
+                        {label}
+                        <InfoTooltip text={WEIGHT_TIPS[key]} />
+                      </span>
                       <span className="font-semibold text-emerald-700">
                         {state.weights[key]}%
                       </span>

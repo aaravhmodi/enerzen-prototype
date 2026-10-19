@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { docUrl, type Provision } from "@/lib/zoning";
+import InfoTooltip from "@/components/InfoTooltip";
 
 const LABELS: Record<string, string> = {
   permitted_uses: "Permitted uses",
@@ -62,6 +63,7 @@ export default function ZoneStandards({ standards }: { standards: Record<string,
                     aria-label={`Proposed ${LABELS[kind] ?? kind} in ${unit(comparable.measures[0])}`}
                   />
                   <small>{unit(comparable.measures[0])}</small>
+                  <InfoTooltip text="Type your proposed value to compare it with the by-law's number. A preliminary check only." />
                 </label>
               )}
             </div>
