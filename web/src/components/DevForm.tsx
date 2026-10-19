@@ -219,7 +219,7 @@ export default function DevForm({
         ]}
         guidance={
           step === 0
-            ? "No parcel yet? Use these dimensions to explore a scenario. You can replace them when the pilot site is selected."
+            ? "Pick a lot to fill its size, street side and setbacks from the City's data, or enter dimensions to explore a scenario."
             : step === 1
               ? "Street access and setbacks shape the usable area. These are planning assumptions until a parcel is confirmed."
               : step === 2
@@ -654,7 +654,7 @@ export default function DevForm({
             <div className="grid gap-3 sm:grid-cols-2">
               <Summary
                 label="Site"
-                value={`${u.dims(state.lot_width_m, state.lot_depth_m)} · ${state.location}`}
+                value={`${u.dims(state.lot_width_m, state.lot_depth_m)} · ${state.location.replace(/ \(.*\)$/, "")}`}
               />
               <Summary
                 label="Budget"

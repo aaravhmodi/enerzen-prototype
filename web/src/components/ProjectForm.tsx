@@ -932,7 +932,7 @@ export default function ProjectForm({
               />
               <Summary
                 label="Site"
-                value={`${u.dims(state.site.lot_width_m, state.site.lot_depth_m)} · ${state.spec.location}`}
+                value={`${u.dims(state.site.lot_width_m, state.site.lot_depth_m)} · ${(state.spec.location ?? "").replace(/ \(.*\)$/, "")}`}
               />
               <Summary
                 label="Target"
