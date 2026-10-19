@@ -576,6 +576,18 @@ layers clipped to Pickering, Zoning By-law 8149/24 with its exception zones and
 amendments from the City's Laserfiche records, the Provincial Planning Statement
 and O. Reg. 545/06. The API reads only that stored copy.
 
+- **Pilot neighbourhood** — only lots in Amberlea (the City's Neighbourhoods
+  layer) can be chosen for a project. A survey of every stored lot on
+  2026-10-19 found Amberlea has the largest share of lots whose rules can all
+  be vouched for (93% of 4,480), with an address, roll number, legal
+  description and zone on every lot and a storm pipe within 60 m of 99% of them.
+  A lot's rules are vouched for only when every setback comes from the by-law's
+  words (`complete`, basis `yards`, no basis note), no rule comes from a former
+  by-law, each exception's text was read from a PDF page that was neither OCR'd
+  nor blank, and no cell of its zone's table went unread
+  (`pickering_zoning.rule_issues`). Amberlea lots that fail are greyed out on the
+  map with the reason, and the lookup refuses lots outside Amberlea.
+
 - **Permitted uses** — every row of 8149/24's permitted-use tables is read: a
   use's name may wrap over several lines, then one cell per zone column, a
   blank cell kept in the text as an extra space (a line of cells alone that

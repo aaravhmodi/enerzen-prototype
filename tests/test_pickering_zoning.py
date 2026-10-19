@@ -923,3 +923,26 @@ def test_a_drawn_line_named_by_the_street_it_faces_away_from():
            'setbacks_by_side': {s: {'applies': 'x', 'value': None} for s in 'NESW'}}
     pz._sides_from_figures(layers, box(0, 0, 40, 30), lot, {'rotation_deg': 0})
     assert lot['setbacks_by_side']['E']['value'] == 10.7 and lot['setbacks_by_side']['W']['value'] == 9.1
+
+
+def test_only_rules_read_from_current_bylaw_text_are_vouched_for(monkeypatch):
+    manifest = {'documents': [{'file': 'a.pdf', 'text_file': 'a.txt', 'ocr_pages': [3]},
+                              {'file': 'b.pdf', 'text_file': 'b.txt', 'ocr_pages': 2}]}
+    monkeypatch.setattr(pickering_zoning, 'load_store', lambda: (manifest, []))
+    provisions = {'rear_yard': {'value': 7.5}}
+    rules = {'exceptions': {'X1': {'provisions': provisions, 'file': 'a.pdf', 'page': 2},
+                            'X2': {'provisions': provisions, 'file': 'a.pdf', 'page': 3},
+                            'X3': {'provisions': provisions, 'file': 'b.pdf', 'page': 1}},
+             'unparsed': [{'zone': 'R3A'}]}
+    clean = {'complete': True, 'basis': 'yards', 'basis_note': '', 'exceptions': ['X1'], 'zone': 'R1E',
+             'standards': {'front_yard': {'from': 'Zone R1E table'}}}
+    assert pickering_zoning.rule_issues(clean, rules) == []
+    issues = lambda **change: pickering_zoning.rule_issues({**clean, **change}, rules)
+    assert issues(exceptions=['X2']) == ['The text of exception X2 could not be read directly.']  # an OCR'd page
+    assert issues(exceptions=['X3']) == ['The text of exception X3 could not be read directly.']  # OCR count only
+    assert issues(exceptions=['X9']) == ['The text of exception X9 could not be read directly.']  # never stored
+    assert issues(zone='R3A') == ['Part of the zone R3A table could not be read.']
+    assert issues(standards={'front_yard': {'from': 'Zone R3, By-law 3036 (former) table'}}) == [
+        'Part of this lot is governed by a former by-law that is only available as a scan.']
+    assert issues(basis='figure', basis_note='Yards read from the drawing.') == ['Yards read from the drawing.']
+    assert issues(complete=False) == ['The by-law text does not give every setback for this lot.']

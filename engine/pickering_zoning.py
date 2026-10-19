@@ -964,6 +964,9 @@ def lookup(latitude: float, longitude: float) -> dict:
     rules = zone_rules()
     standards, dimensions = _apply_rules(layers, parcel['_geom'] if parcel else None, primary_zone, rules)
     envelope = standards.pop('_envelope')
+    pilot_geom = _pilot()[0]
+    in_pilot = pilot_geom is not None and pilot_geom.contains(
+        parcel['_geom'].representative_point() if parcel else point)
     # Durham publishes no water or sewer mains; the City's urban area is where the Regional Official
     # Plan plans full municipal services, and outside it a home is on a private well and septic system.
     # The Region supplies the services, so its Official Plan's urban area decides; the City's own outline
@@ -1001,6 +1004,8 @@ def lookup(latitude: float, longitude: float) -> dict:
 
     return {
         'status': 'available' if parcel or zoning else 'not_found',
+        'pilot': {'name': PILOT_NEIGHBOURHOOD, 'inside': in_pilot,
+                  'issues': rule_issues(standards, rules) if parcel else ['No parcel matched this point.']},
         'label': 'Preliminary Pickering parcel context' if parcel or zoning else 'Outside the downloaded City data',
         'detail': 'From the City of Pickering data stored on this server. Confirm with the City before relying '
                   'on any use, height, setback or parking rule; this is not a zoning determination.',
@@ -1170,11 +1175,93 @@ def setbacks_coverage() -> dict:
             'by_zone': dict(sorted(by_zone.items(), key=lambda kv: -kv[1]['lots']))}
 
 
+# The neighbourhood offered for site selection. A survey of every lot (2026-10-19) found Amberlea has
+# the largest share whose every rule comes from current by-law text read directly, with City parcel,
+# address, zoning and storm-servicing data on nearly every lot. Lots elsewhere are not offered.
+PILOT_NEIGHBOURHOOD = 'Amberlea'
+
+
+def _read_from_text(documents: dict, file: str | None, page) -> bool:
+    """Whether a by-law page was read from the PDF's own text, not OCR, a blank scan or a missing file."""
+    doc = documents.get(file)
+    if not doc or not doc.get('text_file'):
+        return False
+    for key in ('ocr_pages', 'blank_pages'):
+        pages = doc.get(key) or []
+        if isinstance(pages, int):  # only a count is stored, so no page of it can be vouched for
+            return False
+        if str(page) in map(str, pages):
+            return False
+    return True
+
+
+def rule_issues(lot: dict, rules: dict) -> list[str]:
+    """Why a lot's rules can't all be vouched for from by-law text read directly; empty when they can.
+    `lot` is what _apply_rules returns."""
+    manifest, _ = load_store()
+    documents = {d['file']: d for d in (manifest or {}).get('documents', [])}
+    issues = []
+    if not lot['complete']:
+        issues.append('The by-law text does not give every setback for this lot.')
+    if lot['basis'] != 'yards' or lot['basis_note']:
+        issues.append(lot['basis_note'] or "This lot's setbacks are not stated in the by-law's words.")
+    if any('(former)' in (v.get('from') or '') for v in lot['standards'].values()):
+        issues.append('Part of this lot is governed by a former by-law that is only available as a scan.')
+    for code in lot['exceptions']:
+        exception = rules.get('exceptions', {}).get(code) or {}
+        if not exception.get('provisions') or not _read_from_text(documents, exception.get('file'), exception.get('page')):
+            issues.append(f'The text of exception {code} could not be read directly.')
+    if lot['zone'] and any(u.get('zone') == lot['zone'] for u in rules.get('unparsed', [])):
+        issues.append(f"Part of the zone {lot['zone']} table could not be read.")
+    return issues
+
+
+@lru_cache(maxsize=1)
+def _pilot_area(store: str, stamp: str):
+    _, layers = load_store()
+    boundary = next((geom for layer in layers if layer.meta['category'] == 'neighbourhoods'
+                     for attrs, geom in layer.features if attrs.get('Nhood') == PILOT_NEIGHBOURHOOD), None)
+    if boundary is None:
+        return None, None
+    rules = zone_rules()
+    zoning_layers = [l for l in layers if l.meta['category'] == 'zoning' and l.tree is not None]
+    fabric = _lot_fabric(layers)
+    lots, unverified = 0, []
+    for attrs, geom in fabric.features if fabric else []:
+        if geom is None or geom.area <= 0 or not boundary.contains(geom.representative_point()):
+            continue
+        lots += 1
+        lot, _ = _apply_rules(layers, geom, _primary_zone(zoning_layers, geom), rules)
+        if issues := rule_issues(lot, rules):
+            unverified.append({'type': 'Feature', 'geometry': mapping(_to_wgs84(geom)),
+                               'properties': {'address': _pick(attrs, r'addr|civic'), 'issues': issues}})
+    return boundary, {
+        'name': PILOT_NEIGHBOURHOOD, 'boundary': mapping(_to_wgs84(boundary)),
+        'lots': lots, 'verified': lots - len(unverified),
+        'unverified': {'type': 'FeatureCollection', 'features': unverified},
+    }
+
+
+def _pilot():
+    """(boundary in metres, payload) for the pilot neighbourhood, cached per scrape; (None, None) if absent."""
+    if load_store()[0] is None:
+        return None, None
+    root = store_dir()
+    return _pilot_area(str(root), str((root / 'manifest.json').stat().st_mtime_ns))
+
+
+def pilot_area() -> dict:
+    """The pilot neighbourhood's outline, and its lots whose rules can't all be vouched for, with why."""
+    payload = _pilot()[1]
+    return payload or {**status(), 'name': PILOT_NEIGHBOURHOOD, 'boundary': None}
+
+
 def warm():
     """Load the layers and the address index ahead of the first request; quiet if nothing is stored."""
     try:
         if load_store()[0] is not None:
             search_properties('warm')
             all_lots()
+            _pilot()
     except Exception:
         pass

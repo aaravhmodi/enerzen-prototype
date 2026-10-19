@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Feature, Geometry, Position } from "geojson";
-import { CATEGORY_LABELS, MAPBOX_TOKEN, type MapData, type MapLayer } from "@/lib/zoning";
+import { CATEGORY_LABELS, MAPBOX_TOKEN, type MapData, type MapLayer, type PilotArea } from "@/lib/zoning";
 
 type Props = {
   data: MapData | null;
@@ -14,6 +14,8 @@ type Props = {
   onExplore?: (latitude: number, longitude: number) => void;
   workingLot?: { latitude: number; longitude: number; width_m: number; depth_m: number; boundary?: Geometry | null } | null;
   onLotResize?: (width_m: number, depth_m: number, boundary: Geometry) => void;
+  // The neighbourhood offered for selection: outlined, its unverified lots greyed out.
+  pilot?: PilotArea | null;
 };
 
 const PICKERING_CENTER: [number, number] = [-79.09, 43.87];
@@ -156,7 +158,7 @@ function dimensions(geometry: Geometry, latitude: number): { width: number; dept
   };
 }
 
-export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot, onLotResize }: Props) {
+export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot, onLotResize, pilot }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const added = useRef<{ layers: string[]; sources: string[]; byCategory: Map<string, string[]> }>({
@@ -313,6 +315,34 @@ export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot,
     if (box) instance.fitBounds(box, { padding: 160, maxZoom: 17.5, duration: 900 });
     else instance.flyTo({ center: [data.center.longitude, data.center.latitude], zoom: 17.5, duration: 900 });
   }, [data, ready, workingLot]);
+
+  // The pilot outline sits under the lot layers and stays put as they reload.
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !ready || !pilot?.boundary) return;
+    instance.addSource("zn-pilot", { type: "geojson", data: { type: "Feature", properties: {}, geometry: pilot.boundary } });
+    instance.addSource("zn-pilot-unverified", {
+      type: "geojson",
+      data: pilot.unverified ?? { type: "FeatureCollection", features: [] },
+    });
+    instance.addLayer({
+      id: "zn-pilot-unverified", type: "fill", source: "zn-pilot-unverified",
+      paint: { "fill-color": "#78716c", "fill-opacity": 0.45 },
+    });
+    instance.addLayer({
+      id: "zn-pilot-line", type: "line", source: "zn-pilot",
+      paint: { "line-color": "#047857", "line-width": 3, "line-dasharray": [3, 1.5] },
+    });
+    // Start on the pilot neighbourhood until a lot is chosen.
+    if (!fittedParcel.current) {
+      const box = bounds({ type: "Feature", properties: {}, geometry: pilot.boundary });
+      if (box) instance.fitBounds(box, { padding: 40, duration: 0 });
+    }
+    return () => {
+      for (const id of ["zn-pilot-line", "zn-pilot-unverified"]) if (instance.getLayer(id)) instance.removeLayer(id);
+      for (const id of ["zn-pilot", "zn-pilot-unverified"]) if (instance.getSource(id)) instance.removeSource(id);
+    };
+  }, [pilot, ready]);
 
   useEffect(() => {
     const instance = map.current;

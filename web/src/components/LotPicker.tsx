@@ -9,12 +9,15 @@ import {
   lotForForm,
   mapAround,
   addressesAtPoint,
+  pilotArea,
+  pilotRefusal,
   searchBylaws,
   searchAddresses,
   type Candidate,
   type Lookup,
   type LotForForm,
   type MapData,
+  type PilotArea,
   type SearchResult,
 } from "@/lib/zoning";
 import { useUnits } from "@/lib/units";
@@ -70,8 +73,13 @@ export default function LotPicker({
   const [bylawResults, setBylawResults] = useState<{ total: number; results: SearchResult[] } | null>(null);
   const [bylawLoading, setBylawLoading] = useState(false);
   const [bylawError, setBylawError] = useState<string | null>(null);
+  const [pilot, setPilot] = useState<PilotArea | null>(null);
   const abort = useRef<AbortController | null>(null);
   const didInitialLookup = useRef(false);
+
+  useEffect(() => {
+    pilotArea().then(setPilot).catch(() => setPilot(null));
+  }, []);
 
   useEffect(() => {
     const text = query.trim();
@@ -133,6 +141,14 @@ export default function LotPicker({
       const [found, around] = await Promise.all([lookupPoint(latitude, longitude), mapAround(latitude, longitude, 400)]);
       setLookup(found);
       setMapData(around);
+      const refusal = pilotRefusal(found);
+      if (refusal) {
+        // Shown on the map for context, but never handed to the brief.
+        setWorkingPoint(null);
+        setWorkingBoundary(null);
+        setError(refusal);
+        return;
+      }
       setWorkingBoundary(around.parcel?.geometry.type === "Polygon" ? around.parcel.geometry : null);
       const lot = lotForForm(found);
       if (lot) {
@@ -176,7 +192,7 @@ export default function LotPicker({
   };
 
   const standards = lookup?.steps?.["3_proposed_development"].lot_standards;
-  const lot = lookup ? lotForForm(lookup) : null;
+  const lot = lookup && !pilotRefusal(lookup) ? lotForForm(lookup) : null;
   const read = lot
     ? ([["front", lot.front_setback_m], ["side", lot.side_setback_m], ["rear", lot.rear_setback_m]] as const)
     : [];
@@ -199,8 +215,17 @@ export default function LotPicker({
         <p className="lot-picker-intro">
           Choose the parcel for this project. Its zoning, overlays, and by-law standards stay with your site brief as you continue.
         </p>
+        {pilot?.boundary && (
+          <p className="zr-muted">
+            EnerZen covers <strong>{pilot.name}</strong> for now, outlined in green on the map: every zoning rule there
+            is read straight from the current by-law text.
+            {pilot.unverified?.features.length
+              ? ` ${pilot.unverified.features.length} of its ${pilot.lots} lots are greyed out because one of their rules could not be read that way.`
+              : ""}
+          </p>
+        )}
         <label htmlFor={inputId} className="tile-label">
-          Find your lot in Pickering
+          Find your lot in {pilot?.boundary ? pilot.name : "Pickering"}
         </label>
         <input
           id={inputId}
@@ -283,6 +308,7 @@ export default function LotPicker({
           }
         }}
         workingLot={editableLot}
+        pilot={pilot}
         onLotResize={(width, depth, boundary) => {
           setWorkingBoundary(boundary);
           onLotResize?.(width, depth);

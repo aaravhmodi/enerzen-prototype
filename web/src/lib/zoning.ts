@@ -135,7 +135,19 @@ export type PermittedUses = {
   document?: string; file?: string | null; page?: number | null;
 };
 
+// The neighbourhood offered for site selection; lots elsewhere, or with any rule not read
+// directly from current by-law text, are not offered.
+export type PilotCheck = { name: string; inside: boolean; issues: string[] };
+export type PilotArea = {
+  name: string;
+  boundary: import("geojson").Geometry | null;
+  lots?: number;
+  verified?: number;
+  unverified?: import("geojson").FeatureCollection;
+};
+
 export type Lookup = {
+  pilot?: PilotCheck;
   permitted_uses?: PermittedUses | null;
   additional_units?: AdditionalUnits | null;
   development_charges?: DevCharges | null;
@@ -370,6 +382,19 @@ export const lookupPoint = (latitude: number, longitude: number) =>
 
 export const mapAround = (latitude: number, longitude: number, radius = 300) =>
   getJson<MapData>(`/municipal/pickering/map?latitude=${latitude}&longitude=${longitude}&radius_m=${radius}`);
+
+export const pilotArea = () => getJson<PilotArea>("/municipal/pickering/pilot");
+
+// Why a lot can't be used for a project, or null when it can.
+export function pilotRefusal(lookup: Lookup): string | null {
+  const pilot = lookup.pilot;
+  if (!pilot) return null;
+  if (!pilot.inside)
+    return `This lot is outside ${pilot.name}, the neighbourhood EnerZen covers for now. Choose a lot inside the outlined area.`;
+  if (pilot.issues.length)
+    return `EnerZen can't yet vouch for every zoning rule on this lot: ${pilot.issues.join(" ")} Choose a lot that isn't greyed out.`;
+  return null;
+}
 
 export const searchBylaws = (query: string) =>
   getJson<{ total: number; results: SearchResult[] }>(
