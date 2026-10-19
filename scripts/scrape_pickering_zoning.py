@@ -99,12 +99,12 @@ CATEGORIES = [
     ('natural_heritage', r'natural heritage|wetland|woodland|woodlot|watercourse|stream|valley|environmental'
                          r'|\besa\b|\bansi\b|significant|natural (area|feature|system)|\btrees?\b'),
     ('heritage', r'heritage|archaeolog'),
-    ('easements', r'easement|right[- ]of[- ]way|hydro corridor|utility corridor|transmission'),
+    ('easements', r'easement|right[- ]of[- ]way|hydro corridor|utility corridor|transmission|pipe ?line'),
     ('servicing', r'water ?main|sanitary|storm|sewer|hydrant|servic'),
     ('topography', r'contour|elevation|topograph|\bdem\b|lidar|slope'),
     ('roads', r'\broads?\b|street|centre ?line|center ?line'),
     ('zoning', r'zon(e|ing)|by-?law|exception'),
-    ('official_plan', r'official plan|land use|designation|secondary plan|urban (boundary|area)|settlement'),
+    ('official_plan', r'official plan|land use|^landuse$|designation|secondary plan|urban (boundary|area)|settlement'),
     ('parcels', r'parcel|propert(y|ies)|\blots?\b|cadastr|assessment|\broll\b|\bpin\b|lot fabric|ownership'),
     ('addresses', r'address|civic'),
     ('neighbourhoods', r'neighbou?rhood|\bwards?\b|communit(y|ies)'),
@@ -758,6 +758,22 @@ def scrape(out: Path, arcgis_roots=ARCGIS_ROOTS, document_pages=DOCUMENT_PAGES, 
     return manifest
 
 
+def reclassify(out: Path) -> dict:
+    """Re-run classify on the stored layers' names, so a fix to CATEGORIES reaches the stored copy
+    without downloading it again. Returns {layer name: (old, new)} for each layer that moved."""
+    path = out / 'manifest.json'
+    manifest = json.loads(path.read_text(encoding='utf-8'))
+    moved = {}
+    for layer in manifest['layers']:
+        new = classify(layer['name']) or classify(layer['url'].split('/rest/services/')[-1])
+        if new != layer['category']:
+            moved[layer['name']] = (layer['category'], new)
+            layer['category'] = new
+    if moved:
+        path.write_text(json.dumps(manifest, indent=1), encoding='utf-8')
+    return moved
+
+
 def verify(out: Path) -> dict:
     """Re-check the stored copy: every file present with its recorded checksum, and the completeness report."""
     manifest = json.loads((out / 'manifest.json').read_text(encoding='utf-8'))
@@ -787,12 +803,17 @@ def main(argv=None):
     parser.add_argument('--no-ocr', action='store_true')
     parser.add_argument('--skip-council', action='store_true', help='skip zoning amendments from council agendas')
     parser.add_argument('--verify', action='store_true', help='check the stored copy instead of downloading')
+    parser.add_argument('--reclassify', action='store_true',
+                        help="re-run the layer categories on the stored copy instead of downloading")
     parser.add_argument('--import-council', type=Path, metavar='BUNDLE',
                         help='add council by-laws saved from a browser (see import_council) instead of downloading')
     args = parser.parse_args(argv)
     if args.import_council:
         added = import_council(args.out, args.import_council, ocr=not args.no_ocr)
         print(json.dumps({'added': len(added), 'titles': [d['title'] for d in added]}, indent=1))
+        return 0
+    if args.reclassify:
+        print(json.dumps(reclassify(args.out), indent=1))
         return 0
     if args.verify:
         report = verify(args.out)

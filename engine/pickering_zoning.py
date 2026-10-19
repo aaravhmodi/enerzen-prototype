@@ -44,7 +44,8 @@ OVERLAY_STUDIES = {
     'floodplain': 'Conservation authority review and permit; floodplain / erosion hazard limits on the survey',
     'natural_heritage': 'Environmental impact study and natural heritage feature limits (staked if required)',
     'heritage': 'Heritage impact assessment; archaeological assessment if potential is flagged',
-    'easements': 'Easement holder consent; registered easements shown on the survey / reference plan',
+    'easements': 'Easement holder consent; registered easements shown on the survey / reference plan; '
+                 'for a pipeline, the operator\'s setback and crossing or proximity consent',
     'rail': 'Rail proximity: noise and vibration study, setback / berm and consultation with the railway',
     'provincial_plans': 'Conformity with the provincial plan that applies (Greenbelt, Oak Ridges Moraine, '
                         'Seaton / federal lands) before local zoning',
@@ -1060,8 +1061,16 @@ def lookup(latitude: float, longitude: float) -> dict:
             '5_supporting_documents': {
                 'always': ['Planning justification report', 'Concept site plan', 'Survey or reference plan'],
                 'triggered_by_overlays': {c: OVERLAY_STUDIES[c] for c in triggered},
-                'by_scale': ['Traffic impact study (larger developments)',
-                             'Functional servicing report', 'Archaeological assessment (if required)'],
+                'by_scale': ['Traffic impact study (larger developments), or a traffic brief',
+                             'Functional servicing report', 'Archaeological assessment (if required)',
+                             # A recent Pickering residential pre-submission (1942 Woodview Ave) listed these.
+                             'Arborist report', 'Phase One environmental site assessment',
+                             'Geotechnical and hydrogeological investigations', 'Erosion and sediment control plan',
+                             'Grading and landscape plans', 'Sustainability checklist', 'Project statistics',
+                             'Urban design brief (rezoning or Official Plan amendment)',
+                             'Shadow study for taller buildings',
+                             'Noise and vibration study near Highway 401, rail or Kingston Road',
+                             'Risk and safety management information if near propane operations'],
                 'reference': 'O. Reg. 545/06 (complete application) and the City pre-consultation checklist',
             },
             '6_planning_frameworks': {

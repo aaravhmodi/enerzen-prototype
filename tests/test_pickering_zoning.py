@@ -329,6 +329,19 @@ def test_layer_names_map_to_review_categories():
     assert classify('Street Centreline') == 'roads'
     assert classify('Building Footprints') is None
     assert classify('Watercourses') == 'natural_heritage'
+    assert classify('Landuse') == 'official_plan'  # the City's Official Plan Schedule I layer
+    assert classify('Pipeline') == 'easements'
+
+
+def test_reclassify_moves_stored_layers_to_fixed_categories(tmp_path):
+    from scripts.scrape_pickering_zoning import reclassify
+    layers = [{'name': 'Landuse', 'url': 'https://x/rest/services/public/OP9_ScheduleI_Landuse/MapServer/22',
+               'category': None},
+              {'name': 'Street Centreline', 'url': 'https://x/rest/services/a/MapServer/0', 'category': 'roads'}]
+    (tmp_path / 'manifest.json').write_text(json.dumps({'layers': layers}), encoding='utf-8')
+    assert reclassify(tmp_path) == {'Landuse': (None, 'official_plan')}
+    stored = json.loads((tmp_path / 'manifest.json').read_text(encoding='utf-8'))
+    assert [l['category'] for l in stored['layers']] == ['official_plan', 'roads']
 
 
 def test_esri_rings_become_polygons_with_holes():

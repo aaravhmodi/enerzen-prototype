@@ -127,7 +127,16 @@ export type DevCharges = {
   kind: string; total: number; retrieved_at: string;
   lines: { authority: string; area?: string; amount: number; services: Record<string, number>; effective?: string | null; url: string }[];
   garden_suite: { municipal: number; basis: string; school_boards: number | null };
+  other?: {
+    community_benefits: ChargeRule;
+    parkland: ChargeRule;
+    application_fees: {
+      effective: string; url: string; note: string;
+      items: { name: string; base: number; per_home?: [number, number][] }[];
+    };
+  };
 };
+export type ChargeRule = { rule: string; source: string; url: string };
 export type Servicing = { municipal_expected: boolean; in_urban_area: boolean; in_hamlet: boolean; source?: string | null; note: string };
 
 export type PermittedUses = {

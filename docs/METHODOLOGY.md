@@ -698,6 +698,22 @@ and O. Reg. 545/06. The API reads only that stored copy.
   development charges inside its 25%, so these figures are shown beside the
   cost, not added to it.
 
+- **Other charges and fees** — shown with the development charges as rules,
+  not amounts, since land value is not known (`dev_charges.OTHER_CHARGES`):
+  the community benefits charge (By-law 8192/25: 4% of land value, only on
+  buildings of 5 or more storeys with 10 or more homes), parkland under
+  Planning Act s. 42 (up to 5% of the site, or a by-law's alternative rate of
+  up to 1 ha per 1,000 homes as cash, capped at 10% of land value on sites up
+  to 5 ha; the City's own rate was not found and is left to pre-consultation),
+  and the City's application fees from its schedule effective July 1, 2026.
+
+- **Official Plan designation and pipelines** — the City's Official Plan
+  Schedule I layer is named "Landuse" and pipelines "Pipeline", so both were
+  stored uncategorised. The classifier now files them under Official Plan
+  (its `LANDUSE` field, e.g. "LOW DENSITY", is the designation) and easements;
+  `scrape_pickering_zoning.py --reclassify` applies a classifier change to the
+  stored copy without downloading it again.
+
 - **Geometry** — coordinates are projected to local metres around latitude
   43.85 (equirectangular: 111,132 m per degree of latitude, 111,320 × cos(43.85°)
   m per degree of longitude), so areas and distances read in metres; the error
