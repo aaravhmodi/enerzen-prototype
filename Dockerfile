@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY engine ./engine
 COPY api ./api
 COPY data ./data
+COPY web/public/brand ./web/public/brand
 
 EXPOSE 8001
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8001"]

@@ -4,6 +4,8 @@
 **/__pycache__/
 .pytest_cache/
 web/
+# The PDF report draws the logo and Futura from here.
+!web/public/brand/
 ui/
 docs/
 tests/
