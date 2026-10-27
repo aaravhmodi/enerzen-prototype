@@ -1,7 +1,56 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
+// Walking loops in the drawing's own coordinates: the courtyard's paved ring,
+// both ways round, and the front verge.
+const RING = "M217.5 287 L302 238.5 L385.5 286.5 L301 336 Z";
+const RING_BACK = "M301 336 L385.5 286.5 L302 238.5 L217.5 287 Z";
+const VERGE = "M100 304 L290 413 L100 304";
+
+const WALKERS = [
+  { path: RING, dur: 28, begin: 0, color: "#5862a6" },
+  { path: RING, dur: 28, begin: -0.7, color: "#d0b455" },
+  { path: RING_BACK, dur: 34, begin: -12, color: "#7d8f74" },
+];
+const FRONT_WALKER = { path: VERGE, dur: 40, begin: -6, color: "#8a84a0" };
+
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+function useReducedMotion() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(REDUCED_MOTION);
+      query.addEventListener("change", onChange);
+      return () => query.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+}
+
+/** A person about a fifth of a storey-pair tall, feet at the origin. Still: stands at the path's start. */
+function Walker({ path, dur, begin, color, still }: (typeof WALKERS)[number] & { still: boolean }) {
+  const [, x, y] = path.match(/^M(\S+) (\S+)/) ?? [];
+  return (
+    <g transform={still ? `translate(${x} ${y})` : undefined}>
+      {!still && <animateMotion path={path} dur={`${dur}s`} begin={`${begin}s`} repeatCount="indefinite" />}
+      <ellipse rx="2.8" ry="1.2" fill="#3c3653" opacity=".1" />
+      <g transform="scale(1.3)">
+        {!still && (
+          <animateTransform attributeName="transform" type="translate" values="0 0;0 -0.5;0 0" dur="0.55s" additive="sum" repeatCount="indefinite" />
+        )}
+        <path d="M-1.1 0 0 -4.6 1.1 0" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+        <path d="M0 -4.6V-9.6" stroke={color} strokeWidth="2.6" strokeLinecap="round" />
+        <circle cy="-11.9" r="1.8" fill="#eadbcd" />
+      </g>
+    </g>
+  );
+}
+
 /** Isometric courtyard community, shared by the landing hero and the exploring screen. */
 export default function Architecture() {
+  const still = useReducedMotion();
   return (
     <svg
       className="architecture"
@@ -95,6 +144,9 @@ export default function Architecture() {
             <path d={`m${x + 64} ${y + 19} v-14l12-7v14`} stroke="#9a93ad" />
           </g>
         ))}
+        {WALKERS.map((walker, i) => (
+          <Walker key={i} {...walker} still={still} />
+        ))}
         {[
           [307, 213],
           [219, 317],
@@ -116,6 +168,7 @@ export default function Architecture() {
             <path d={`M${x} ${y - 11}v-25`} stroke="#b0bea9" />
           </g>
         ))}
+        <Walker {...FRONT_WALKER} still={still} />
       </g>
       <path d="M56 370v34h35M515 149v-34h-35" stroke="#aaa3b7" />
       <text x="52" y="432" fill="#9c95a7" fontSize="9" letterSpacing="2">
