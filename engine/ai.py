@@ -177,7 +177,14 @@ reasonable Ontario-residential default, and every default/guess must be listed i
 `assumptions`. floor_area_m2, footprint_length_m/width_m, lot_width_m/depth_m are \
 always in metres (convert from feet/sq ft if the user gave imperial units). \
 `location` must be an exact match from the provided enum of real Ontario place names, \
-or null — never a province, county or region name."""
+or null — never a province, county or region name.
+
+Write each `assumptions` note for the homeowner reading it on screen: plain English, \
+no field or variable names (say "window-to-wall ratio", never window_to_wall_ratio), \
+never the words null, true or false, and areas and lengths in the units the user wrote \
+in. Example: "Assumed windows cover 30% of the walls, typical for Ontario homes." For \
+anything left unknown, say what the user can do, e.g. "Lot size not given; pick your lot \
+on the Site step." """
 
 
 def parse_freeform_spec(text: str) -> dict:
