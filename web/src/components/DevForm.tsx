@@ -45,7 +45,7 @@ const DEFAULT: DevSpecInput = {
   target_label: "nzr",
   allowed_types: ["garden_suite", "three_bhk"],
   orientation: "S",
-  weights: { yield: 100, cost: 0, energy: 0, carbon: 0 },
+  weights: { yield: 25, cost: 25, energy: 25, carbon: 25 },
   min_bedrooms: 0,
   max_storeys: null,
   excluded_mechanical_ids: [],
