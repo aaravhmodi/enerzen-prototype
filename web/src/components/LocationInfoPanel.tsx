@@ -257,7 +257,7 @@ export default function LocationInfoPanel({
                       </span>
                       <br />
                       {/* The server writes lengths in metres; show them in the chosen units. */}
-                      <strong>{String(value).replace(/(\d+(?:\.\d+)?) m/g, (_, m) => u.length(Number(m)))}</strong>
+                      <strong>{String(value).replace(/(\d+(?:\.\d+)?) m\b/g, (_, m) => u.length(Number(m)))}</strong>
                     </div>
                   ))}
               </div>
