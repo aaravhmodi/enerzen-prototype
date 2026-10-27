@@ -7,6 +7,7 @@ import {
   fetchLocations,
   runParseSpec,
   TYPOLOGY_LABELS,
+  placeName,
   ArchetypeInfo,
   FieldError,
   OptimizationWeights,
@@ -292,10 +293,7 @@ export default function ProjectForm({
         facts={[
           {
             label: "Place",
-            value: (state.spec.location ?? "Choose a location").replace(
-              " (Dunbarton)",
-              "",
-            ),
+            value: state.spec.location ? placeName(state.spec.location) : "Choose a location",
           },
           {
             label: "Home",
@@ -419,7 +417,7 @@ export default function ProjectForm({
                 >
                   {locations.map((location) => (
                     <option key={location} value={location}>
-                      {location}
+                      {placeName(location)}
                     </option>
                   ))}
                   {!locations.includes(state.spec.location ?? "") && (

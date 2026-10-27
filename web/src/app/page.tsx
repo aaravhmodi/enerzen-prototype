@@ -12,7 +12,7 @@ import DevRecommendation from "@/components/DevRecommendation";
 import Architecture from "@/components/Architecture";
 import { fmtCad, setUnitSystem, useUnits, type UnitSystem } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
-import { errorInfo, TYPOLOGY_LABELS, type FieldError, type SiteSpecInput } from "@/lib/api";
+import { errorInfo, placeName, TYPOLOGY_LABELS, type FieldError, type SiteSpecInput } from "@/lib/api";
 import {
   ConfigResult,
   ExcludedType,
@@ -870,10 +870,6 @@ function normalizeWeights(weights: FormState["weights"]): FormState["weights"] {
   return Object.fromEntries(
     Object.entries(weights).map(([key, value]) => [key, value / total]),
   ) as FormState["weights"];
-}
-
-function placeName(location: string | null | undefined): string {
-  return (location ?? "Ontario").replace(" (Dunbarton)", "");
 }
 
 function targetName(label: string | undefined): string {

@@ -2,6 +2,11 @@ import type { UnitSystem } from "@/lib/units";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
+// Locations are named after their climate station ("Pickering (Dunbarton)"); people know the town.
+export function placeName(location: string | null | undefined): string {
+  return (location ?? "Ontario").replace(" (Dunbarton)", "");
+}
+
 export const TYPOLOGY_LABELS: Record<string, string> = {
   single_family: "Single family",
   townhouse: "Townhouse",

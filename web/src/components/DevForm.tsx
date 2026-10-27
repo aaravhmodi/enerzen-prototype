@@ -5,6 +5,7 @@ import {
   fetchArchetypes,
   fetchCatalog,
   fetchLocations,
+  placeName,
   ArchetypeInfo,
   DevelopmentWeights,
   DevSpecInput,
@@ -205,7 +206,7 @@ export default function DevForm({
         eyebrow="Path B · Community development"
         title={STEPS[step].label}
         facts={[
-          { label: "Place", value: state.location.replace(" (Dunbarton)", "") },
+          { label: "Place", value: placeName(state.location) },
           {
             label: "Site area",
             value: Number.isFinite(state.lot_width_m * state.lot_depth_m)
@@ -276,7 +277,7 @@ export default function DevForm({
                 >
                   {locations.map((location) => (
                     <option key={location} value={location}>
-                      {location}
+                      {placeName(location)}
                     </option>
                   ))}
                   {!locations.includes(state.location) && (
