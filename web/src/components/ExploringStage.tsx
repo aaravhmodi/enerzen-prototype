@@ -8,6 +8,7 @@ export type ExploringContext = {
   target: string;
   brief: string;
   site: string;
+  parcel: boolean;
 };
 
 type Stage = { title: string; how: string };
@@ -20,7 +21,7 @@ function stagesFor(path: ExploringPath, c: ExploringContext): Stage[] {
   if (path === "single") {
     return [
       { title: "Reading your brief", how: `${c.brief}. Budget and the ${c.target} target become hard constraints; your weights stay soft priorities.` },
-      { title: "Site and regulatory context", how: `Loading ${c.place} climate, degree-days, snow load and regional energy rates. Zoning is not checked until a parcel is selected.` },
+      { title: "Site and regulatory context", how: `Loading ${c.place} climate, degree-days, snow load and regional energy rates. ${c.parcel ? "Zoning and setbacks come from the parcel you chose." : "Zoning is not checked until a parcel is selected."}` },
       { title: "Setting the design geometry", how: "Taking the catalog design you chose, or your custom footprint, as the starting geometry for every configuration." },
       { title: "Configuring building systems", how: "Combining wall, roof and foundation assemblies across insulation thicknesses with windows, mechanical and solar options." },
       { title: "Calculating performance", how: "Effective R-values, heat loss, EUI and TEDI, then cost, build weeks, embodied and lifecycle carbon for every configuration." },
@@ -32,7 +33,7 @@ function stagesFor(path: ExploringPath, c: ExploringContext): Stage[] {
   if (path === "dev-scenarios") {
     return [
       { title: "Reading the development brief", how: `${c.brief}. Budget and the ${c.target} target are hard constraints.` },
-      { title: "Land and planning context", how: `${c.site}. ${c.place} city-wide data is loaded; zoning is not checked until a parcel is selected.` },
+      { title: "Land and planning context", how: `${c.site}. ${c.place} city-wide data is loaded; ${c.parcel ? "zoning and setbacks come from the parcel you chose." : "zoning is not checked until a parcel is selected."}` },
       { title: "Selecting housing types", how: "Taking the catalog types you allowed, with their footprints, storeys and homes per building." },
       { title: "Pricing a cost floor", how: "Costing the cheapest catalog configuration of each type, so mixes that could never meet the budget are set aside early." },
       { title: "Testing housing mixes", how: "Enumerating combinations of the selected types within the buildable area and the budget." },

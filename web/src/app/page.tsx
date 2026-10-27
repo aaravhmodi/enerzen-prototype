@@ -314,6 +314,7 @@ export default function Home() {
             ? `${lastState.spec.typology.replace("_", " ")}, ${u.area(lastState.spec.floor_area_m2)} over ${lastState.spec.storeys} storeys`
             : "Your home",
           site: lastState ? `a ${u.dims(lastState.site.lot_width_m, lastState.site.lot_depth_m)} lot` : "your lot",
+          parcel: lastState?.site.latitude != null,
         }
       : {
           place: placeName(lastDevSpec?.location),
@@ -324,6 +325,7 @@ export default function Home() {
           site: lastDevSpec
             ? `A ${u.dims(lastDevSpec.lot_width_m, lastDevSpec.lot_depth_m)} lot with ${u.length(lastDevSpec.front_setback_m)} front and ${u.length(lastDevSpec.rear_setback_m)} rear setbacks`
             : "Your land",
+          parcel: lastDevSpec?.latitude != null,
         };
   const headingCopy =
     screen === "single"
