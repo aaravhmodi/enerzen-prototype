@@ -17,7 +17,7 @@ export default function DevRecommendation({ mix, softFraction }: { mix: DevMixRe
   const tiles: { label: string; value: string; tip: string }[] = [
     { label: "Homes", value: String(mix.total_units), tip: "Dwellings in this scenario. A MURB counts all of its units." },
     { label: "Built area", value: u.area(mix.total_floor_area_m2), tip: "Total conditioned floor area across all homes." },
-    { label: "Hard cost", value: fmtCad(mix.total_cost), tip: "Optimized construction cost for every home, Class D." },
+    { label: "Hard cost (excl. land)", value: fmtCad(mix.total_cost), tip: "Optimized construction cost for every home, Class D. Excludes land, site servicing and municipal charges; unit rates are EnerZen defaults awaiting procurement data." },
     {
       label: "Soft costs",
       value: fmtCad(mix.soft_cost),

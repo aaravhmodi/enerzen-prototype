@@ -72,13 +72,13 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
 
             <div className="mt-5 grid grid-cols-2 gap-3">
               <Metric
-                label="Construction cost"
+                label="Build cost (excl. land)"
                 value={fmtCad(top.construction_cost)}
                 tip="Estimated hard cost to build this configuration: materials, labour, connections, finishes, mechanical, fit-out, and contingency. Excludes land, site servicing and municipal charges. Unit rates are EnerZen defaults awaiting procurement data."
                 tone="accent"
               />
               <Metric
-                label="Build schedule"
+                label="Fabrication to close"
                 value={`${top.construction_weeks.toFixed(1)} wk`}
                 tip="Weeks from factory fabrication through site installation to envelope close. Shorter means faster time-to-occupancy, but doesn't include interior fit-out or inspections."
               />
@@ -200,8 +200,8 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
                 </th>
                 <th className="px-4 py-3 font-semibold">
                   <span className="flex items-center gap-1.5">
-                    Weeks
-                    <InfoTooltip text="Fabrication + installation time to envelope close." />
+                    Weeks to close
+                    <InfoTooltip text="Panel fabrication and site installation to a weather-tight envelope; excludes fit-out." />
                   </span>
                 </th>
                 <th className="px-4 py-3 font-semibold">
