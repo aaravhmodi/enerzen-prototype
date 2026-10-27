@@ -21,7 +21,7 @@ function Metric({
       <div
         className={
           isAccent
-            ? "flex items-center gap-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-emerald-700"
+            ? "flex items-center gap-1.5 text-[0.8125rem] font-semibold uppercase tracking-[0.12em] text-emerald-700"
             : "flex items-center gap-1.5 tile-label"
         }
       >

@@ -35,7 +35,7 @@ export default function InfoTooltip({ text }: { text: string }) {
         ref={triggerRef}
         tabIndex={0}
         aria-label={text}
-        className="flex h-[18px] w-[18px] cursor-help items-center justify-center rounded-full border border-stone-300 text-[12px] font-bold leading-none text-stone-400 outline-none transition hover:border-emerald-400 hover:text-emerald-600 focus-visible:border-emerald-400 focus-visible:text-emerald-600"
+        className="flex h-[18px] w-[18px] cursor-help normal-case items-center justify-center rounded-full border border-stone-300 text-[12px] font-bold leading-none text-stone-400 outline-none transition hover:border-emerald-400 hover:text-emerald-600 focus-visible:border-emerald-400 focus-visible:text-emerald-600"
       >
         i
       </span>
