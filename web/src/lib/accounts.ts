@@ -1,36 +1,40 @@
-// Who may use the site. Accounts live in one JSON file on the server (ACCOUNTS_DIR,
-// a compose volume), since a handful of invited people don't need a database.
+// Who may use the site: accounts in the home server's shared Postgres (DATABASE_URL,
+// tables enerzen_*), like the other homelab projects.
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { Pool } from "pg";
 
 export type Account = {
   email: string;
   name: string;
   note: string;
-  hash: string; // salt:scrypt hex
   status: "pending" | "approved";
-  requestedAt: string;
+  requested_at: Date;
 };
 
 export const SESSION_COOKIE = "enerzen_session";
 const SESSION_DAYS = 30;
-const dir = process.env.ACCOUNTS_DIR ?? join(process.cwd(), ".accounts");
-const file = join(dir, "accounts.json");
 
 const admins = () =>
   (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
 export const isAdmin = (email: string) => admins().includes(email);
 
-export function loadAccounts(): Account[] {
-  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : [];
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
+
+// Tables made on first use, so a fresh database needs no migration step.
+let ready: Promise<unknown> | null = null;
+async function db<T>(sql: string, params: unknown[] = []) {
+  ready ??= pool.query(`
+    CREATE TABLE IF NOT EXISTS enerzen_accounts (
+      email text PRIMARY KEY, name text NOT NULL, note text NOT NULL,
+      hash text NOT NULL, status text NOT NULL, requested_at timestamptz NOT NULL DEFAULT now());
+    CREATE TABLE IF NOT EXISTS enerzen_settings (key text PRIMARY KEY, value text NOT NULL);`)
+    .catch((e) => { ready = null; throw e; });
+  await ready;
+  return (await pool.query(sql, params)).rows as T[];
 }
 
-function saveAccounts(accounts: Account[]) {
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(`${file}.tmp`, JSON.stringify(accounts, null, 2));
-  renameSync(`${file}.tmp`, file); // a crash mid-write never leaves half a file
-}
+export const loadAccounts = () =>
+  db<Account>("SELECT email, name, note, status, requested_at FROM enerzen_accounts ORDER BY status DESC, requested_at");
 
 function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -43,59 +47,53 @@ function passwordMatches(password: string, stored: string) {
 }
 
 // Returns an error to show, or null. Admins (ADMIN_EMAILS) are approved on request.
-export function requestAccount(email: string, name: string, note: string, password: string) {
-  const accounts = loadAccounts();
-  if (accounts.some((a) => a.email === email)) return "That email has already asked for access.";
-  accounts.push({
-    email, name, note,
-    hash: hashPassword(password),
-    status: isAdmin(email) ? "approved" : "pending",
-    requestedAt: new Date().toISOString(),
-  });
-  saveAccounts(accounts);
-  return null;
+export async function requestAccount(email: string, name: string, note: string, password: string) {
+  const added = await db(
+    `INSERT INTO enerzen_accounts (email, name, note, hash, status) VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (email) DO NOTHING RETURNING email`,
+    [email, name, note, hashPassword(password), isAdmin(email) ? "approved" : "pending"],
+  );
+  return added.length ? null : "That email has already asked for access.";
 }
 
-export function checkLogin(email: string, password: string) {
-  const account = loadAccounts().find((a) => a.email === email);
+export async function checkLogin(email: string, password: string) {
+  const [account] = await db<{ hash: string; status: string }>(
+    "SELECT hash, status FROM enerzen_accounts WHERE email = $1", [email]);
   if (!account || !passwordMatches(password, account.hash)) return "Wrong email or password.";
   if (account.status !== "approved") return "Your request is waiting for approval.";
   return null;
 }
 
-export function setStatus(email: string, status: "approved" | "removed") {
-  const accounts = loadAccounts();
-  saveAccounts(
-    status === "removed"
-      ? accounts.filter((a) => a.email !== email)
-      : accounts.map((a) => (a.email === email ? { ...a, status } : a)),
-  );
+export async function setStatus(email: string, status: "approved" | "removed") {
+  await (status === "removed"
+    ? db("DELETE FROM enerzen_accounts WHERE email = $1", [email])
+    : db("UPDATE enerzen_accounts SET status = 'approved' WHERE email = $1", [email]));
 }
 
 // Kept beside the accounts so sessions survive rebuilds without another setting.
-function secret() {
-  const path = join(dir, "session-secret");
-  if (!existsSync(path)) {
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(path, randomBytes(32).toString("hex"), { flag: "wx" });
+let secret: string | null = null;
+async function sign(value: string) {
+  if (!secret) {
+    await db("INSERT INTO enerzen_settings VALUES ('session_secret', $1) ON CONFLICT DO NOTHING",
+      [randomBytes(32).toString("hex")]);
+    [{ value: secret }] = await db<{ value: string }>("SELECT value FROM enerzen_settings WHERE key = 'session_secret'");
   }
-  return readFileSync(path, "utf8");
+  return createHmac("sha256", secret!).update(value).digest("hex");
 }
 
-const sign = (value: string) => createHmac("sha256", secret()).update(value).digest("hex");
-
-export function makeSession(email: string) {
+export async function makeSession(email: string) {
   const value = `${email}|${Date.now() + SESSION_DAYS * 86_400_000}`;
-  return { value: `${value}|${sign(value)}`, maxAge: SESSION_DAYS * 86_400 };
+  return { value: `${value}|${await sign(value)}`, maxAge: SESSION_DAYS * 86_400 };
 }
 
 // The signed-in email, only while the cookie is genuine, unexpired and the account
 // still approved, so removing someone signs them out on their next request.
-export function sessionEmail(cookie: string | undefined) {
+export async function sessionEmail(cookie: string | undefined) {
   if (!cookie) return null;
   const [email, expires, mac] = cookie.split("|");
   if (!mac || Number(expires) < Date.now()) return null;
-  const expected = Buffer.from(sign(`${email}|${expires}`));
+  const expected = Buffer.from(await sign(`${email}|${expires}`));
   if (expected.length !== mac.length || !timingSafeEqual(expected, Buffer.from(mac))) return null;
-  return loadAccounts().some((a) => a.email === email && a.status === "approved") ? email : null;
+  const rows = await db("SELECT 1 FROM enerzen_accounts WHERE email = $1 AND status = 'approved'", [email]);
+  return rows.length ? email : null;
 }

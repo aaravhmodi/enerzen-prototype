@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // The proxy has already required an approved account; this page also needs an admin.
 async function adminEmail() {
-  const email = sessionEmail((await cookies()).get(SESSION_COOKIE)?.value);
+  const email = await sessionEmail((await cookies()).get(SESSION_COOKIE)?.value);
   return email && isAdmin(email) ? email : null;
 }
 
@@ -18,14 +18,14 @@ async function decide(form: FormData) {
   const email = String(form.get("email"));
   const status = form.get("status") === "approved" ? "approved" : "removed";
   if (!me || email === me) return; // admins can't lock themselves out
-  setStatus(email, status);
+  await setStatus(email, status);
   redirect("/admin");
 }
 
 export default async function Admin() {
   const me = await adminEmail();
   if (!me) notFound();
-  const accounts = loadAccounts().sort((a, b) => (a.status === b.status ? 0 : a.status === "pending" ? -1 : 1));
+  const accounts = await loadAccounts(); // waiting requests first
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
       <h1 className="mb-6 text-2xl font-medium">Accounts</h1>
@@ -35,7 +35,7 @@ export default async function Admin() {
             <div className="flex-1">
               <p className="font-medium">{a.name} · {a.email}</p>
               <p className="opacity-70">
-                {a.status === "pending" ? "Waiting" : "Approved"} · asked {a.requestedAt.slice(0, 10)}
+                {a.status === "pending" ? "Waiting" : "Approved"} · asked {a.requested_at.toISOString().slice(0, 10)}
                 {a.note && ` · “${a.note}”`}
               </p>
             </div>

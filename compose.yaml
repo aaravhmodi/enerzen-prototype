@@ -28,14 +28,15 @@ services:
         NEXT_PUBLIC_MAPBOX_TOKEN: ${MAPBOX_TOKEN:-}
     environment:
       API_PROXY_TARGET: http://api:8001
-      # Accounts and the session key; ADMIN_EMAILS (comma-separated, in .env) approve requests at /admin.
-      ACCOUNTS_DIR: /data/accounts
+      # Accounts live in the shared homelab Postgres (tables enerzen_*): set
+      # DATABASE_URL=postgresql://user:pass@postgres:5432/projects in .env. ADMIN_EMAILS
+      # (comma-separated) approve requests at /admin.
+      DATABASE_URL: ${DATABASE_URL:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     restart: unless-stopped
     ports:
       - "${TAILSCALE_IP}:3000:3000"
-    volumes:
-      - accounts:/data/accounts
+    networks: [default, homelab]
 
   # One-off: downloads City of Pickering zoning, parcel and overlay layers and the
   # by-law documents. Re-run any time to refresh; the API picks up the new data.
@@ -51,5 +52,7 @@ services:
       - ./scripts:/app/scripts:ro
       - ${PICKERING_DATA_HOST_DIR:-./municipal-data/pickering}:/app/data/municipal/pickering
 
-volumes:
-  accounts:
+networks:
+  homelab:
+    name: homelab_default
+    external: true

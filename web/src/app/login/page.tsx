@@ -11,9 +11,9 @@ const back = (params: Record<string, string>) => redirect(`/login?${new URLSearc
 async function signIn(form: FormData) {
   "use server";
   const email = field(form, "email").toLowerCase();
-  const error = checkLogin(email, String(form.get("password") ?? ""));
+  const error = await checkLogin(email, String(form.get("password") ?? ""));
   if (error) back({ error });
-  const { value, maxAge } = makeSession(email);
+  const { value, maxAge } = await makeSession(email);
   const https = (await headers()).get("x-forwarded-proto") === "https";
   (await cookies()).set(SESSION_COOKIE, value, { httpOnly: true, sameSite: "lax", secure: https, maxAge, path: "/" });
   redirect("/");
@@ -25,7 +25,7 @@ async function askForAccess(form: FormData) {
   const password = String(form.get("password") ?? "");
   if (!/^\S+@\S+\.\S+$/.test(email)) back({ error: "Enter a valid email." });
   if (password.length < 8) back({ error: "Use a password of at least 8 characters." });
-  const error = requestAccount(email, field(form, "name").slice(0, 100), field(form, "note").slice(0, 500), password);
+  const error = await requestAccount(email, field(form, "name").slice(0, 100), field(form, "note").slice(0, 500), password);
   back(error ? { error } : { sent: "1" });
 }
 

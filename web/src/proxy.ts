@@ -2,8 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, sessionEmail } from "@/lib/accounts";
 
 // The site is private: every page and the /api it forwards needs an approved account.
-export function proxy(request: NextRequest) {
-  if (sessionEmail(request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
+export async function proxy(request: NextRequest) {
+  if (await sessionEmail(request.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ detail: "Sign in to use EnerZen." }, { status: 401 });
   }
