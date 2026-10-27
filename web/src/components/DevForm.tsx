@@ -310,6 +310,7 @@ export default function DevForm({
               </p>
             </div>
             <LotPicker
+              resume={state}
               lotWidth={state.lot_width_m}
               lotDepth={state.lot_depth_m}
               onLotResize={(width, depth) => setState((current) => ({ ...current, lot_width_m: width, lot_depth_m: depth }))}

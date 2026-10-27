@@ -110,6 +110,7 @@ export default function ProjectForm({
   );
   const u = useUnits();
   const [step, setStep] = useState(initialSite ? 1 : 0);
+  const [lotPicked, setLotPicked] = useState(false);
   const [locations, setLocations] = useState<string[]>([]);
   const [solarOptions, setSolarOptions] = useState<
     { id: string; name: string }[]
@@ -488,7 +489,8 @@ export default function ProjectForm({
         {step === 1 && (
           <div className="space-y-5">
             <LotPicker
-              initialSite={initialSite}
+              initialSite={lotPicked ? null : initialSite}
+              resume={lotPicked ? state.site : null}
               lotWidth={state.site.lot_width_m}
               lotDepth={state.site.lot_depth_m}
               onLotResize={(width, depth) =>
@@ -497,12 +499,13 @@ export default function ProjectForm({
                   site: { ...current.site, lot_width_m: width, lot_depth_m: depth },
                 }))
               }
-              onLot={(lot) =>
+              onLot={(lot) => {
+                setLotPicked(true);
                 setState((current) => ({
                   ...current,
                   site: { ...current.site, ...lot },
-                }))
-              }
+                }));
+              }}
             />
             <LocationInfoPanel
               location={state.spec.location}

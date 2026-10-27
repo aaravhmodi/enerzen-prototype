@@ -48,9 +48,12 @@ export default function LotPicker({
   lotWidth,
   lotDepth,
   onLotResize,
+  resume,
 }: {
   onLot: (lot: LotForForm) => void;
   initialSite?: Partial<SiteSpecInput> | null;
+  // A lot picked on an earlier visit to this step: shown again without overwriting the form.
+  resume?: { latitude?: number | null; longitude?: number | null } | null;
   lotWidth?: number;
   lotDepth?: number;
   onLotResize?: (width: number, depth: number) => void;
@@ -76,6 +79,7 @@ export default function LotPicker({
   const [pilot, setPilot] = useState<PilotArea | null>(null);
   const abort = useRef<AbortController | null>(null);
   const didInitialLookup = useRef(false);
+  const [resumeAt] = useState(resume);
 
   useEffect(() => {
     pilotArea().then(setPilot).catch(() => setPilot(null));
@@ -129,7 +133,7 @@ export default function LotPicker({
     }
   }, []);
 
-  const choose = useCallback(async (label: string, latitude: number, longitude: number) => {
+  const choose = useCallback(async (label: string, latitude: number, longitude: number, apply = true) => {
     abort.current?.abort();
     setPointSearch(false);
     setQuery(label);
@@ -159,7 +163,12 @@ export default function LotPicker({
       const lot = lotForForm(found);
       if (lot) {
         setWorkingPoint({ latitude: lot.latitude, longitude: lot.longitude });
-        onLot(lot);
+        if (apply) onLot(lot);
+        else {
+          const shown = found.steps?.["1_property_identification"].from_city_data?.address ?? label;
+          setQuery(shown);
+          setChosen(shown);
+        }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "The lot could not be loaded.");
@@ -169,12 +178,13 @@ export default function LotPicker({
   }, [onLot]);
 
   useEffect(() => {
-    const latitude = initialSite?.latitude;
-    const longitude = initialSite?.longitude;
+    const apply = resumeAt?.latitude == null || resumeAt?.longitude == null;
+    const latitude = apply ? initialSite?.latitude : resumeAt?.latitude;
+    const longitude = apply ? initialSite?.longitude : resumeAt?.longitude;
     if (didInitialLookup.current || latitude == null || longitude == null) return;
     didInitialLookup.current = true;
-    void choose(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`, latitude, longitude);
-  }, [initialSite?.latitude, initialSite?.longitude, choose]);
+    void choose(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`, latitude, longitude, apply);
+  }, [initialSite?.latitude, initialSite?.longitude, resumeAt, choose]);
 
   const toggleLayer = (category: string) =>
     setHidden((current) => {
