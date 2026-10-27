@@ -415,10 +415,10 @@ export default function Home() {
               <h1
                 ref={heading}
                 tabIndex={-1}
-                aria-label="Net-zero housing, planned with AI."
+                aria-label="Intelligent housing. Powered by AI. Built for tomorrow."
               >
                 <span className="hero-title-line" aria-hidden="true">
-                  <span className="word-reveal">Net-zero housing</span>
+                  <span className="word-reveal">Intelligent housing.</span>
                 </span>
                 <span
                   className="hero-title-line muted-title"
@@ -428,13 +428,18 @@ export default function Home() {
                     className="word-reveal"
                     style={{ animationDelay: "160ms" }}
                   >
-                    planned with{" "}
+                    Powered by AI.
                   </span>
+                </span>
+                <span
+                  className="hero-title-line muted-title"
+                  aria-hidden="true"
+                >
                   <span
                     className="word-reveal"
                     style={{ animationDelay: "240ms" }}
                   >
-                    AI.
+                    Built for tomorrow.
                   </span>
                 </span>
               </h1>
