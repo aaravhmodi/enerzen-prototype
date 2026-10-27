@@ -39,7 +39,7 @@ services:
       - "${TAILSCALE_IP}:3000:3000"
     networks: [default, homelab]
 
-  # A public https://….trycloudflare.com address for the web app, for people off
+  # A public https://â€¦.trycloudflare.com address for the web app, for people off
   # Tailscale. Find it with: docker compose logs tunnel | grep trycloudflare
   # shortcut: the address changes whenever this container restarts; move to a named
   # tunnel once a domain's DNS is on Cloudflare.
