@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import type { ConfigResult, SoftSummary } from "@/lib/api";
-import { fmtCad, useUnits } from "@/lib/units";
+import { fmtCad, useUnits, type UnitSystem } from "@/lib/units";
 import InfoTooltip from "@/components/InfoTooltip";
 
 function Metric({
@@ -54,15 +54,18 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
           <div className="p-5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                Recommended assembly
+                Recommended configuration
               </span>
               <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600">
                 {top.net_zero ? "Net zero" : "Low energy"}
               </span>
             </div>
             <h3 className="mt-4 text-3xl font-semibold tracking-tight text-stone-950">
-              {top.wall_id} wall with {top.roof_id} roof
+              {top.mechanical_name}
             </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+              {envelope(top, u.system)} · {top.window_name} windows
+            </p>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-500">
               Optimized against cost, embodied carbon, operating energy, lifecycle performance, and NZR probability.
             </p>
@@ -71,7 +74,7 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
               <Metric
                 label="Construction cost"
                 value={fmtCad(top.construction_cost)}
-                tip="Total estimated cost to build this configuration: materials, labour, connections, finishes, mechanical, fit-out, and contingency. This is what drives your budget decision."
+                tip="Estimated hard cost to build this configuration: materials, labour, connections, finishes, mechanical, fit-out, and contingency. Excludes land, site servicing and municipal charges. Unit rates are EnerZen defaults awaiting procurement data."
                 tone="accent"
               />
               <Metric
@@ -188,8 +191,7 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
           <table className="min-w-full text-left text-xs">
             <thead className="bg-stone-50 text-stone-500">
               <tr>
-                <th className="px-4 py-3 font-semibold">Wall</th>
-                <th className="px-4 py-3 font-semibold">Roof</th>
+                <th className="px-4 py-3 font-semibold">Configuration</th>
                 <th className="px-4 py-3 font-semibold">
                   <span className="flex items-center gap-1.5">
                     Cost
@@ -225,8 +227,10 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
             <tbody className="divide-y divide-stone-100 bg-white/80">
               {results.slice(0, 20).map((r, i) => (
                 <tr key={i} style={{ "--n": i } as CSSProperties} className={`reveal-row ${i === 0 ? "bg-emerald-50/80" : "transition hover:bg-stone-50"}`}>
-                  <td className="px-4 py-3 font-medium text-stone-900">{r.wall_id}</td>
-                  <td className="px-4 py-3 text-stone-600">{r.roof_id}</td>
+                  <td className="px-4 py-3">
+                    <span className="block font-medium text-stone-900">{r.mechanical_name} · {r.window_name}</span>
+                    <span className="block text-stone-500">{envelope(r, u.system)}</span>
+                  </td>
                   <td className="px-4 py-3 text-stone-600">{fmtCad(r.construction_cost)}</td>
                   <td className="px-4 py-3 text-stone-600">{r.construction_weeks.toFixed(1)}</td>
                   <td className="px-4 py-3 text-stone-600">{u.intensity(r.eui_kwh_m2_yr)}</td>
@@ -240,6 +244,17 @@ export default function ResultsPanel({ results, soft }: { results: ConfigResult[
       </div>
     </div>
   );
+}
+
+// "2x6 frame + 2″ ext. mineral wool walls · Vented cassette — cellulose roof + 2″ rigid";
+// a zero-thickness sweep step means the exterior layer is left off.
+function envelope(r: ConfigResult, system: UnitSystem): string {
+  const thick = (inches: number) => (system === "imperial" ? `${inches}″` : `${Math.round(inches * 25.4)} mm`);
+  const wall = r.wall_ext_rigid_in
+    ? r.wall_name.replace("ext.", `${thick(r.wall_ext_rigid_in)} ext.`)
+    : r.wall_name.split(" + ")[0];
+  const roof = r.roof_deck_rigid_in ? ` + ${thick(r.roof_deck_rigid_in)} rigid` : "";
+  return `${wall} walls · ${r.roof_name} roof${roof}`;
 }
 
 function Signal({

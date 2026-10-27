@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from engine.archetypes import ARCHETYPES, Archetype
 from engine.multi_site import place_units, _all_placed
 from engine.finance import rental_pro_forma
-from engine.optimizer import ProjectSpec, baseline_cost, load_catalog, optimize
+from engine.optimizer import ProjectSpec, baseline_cost, config_names, load_catalog, optimize
 from engine.soft import soft_cost, soft_timeline
 from engine.site import SiteSpec
 from engine.location import resolve as resolve_location
@@ -270,6 +270,11 @@ def best_configurations(dev: DevSpec, mixes: list[dict]) -> dict:
     for arch_id in types:
         results = optimize(_arch_project_spec(ARCHETYPES[arch_id], dev))
         best[arch_id] = results[0] if results else None
+def _config_summary(result) -> str:
+    names = config_names(result)
+    return f"{names['mechanical_name']} · {names['wall_name']} walls · {names['roof_name']} roof"
+
+
     return best
 
 
@@ -344,7 +349,7 @@ def evaluate_dev_mixes(dev: DevSpec, mixes: list[dict], best: dict | None = None
             soft_timeline_weeks=timeline.total_weeks,
             lifecycle_carbon_30yr_kg_co2e_m2=area_avg("lifecycle_carbon_30yr_kg_co2e_m2"),
             lifecycle_cost_30yr=round(sum(best[t].lifecycle_cost_30yr * n for t, n in dwellings.items())),
-            configurations={t: f"{best[t].wall_id} wall · {best[t].roof_id} roof · {best[t].mechanical_id}" for t in mix},
+            configurations={t: _config_summary(best[t]) for t in mix},
             rental=rental_pro_forma(by_bedrooms, round(hard + soft_cost(hard)), area_avg("eui_kwh_m2_yr"),
                                     load_catalog()["benchmarks"]["eui_kwh_m2_yr"]["code_built_new"]),
         ))

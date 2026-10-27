@@ -32,7 +32,7 @@ from engine.location import location_names, resolve as resolve_location
 from engine.municipal import is_pickering, pickering_context
 from engine import pickering_zoning
 from engine.multi_site import development_geometry, multi_site_plan_svg, place_units
-from engine.optimizer import ConfigResult, ProjectSpec, load_catalog, optimize_with_gate
+from engine.optimizer import ConfigResult, ProjectSpec, config_names, load_catalog, optimize_with_gate
 from engine.report import generate_development_report, generate_unit_report
 from engine.soft import SOFT_COST_FRACTION, permit_class, soft_cost, soft_timeline
 from engine.regulatory import toronto_zoning_lookup
@@ -226,6 +226,7 @@ def _serialize_result(result: ConfigResult) -> dict:
     data["soft_cost"] = soft_cost(result.construction_cost)
     data["total_project_cost"] = round(result.construction_cost + data["soft_cost"])
     return data
+    data.update(config_names(result))
 
 
 def _spec_soft_timeline(spec) -> dict:

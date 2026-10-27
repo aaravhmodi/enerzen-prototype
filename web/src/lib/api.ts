@@ -52,6 +52,13 @@ export type ConfigResult = {
   operational_carbon_30yr_kg_co2e_m2: number;
   lifecycle_carbon_30yr_kg_co2e_m2: number;
   eui_kwh_m2_yr: number;
+  wall_name: string;
+  roof_name: string;
+  floor_name: string;
+  window_name: string;
+  mechanical_name: string;
+  wall_ext_rigid_in: number;
+  roof_deck_rigid_in: number;
   tedi_kwh_m2_yr: number;
   meui_kwh_m2_yr: number;
   tedi_threshold_kwh_m2_yr: number | null;

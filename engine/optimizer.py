@@ -119,6 +119,21 @@ def load_catalog() -> dict:
         return json.load(f)
 
 
+def config_names(result: ConfigResult, catalog: dict | None = None) -> dict:
+    """Display names for a configuration's catalog ids (WA1 → "2x6 frame + ext. mineral wool")."""
+    catalog = catalog or load_catalog()
+    assemblies = {a.id: a.name for a in (*WALLS, *ROOFS, *FLOORS)}
+    windows = {w["id"]: w["name"] for w in catalog["windows"]}
+    mechanical = {m["id"]: m["name"] for m in catalog["mechanical"]}
+    return {
+        "wall_name": assemblies.get(result.wall_id, result.wall_id),
+        "roof_name": assemblies.get(result.roof_id, result.roof_id),
+        "floor_name": assemblies.get(result.floor_id, result.floor_id),
+        "window_name": windows.get(result.window_id, result.window_id),
+        "mechanical_name": mechanical.get(result.mechanical_id, result.mechanical_id),
+    }
+
+
 def target_tedi_threshold(spec: ProjectSpec, energy: EnergyResult) -> float | None:
     """Return the simplified TEDI gate for the selected target.
 
