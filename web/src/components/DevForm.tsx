@@ -227,7 +227,9 @@ export default function DevForm({
           step === 0
             ? "Pick a lot to fill its size, street side and setbacks from the City's data, or enter dimensions to explore a scenario."
             : step === 1
-              ? "Street access and setbacks shape the usable area. These are planning assumptions until a parcel is confirmed."
+              ? state.latitude != null
+                ? "Street access and setbacks shape the usable area. They come from the lot and by-law you chose; any you edit are your own."
+                : "Street access and setbacks shape the usable area. These are planning assumptions until a parcel is confirmed."
               : step === 2
                 ? state.allowed_types.length > 1
                   ? "A mix of housing types lets the engine compare more combinations. The most suitable mix depends on site fit, budget and your priorities."
@@ -367,7 +369,7 @@ export default function DevForm({
 
         {step === 1 && (
           <div className="space-y-5">
-            <LocationInfoPanel location={state.location} />
+            <LocationInfoPanel location={state.location} latitude={state.latitude} longitude={state.longitude} />
             <div>
               <p className="text-xs font-medium text-stone-600">
                 Street-facing side
