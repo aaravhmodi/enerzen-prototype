@@ -1,6 +1,7 @@
 # Runs the API and the web app on a home server, published on its Tailscale address
-# only. Set TAILSCALE_IP (e.g. TAILSCALE_IP=100.76.57.23) and OPENAI_KEY in .env, and
-# MAPBOX_TOKEN (a public pk.… token) for the zoning map at /zoning.
+# and, behind sign-in, a Cloudflare quick tunnel (see tunnel below). Set TAILSCALE_IP
+# (e.g. TAILSCALE_IP=100.76.57.23) and OPENAI_KEY in .env, and MAPBOX_TOKEN (a public
+# pk.… token) for the zoning map at /zoning.
 #
 # Pickering zoning data is scraped onto this server, into ./municipal-data/pickering
 # (override with PICKERING_DATA_HOST_DIR), and survives rebuilds:
@@ -37,6 +38,15 @@ services:
     ports:
       - "${TAILSCALE_IP}:3000:3000"
     networks: [default, homelab]
+
+  # A public https://�.trycloudflare.com address for the web app, for people off
+  # Tailscale. Find it with: docker compose logs tunnel | grep trycloudflare
+  # shortcut: the address changes whenever this container restarts; move to a named
+  # tunnel once a domain's DNS is on Cloudflare.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://web:3000
 
   # One-off: downloads City of Pickering zoning, parcel and overlay layers and the
   # by-law documents. Re-run any time to refresh; the API picks up the new data.
