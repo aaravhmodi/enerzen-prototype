@@ -12,7 +12,7 @@ import DevRecommendation from "@/components/DevRecommendation";
 import Architecture from "@/components/Architecture";
 import { fmtCad, setUnitSystem, useUnits, type UnitSystem } from "@/lib/units";
 import ExploringStage, { type ExploringContext } from "@/components/ExploringStage";
-import { errorInfo, type FieldError, type SiteSpecInput } from "@/lib/api";
+import { errorInfo, TYPOLOGY_LABELS, type FieldError, type SiteSpecInput } from "@/lib/api";
 import {
   ConfigResult,
   ExcludedType,
@@ -311,7 +311,7 @@ export default function Home() {
           place: placeName(lastState?.spec.location),
           target: targetName(lastState?.spec.target_label),
           brief: lastState
-            ? `${lastState.spec.typology.replace("_", " ")}, ${u.area(lastState.spec.floor_area_m2)} over ${lastState.spec.storeys} storeys`
+            ? `${TYPOLOGY_LABELS[lastState.spec.typology] ?? lastState.spec.typology}, ${u.area(lastState.spec.floor_area_m2)} over ${lastState.spec.storeys} storeys`
             : "Your home",
           site: lastState ? `a ${u.dims(lastState.site.lot_width_m, lastState.site.lot_depth_m)} lot` : "your lot",
           parcel: lastState?.site.latitude != null,

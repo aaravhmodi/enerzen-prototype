@@ -2,6 +2,12 @@ import type { UnitSystem } from "@/lib/units";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
+export const TYPOLOGY_LABELS: Record<string, string> = {
+  single_family: "Single family",
+  townhouse: "Townhouse",
+  murb: "MURB",
+};
+
 export type ProjectSpecInput = {
   typology: string;
   climate_zone: string;
@@ -46,12 +52,6 @@ export type ConfigResult = {
   floor_id: string;
   window_id: string;
   mechanical_id: string;
-  construction_cost: number;
-  construction_weeks: number;
-  embodied_carbon_kg_co2e_m2: number;
-  operational_carbon_30yr_kg_co2e_m2: number;
-  lifecycle_carbon_30yr_kg_co2e_m2: number;
-  eui_kwh_m2_yr: number;
   wall_name: string;
   roof_name: string;
   floor_name: string;
@@ -59,6 +59,12 @@ export type ConfigResult = {
   mechanical_name: string;
   wall_ext_rigid_in: number;
   roof_deck_rigid_in: number;
+  construction_cost: number;
+  construction_weeks: number;
+  embodied_carbon_kg_co2e_m2: number;
+  operational_carbon_30yr_kg_co2e_m2: number;
+  lifecycle_carbon_30yr_kg_co2e_m2: number;
+  eui_kwh_m2_yr: number;
   tedi_kwh_m2_yr: number;
   meui_kwh_m2_yr: number;
   tedi_threshold_kwh_m2_yr: number | null;

@@ -6,6 +6,7 @@ import {
   fetchCatalog,
   fetchLocations,
   runParseSpec,
+  TYPOLOGY_LABELS,
   ArchetypeInfo,
   FieldError,
   OptimizationWeights,
@@ -382,7 +383,7 @@ export default function ProjectForm({
                   <textarea
                     className="input min-h-24 resize-none"
                     rows={3}
-                    placeholder="3-bed home on a 50×120 ft lot in Toronto, budget 450k, net-zero ready…"
+                    placeholder="3-bed home on a 40×110 ft lot in Pickering, budget 650k, net-zero ready…"
                     value={freeform}
                     onChange={(event) => setFreeform(event.target.value)}
                   />
@@ -436,9 +437,9 @@ export default function ProjectForm({
                     updateSpec("typology", event.target.value)
                   }
                 >
-                  <option value="single_family">Single family</option>
-                  <option value="townhouse">Townhouse</option>
-                  <option value="murb">MURB</option>
+                  {Object.entries(TYPOLOGY_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
                 </select>
               </Field>
               <Field label="Storeys" name="storeys" tip="Floors above grade, 1 to 12. The floor area is split across them to size the footprint.">
@@ -931,7 +932,7 @@ export default function ProjectForm({
             <div className="grid gap-3 sm:grid-cols-2">
               <Summary
                 label="Project"
-                value={`${state.spec.typology.replace("_", " ")} · ${u.area(state.spec.floor_area_m2)}`}
+                value={`${TYPOLOGY_LABELS[state.spec.typology] ?? state.spec.typology} · ${u.area(state.spec.floor_area_m2)}`}
               />
               <Summary
                 label="Site"
