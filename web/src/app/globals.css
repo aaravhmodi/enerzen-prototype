@@ -31,8 +31,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-enerzen);
   --font-mono: Consolas, monospace;
-  /* one step up from Tailwind's 12px/14px so small labels read on a projector */
-  --text-xs: 0.8125rem;
+  /* two steps up from Tailwind's 12px, one from its 14px, so small labels read on a projector */
+  --text-xs: 0.875rem;
   --text-sm: 0.9375rem;
 }
 

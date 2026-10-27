@@ -35,7 +35,7 @@ export default function InfoTooltip({ text }: { text: string }) {
         ref={triggerRef}
         tabIndex={0}
         aria-label={text}
-        className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-stone-300 text-[11px] font-bold leading-none text-stone-400 outline-none transition hover:border-emerald-400 hover:text-emerald-600 focus-visible:border-emerald-400 focus-visible:text-emerald-600"
+        className="flex h-[18px] w-[18px] cursor-help items-center justify-center rounded-full border border-stone-300 text-[12px] font-bold leading-none text-stone-400 outline-none transition hover:border-emerald-400 hover:text-emerald-600 focus-visible:border-emerald-400 focus-visible:text-emerald-600"
       >
         i
       </span>
@@ -50,7 +50,7 @@ export default function InfoTooltip({ text }: { text: string }) {
               left: pos.left,
               transform: pos.flip ? "translate(-50%, 0)" : "translate(-50%, -100%)",
             }}
-            className="pointer-events-none z-[9999] w-52 rounded-lg bg-stone-900 px-2.5 py-2 text-[12px] font-normal leading-5 normal-case text-white shadow-lg"
+            className="pointer-events-none z-[9999] w-52 rounded-lg bg-stone-900 px-2.5 py-2 text-[13px] font-normal leading-5 normal-case text-white shadow-lg"
           >
             {text}
           </span>,
