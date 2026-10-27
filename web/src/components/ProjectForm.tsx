@@ -368,11 +368,11 @@ export default function ProjectForm({
                   <span className="text-xs font-semibold text-emerald-900">
                     ✨ AI-assisted brief
                   </span>
-                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-700">
+                  <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-emerald-700">
                     Optional
                   </span>
                 </span>
-                <span className="text-[10px] font-semibold text-emerald-700">
+                <span className="text-[12px] font-semibold text-emerald-700">
                   {showAiAssist ? "Hide" : "Describe project"}
                 </span>
               </button>
@@ -630,11 +630,11 @@ export default function ProjectForm({
                 <p className="text-sm font-semibold text-stone-900">
                   Custom brief
                 </p>
-                <p className="mt-1 text-[10px] leading-4 text-stone-500">
+                <p className="mt-1 text-[12px] leading-4 text-stone-500">
                   Keep your project inputs and shape the form manually.
                 </p>
                 {state.minBedrooms > 0 && (
-                  <p className="mt-2 text-[10px] font-semibold text-amber-700">
+                  <p className="mt-2 text-[12px] font-semibold text-amber-700">
                     Bedrooms not verified
                   </p>
                 )}
@@ -656,7 +656,7 @@ export default function ProjectForm({
                       <span className="text-xs text-emerald-700">Selected</span>
                     )}
                   </div>
-                  <p className="mt-1 text-[10px] leading-4 text-stone-500">
+                  <p className="mt-1 text-[12px] leading-4 text-stone-500">
                     {u.area(design.floor_area_m2)} · {design.storeys} storey
                     {design.storeys === 1 ? "" : "s"} · {design.bedrooms}{" "}
                     bedroom{design.bedrooms === 1 ? "" : "s"}
@@ -664,7 +664,7 @@ export default function ProjectForm({
                   </p>
                   {state.minBedrooms > 0 && (
                     <p
-                      className={`mt-2 text-[10px] font-semibold ${meetsBedrooms(design) ? "text-emerald-700" : "text-stone-500"}`}
+                      className={`mt-2 text-[12px] font-semibold ${meetsBedrooms(design) ? "text-emerald-700" : "text-stone-500"}`}
                     >
                       {meetsBedrooms(design)
                         ? `Meets ${state.minBedrooms}+ bedrooms`
@@ -832,7 +832,7 @@ export default function ProjectForm({
                 <legend className="px-1 text-xs font-medium text-stone-500">
                   Exclude mechanical systems
                 </legend>
-                <p className="text-[10px] leading-4 text-stone-400">
+                <p className="text-[12px] leading-4 text-stone-400">
                   Excluded systems are never considered, whatever their score.
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -887,7 +887,7 @@ export default function ProjectForm({
               <p className="text-xs font-semibold text-stone-800">
                 Decision priorities
               </p>
-              <p className="mt-1 text-[10px] leading-4 text-stone-400">
+              <p className="mt-1 text-[12px] leading-4 text-stone-400">
                 Adjust the trade-offs used to rank configurations that pass the
                 performance gate.
               </p>

@@ -154,7 +154,7 @@ export default function LocationInfoPanel({
                 {detail.multifamily_energy_benchmark.municipality ?? "Toronto"}{" "}
                 multifamily benchmark
               </p>
-              <p className="mt-1 text-[11px] leading-4 text-sky-800">
+              <p className="mt-1 text-[12px] leading-4 text-sky-800">
                 2024 weather-normalized site EUI median:{" "}
                 <strong>
                   {u.intensity(
@@ -168,7 +168,7 @@ export default function LocationInfoPanel({
                 {u.intensity(detail.multifamily_energy_benchmark.p75_kwh_m2_yr)}{" "}
                 kWh/{u.areaUnit}·yr
               </p>
-              <p className="mt-1 text-[10px] leading-4 text-sky-700">
+              <p className="mt-1 text-[12px] leading-4 text-sky-700">
                 Context only:{" "}
                 {detail.multifamily_energy_benchmark.usable_eui_rows} large
                 buildings. {detail.multifamily_energy_benchmark.limitation}
@@ -236,13 +236,13 @@ export default function LocationInfoPanel({
             <p className="font-semibold text-amber-900">
               Planning / zoning intelligence
             </p>
-            <p className="mt-1 text-[11px] leading-4 text-amber-800">
+            <p className="mt-1 text-[12px] leading-4 text-amber-800">
               {hasZoningCoordinates && zoning
                 ? `${zoning.label}: ${zoning.detail}`
                 : `${detail.regulatory_intelligence.label}: ${detail.regulatory_intelligence.detail}`}
             </p>
             {hasZoningCoordinates && zoning?.parcel && (
-              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-amber-900">
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px] text-amber-900">
                 {Object.entries(zoning.parcel)
                   .filter(([, value]) => value)
                   .map(([key, value]) => (
@@ -258,7 +258,7 @@ export default function LocationInfoPanel({
             )}
             {(zoningSource ?? detail.regulatory_intelligence.source_url) && (
               <a
-                className="mt-1 inline-block text-[10px] font-medium text-amber-700 underline"
+                className="mt-1 inline-block text-[12px] font-medium text-amber-700 underline"
                 href={
                   zoningSource ??
                   detail.regulatory_intelligence.source_url ??
@@ -276,7 +276,7 @@ export default function LocationInfoPanel({
         </>
       )}
 
-      <p className="mt-2 text-[10px] leading-4 text-stone-400">
+      <p className="mt-2 text-[12px] leading-4 text-stone-400">
         Snow load is from the NBCC 2015 workbook. Soil bearing and frost depth
         are conservative regional defaults, not a site investigation — verify
         with a geotechnical report before final design.
@@ -301,7 +301,7 @@ function Stat({
 }) {
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-[10px] text-stone-400">
+      <p className="flex items-center gap-1.5 text-[12px] text-stone-400">
         {label}
         {tip && <InfoTooltip text={tip} />}
       </p>
@@ -312,7 +312,7 @@ function Stat({
       </p>
       {hint && (
         <p
-          className={`text-[10px] ${warn ? "text-amber-600" : "text-stone-400"}`}
+          className={`text-[12px] ${warn ? "text-amber-600" : "text-stone-400"}`}
         >
           {hint}
         </p>

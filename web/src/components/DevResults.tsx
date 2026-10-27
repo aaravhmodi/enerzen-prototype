@@ -46,7 +46,7 @@ export default function DevResults({
         </p>
       </div>
 
-      <div className={`${METRICS_GRID} border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-stone-400`}>
+      <div className={`${METRICS_GRID} border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[12px] font-semibold uppercase tracking-wide text-stone-400`}>
         <span />
         <span className="flex items-center justify-end gap-1 text-right">
           Homes
@@ -89,7 +89,7 @@ export default function DevResults({
                     count > 0 ? (
                       <span
                         key={id}
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${
                           ARCHETYPE_COLORS[id] ?? "bg-stone-100 text-stone-700"
                         }`}
                       >
@@ -114,7 +114,7 @@ export default function DevResults({
             </div>
 
             {i === selectedIndex && (
-              <p className="mt-2 text-[10px] font-semibold text-emerald-700">
+              <p className="mt-2 text-[12px] font-semibold text-emerald-700">
                 ✓ Showing site plan for this configuration
               </p>
             )}

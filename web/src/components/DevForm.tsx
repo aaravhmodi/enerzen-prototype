@@ -293,7 +293,7 @@ export default function DevForm({
                     set("total_budget_cad", parseFloat(e.target.value))
                   }
                 />
-                <p className="mt-1 text-[10px] text-stone-400">
+                <p className="mt-1 text-[12px] text-stone-400">
                   ${(state.total_budget_cad / 1_000_000).toFixed(2)}M planning
                   envelope
                 </p>
@@ -480,11 +480,11 @@ export default function DevForm({
                         >
                           {archetype.name}
                         </p>
-                        <p className="mt-1 text-[10px] leading-4 text-stone-400">
+                        <p className="mt-1 text-[12px] leading-4 text-stone-400">
                           {description}
                         </p>
                         {checked && reason && (
-                          <p className="mt-1 text-[10px] font-semibold text-amber-700">
+                          <p className="mt-1 text-[12px] font-semibold text-amber-700">
                             Ruled out: {reason.toLowerCase()}
                           </p>
                         )}
@@ -593,7 +593,7 @@ export default function DevForm({
                     type="button"
                     onClick={() => set("target_label", target.id)}
                     aria-pressed={state.target_label === target.id}
-                    className={`rounded-xl border px-2 py-3 text-[11px] font-semibold transition ${state.target_label === target.id ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:border-emerald-300"}`}
+                    className={`rounded-xl border px-2 py-3 text-[12px] font-semibold transition ${state.target_label === target.id ? "border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm" : "border-stone-200 bg-white text-stone-600 hover:border-emerald-300"}`}
                   >
                     {target.label}
                   </button>
@@ -605,7 +605,7 @@ export default function DevForm({
                 <p className="text-xs font-semibold text-stone-800">
                   Decision priorities
                 </p>
-                <p className="mt-1 text-[10px] leading-4 text-stone-400">
+                <p className="mt-1 text-[12px] leading-4 text-stone-400">
                   These weights rank feasible community scenarios. Yield, cost,
                   energy, and carbon are currently modeled.
                 </p>
