@@ -14,7 +14,7 @@ const ARCHETYPE_COLORS: Record<string, string> = {
 
 const ARCHETYPE_LABELS: Record<string, string> = {
   garden_suite: "Garden Suite",
-  three_bhk:    "3 BHK",
+  three_bhk:    "3-Bedroom Unit",
   murb:         "MURB",
   townhouse:    "Townhouse",
 };
