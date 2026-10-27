@@ -1266,10 +1266,13 @@ brief carries a chosen Pickering lot, the API looks up its zone
   Detached Dwelling, Townhouse = Street/Block Townhouse, MURB = Apartment),
   with "it would need a rezoning" as the reason. An exception zone whose
   uses are only in its own text is not limited and the notes say so;
-- caps the houses (3-Bedroom Units and Townhouse units) at the parcel's area
-  divided by the zone's minimum lot area, at least one. This assumes the
-  parcel is divided by plan of subdivision or consent; it does not check
-  frontage on a public road or the new road such a division would need.
+- caps the houses (3-Bedroom Units and Townhouse units) at the number of
+  lots the parcel divides into, at least one: its area over the zone's
+  minimum lot area, and its street frontage (the lot side facing the street,
+  with half a metre of grace) over the zone's minimum lot frontage, whichever
+  is fewer. This assumes the parcel is divided by plan of subdivision or
+  consent along its existing street; it does not plan the new road a deeper
+  division would need.
 
 Whatever the lot, a garden suite is an additional unit in an ancillary
 building on a lot with a detached, semi-detached or row house (Planning Act

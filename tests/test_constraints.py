@@ -117,6 +117,18 @@ def test_zoning_limits_the_mix():
     assert any("at most 2 houses" in n.lower() for n in zoning_notes(dev))
 
 
+def test_frontage_caps_the_houses():
+    from engine.dev_optimizer import zoning_issue, zoning_notes
+    # 650 Chiron Cres: 41.4 m deep from a west street, 11.7 m of frontage, zone S2-X226's 11 m minimum.
+    zoning = {"zone": "S2", "permitted_types": None, "min_lot_area_m2": None, "min_lot_frontage_m": 11.0}
+    dev = DevSpec(lot_width_m=41.4, lot_depth_m=11.7, street_side="W", total_budget_cad=1_500_000,
+                  location="Pickering (Dunbarton)", allowed_types=["garden_suite", "three_bhk"], zoning=zoning)
+    assert zoning_issue(dev, {"three_bhk": 2}).endswith("at most 1")
+    assert zoning_issue(dev, {"garden_suite": 1, "three_bhk": 1}) is None
+    assert all(s.units.get("three_bhk", 0) <= 1 for s in screen_dev_mixes(dev))
+    assert any(n.startswith("One house") for n in zoning_notes(dev))
+
+
 def test_garden_suite_alone_is_ruled_out():
     dev = DevSpec(lot_width_m=30, lot_depth_m=40, street_side="S", total_budget_cad=5_000_000,
                   location="Pickering (Dunbarton)", allowed_types=["garden_suite"])

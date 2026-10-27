@@ -183,7 +183,7 @@ _UNIT_TYPES = {"Garden Suite": "garden_suite", "3-Bedroom house": "three_bhk", "
 
 
 def _lot_zoning(location: str, latitude: Optional[float], longitude: Optional[float]) -> Optional[dict]:
-    """The chosen Pickering lot's zone, the catalog types it permits and its minimum lot area."""
+    """The chosen Pickering lot's zone, the catalog types it permits and its minimum lot area and frontage."""
     if latitude is None or longitude is None or not is_pickering(location):
         return None
     found = pickering_zoning.lookup(latitude, longitude)
@@ -195,6 +195,7 @@ def _lot_zoning(location: str, latitude: Optional[float], longitude: Optional[fl
         "zone": (uses or {}).get("zone") or lot.get("zone"),
         "permitted_types": [_UNIT_TYPES[u] for u in uses["enerzen_units"] if u in _UNIT_TYPES] if uses else None,
         "min_lot_area_m2": ((lot.get("standards") or {}).get("lot_area") or {}).get("value"),
+        "min_lot_frontage_m": ((lot.get("standards") or {}).get("lot_frontage") or {}).get("value"),
     }
 
 
@@ -225,8 +226,8 @@ def _serialize_result(result: ConfigResult) -> dict:
     data.pop("_assembly", None)
     data["soft_cost"] = soft_cost(result.construction_cost)
     data["total_project_cost"] = round(result.construction_cost + data["soft_cost"])
-    return data
     data.update(config_names(result))
+    return data
 
 
 def _spec_soft_timeline(spec) -> dict:

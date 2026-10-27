@@ -42,7 +42,7 @@ class DevSpec:
     max_storeys: int | None = None      # hard constraint: no building taller than this
     excluded_mechanical_ids: list = field(default_factory=list)  # hard constraint: never use these systems
     # The lot's zoning, when known: {"zone", "permitted_types" (archetype IDs, or None when the zone's uses
-    # are only in an exception's text), "min_lot_area_m2"}. See zoning_issue.
+    # are only in an exception's text), "min_lot_area_m2", "min_lot_frontage_m"}. See zoning_issue.
     zoning: dict | None = None
 
 
@@ -160,11 +160,20 @@ def excluded_types(dev: DevSpec) -> list[dict]:
     return out
 
 
-def max_houses(dev: DevSpec) -> int | None:
-    """Houses the parcel could hold if divided into lots of the zone's minimum area; None when unknown.
-    An existing lot below the minimum still takes one house."""
-    minimum = (dev.zoning or {}).get("min_lot_area_m2")
-    return max(1, int(dev.lot_width_m * dev.lot_depth_m // minimum)) if minimum else None
+def house_cap(dev: DevSpec) -> tuple[int, str] | None:
+    """Houses the parcel could hold if divided into lots meeting the zone's minimum area and street
+    frontage, with the binding minimum in words; None when neither is known. Frontage gets the half
+    metre of grace the frontage-band rules use. An existing lot below the minimum still takes one house."""
+    zoning = dev.zoning or {}
+    caps = []
+    if area := zoning.get("min_lot_area_m2"):
+        caps.append((max(1, int(dev.lot_width_m * dev.lot_depth_m // area)),
+                     f"lots of the zone's {area:g} m² minimum area"))
+    if frontage := zoning.get("min_lot_frontage_m"):
+        street_frontage = dev.lot_depth_m if dev.street_side in ("E", "W") else dev.lot_width_m
+        caps.append((max(1, int((street_frontage + 0.5) // frontage)),
+                     f"lots with the zone's {frontage:g} m minimum frontage"))
+    return min(caps) if caps else None
 
 
 def zoning_issue(dev: DevSpec, mix: dict) -> str | None:
@@ -174,10 +183,9 @@ def zoning_issue(dev: DevSpec, mix: dict) -> str | None:
     if suites > houses:
         return (f"{suites} garden suite{'s' if suites != 1 else ''} need{'s' if suites == 1 else ''} as many houses; "
                 f"the mix has {houses}")
-    cap = max_houses(dev)
-    if cap is not None and houses > cap:
-        return (f"{houses} houses need {houses} lots of at least {dev.zoning['min_lot_area_m2']:g} m² "
-                f"(zone {dev.zoning.get('zone')}); the parcel divides into at most {cap}")
+    if (found := house_cap(dev)) and houses > found[0]:
+        cap, lots = found
+        return f"{houses} houses need {houses} {lots} (zone {dev.zoning.get('zone')}); the parcel divides into at most {cap}"
     return None
 
 
@@ -190,9 +198,10 @@ def zoning_notes(dev: DevSpec) -> list[str]:
         notes.insert(0, f"Zone {zoning.get('zone')} permits: {', '.join(names) or 'none of the catalog types'}.")
     elif zoning.get("zone"):
         notes.insert(0, f"Zone {zoning['zone']}'s uses are set in its exception text; confirm the housing types with the City.")
-    if (cap := max_houses(dev)) is not None:
-        notes.append(f"At most {cap} houses: the parcel divided into lots of the zone's {zoning['min_lot_area_m2']:g} m² "
-                     "minimum, which needs a plan of subdivision or consents.")
+    if found := house_cap(dev):
+        cap, lots = found
+        notes.append(f"One house: the parcel is too small to divide into two {lots}." if cap == 1 else
+                     f"At most {cap} houses: the parcel divided into {lots}, which needs a plan of subdivision or consents.")
     return notes
 
 
@@ -261,6 +270,11 @@ def screen_dev_mixes(dev: DevSpec, top_n: int = 10) -> list[DevScenario]:
     return scenarios[:top_n]
 
 
+def _config_summary(result) -> str:
+    names = config_names(result)
+    return f"{names['mechanical_name']} · {names['wall_name']} walls · {names['roof_name']} roof"
+
+
 def best_configurations(dev: DevSpec, mixes: list[dict]) -> dict:
     """The top-ranked configuration for each eligible housing type in the
     mixes (None when nothing passes the gate), one optimizer run per type."""
@@ -270,11 +284,6 @@ def best_configurations(dev: DevSpec, mixes: list[dict]) -> dict:
     for arch_id in types:
         results = optimize(_arch_project_spec(ARCHETYPES[arch_id], dev))
         best[arch_id] = results[0] if results else None
-def _config_summary(result) -> str:
-    names = config_names(result)
-    return f"{names['mechanical_name']} · {names['wall_name']} walls · {names['roof_name']} roof"
-
-
     return best
 
 
