@@ -10,6 +10,11 @@ import {
 import InfoTooltip from "@/components/InfoTooltip";
 import { useUnits } from "@/lib/units";
 
+const PARCEL_LABELS: Record<string, string> = {
+  address: "Address", zoning: "Zoning", by_law: "By-law", official_plan: "Official Plan",
+  overlays: "Overlays", lot: "Lot", setbacks: "Setbacks",
+};
+
 export default function LocationInfoPanel({
   location,
   latitude,
@@ -248,10 +253,11 @@ export default function LocationInfoPanel({
                   .map(([key, value]) => (
                     <div key={key}>
                       <span className="text-amber-600">
-                        {key.replaceAll("_", " ")}
+                        {PARCEL_LABELS[key] ?? key.replaceAll("_", " ")}
                       </span>
                       <br />
-                      <strong>{value}</strong>
+                      {/* The server writes lengths in metres; show them in the chosen units. */}
+                      <strong>{String(value).replace(/(\d+(?:\.\d+)?) m/g, (_, m) => u.length(Number(m)))}</strong>
                     </div>
                   ))}
               </div>

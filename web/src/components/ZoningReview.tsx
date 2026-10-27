@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CATEGORY_LABELS, docUrl, lotForForm, type Hit, type Lookup } from "@/lib/zoning";
+import { CATEGORY_LABELS, docUrl, layerLabel, lotForForm, readableFields, type Hit, type Lookup } from "@/lib/zoning";
 import { useUnits } from "@/lib/units";
 import ZoneStandards from "./ZoneStandards";
 import LotSetbacks from "./LotSetbacks";
@@ -29,7 +29,7 @@ function workspaceLink(lookup: Lookup) {
 
 function Attributes({ attributes, limit = 8 }: { attributes: Record<string, unknown>; limit?: number }) {
   const [open, setOpen] = useState(false);
-  const entries = Object.entries(attributes).filter(([k]) => !k.startsWith("_"));
+  const entries = readableFields(attributes);
   if (!entries.length) return null;
   const shown = open ? entries : entries.slice(0, limit);
   return (
@@ -38,7 +38,7 @@ function Attributes({ attributes, limit = 8 }: { attributes: Record<string, unkn
         {shown.map(([k, v]) => (
           <div key={k}>
             <dt>{k}</dt>
-            <dd>{String(v)}</dd>
+            <dd>{v}</dd>
           </div>
         ))}
       </dl>
@@ -59,7 +59,7 @@ function Hits({ hits, empty }: { hits: Hit[]; empty: string }) {
         <li key={`${hit.layer}-${i}`}>
           <div className="zr-hit-head">
             <a href={hit.source_url} target="_blank" rel="noreferrer">
-              {hit.layer}
+              {layerLabel(hit.layer)}
             </a>
             <span>
               {hit.distance_m > 0

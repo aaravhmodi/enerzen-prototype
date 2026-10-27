@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Feature, Geometry, Position } from "geojson";
-import { CATEGORY_LABELS, MAPBOX_TOKEN, type MapData, type MapLayer, type PilotArea } from "@/lib/zoning";
+import { CATEGORY_LABELS, MAPBOX_TOKEN, layerLabel, readableFields, type MapData, type MapLayer, type PilotArea } from "@/lib/zoning";
 
 type Props = {
   data: MapData | null;
@@ -75,12 +75,11 @@ function popupContent(
     title.textContent = names.get(source) ?? source;
     block.append(title);
     const list = document.createElement("dl");
-    const entries = Object.entries(hit.properties ?? {}).filter(([k]) => !k.startsWith("_"));
-    for (const [k, v] of entries.slice(0, 10)) {
+    for (const [k, v] of readableFields(hit.properties ?? {}).slice(0, 10)) {
       const dt = document.createElement("dt");
       dt.textContent = k;
       const dd = document.createElement("dd");
-      dd.textContent = String(v);
+      dd.textContent = v;
       list.append(dt, dd);
     }
     block.append(list);
@@ -240,7 +239,9 @@ export default function ZoningMap({ data, hidden, onPick, onExplore, workingLot,
       const color = layer.color ?? "#64748b";
       instance.addSource(source, { type: "geojson", data: layer.features });
       state.sources.push(source);
-      names.current.set(source, `${CATEGORY_LABELS[layer.category] ?? layer.category} · ${layer.name}`);
+      const category = CATEGORY_LABELS[layer.category] ?? layer.category;
+      const label = layerLabel(layer.name);
+      names.current.set(source, label.toLowerCase() === category.toLowerCase() ? category : `${category} · ${label}`);
       const shape = kind(layer);
       if (shape === "fill") {
         const base = layer.category === "zoning" || layer.category === "official_plan" ? 0.16 : 0.22;

@@ -327,6 +327,8 @@ export async function searchAddresses(query: string, signal?: AbortSignal): Prom
     if (response.ok) {
       const body = await response.json();
       for (const f of body.features ?? []) {
+        // The bounding box reaches into Scarborough and Ajax; only Pickering lots can be looked up.
+        if (f.properties.context?.place?.name !== "Pickering") continue;
         const [longitude, latitude] = f.geometry.coordinates;
         found.push({
           label: f.properties.full_address ?? f.properties.name,
@@ -442,6 +444,39 @@ export const dataStatus = () =>
       errors: number;
     };
   }>("/municipal/pickering/status");
+
+// The City's GIS exports keep database column and table names ("HOUSENUMBE",
+// "sde_data.SDE_OWNER.AMD_UrbanArea"); these turn them into plain labels.
+const FIELD_LABELS: Record<string, string> = {
+  ZONING_CODE: "Zone", ZONING_NAME: "Zone type", EXCEPTION_NUM: "Exception no.", BY_LAW: "By-law",
+  BY_LAW_P: "Parent by-law", ZONING_AREA: "Zoning area", Roll_No: "Roll number", ROLLNUM: "Roll number",
+  ARN: "Assessment roll no.", HOUSENUMBE: "House number", STREET: "Street", STREETTYPE: "Street type",
+  FullAddres: "Address", LANDUSE: "Land use", AssetName: "Asset", AssetClass: "Asset class",
+  INSTALLDATE: "Installed", Serv_Year: "Service year", Rem_Life: "Remaining life (years)",
+  Rep_Cost: "Replacement cost", Survey_URL: "Survey", SGRA: "Groundwater recharge area", areaHa: "Area (ha)",
+};
+// Row ids, join keys and geometry bookkeeping, which mean nothing to a reader.
+const INTERNAL_FIELD = /(^|_)(FID|OBJECTID|ID)(_|\d|$)|^fid_|shape|STLength|STArea|^sde_data|^GISWRKS|^Original_Area$|^AREA_1$|^DN$|^AdMapKey$|^Measure$|^SegmentID$|^Qauntity$/i;
+
+export function readableFields(attributes: Record<string, unknown>): [string, string][] {
+  return Object.entries(attributes)
+    .filter(([k, v]) => !k.startsWith("_") && !INTERNAL_FIELD.test(k) && v != null && String(v).trim() !== "")
+    .map(([k, v]) => {
+      const words = k.replace(/_/g, " ");
+      const label = FIELD_LABELS[k] ?? (words === words.toUpperCase() ? words[0] + words.slice(1).toLowerCase() : words);
+      return [label, String(v)];
+    });
+}
+
+export function layerLabel(name: string): string {
+  return name
+    .replace(/^sde_data\.SDE_OWNER\./, "")
+    .replace(/^AMD_/, "")
+    .replace(/^Landuse$/, "Land use")
+    .replace(/_\d{8}.*$/, "")
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2");
+}
 
 export const CATEGORY_LABELS: Record<string, string> = {
   parcels: "Parcels",

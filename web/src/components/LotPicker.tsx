@@ -213,6 +213,9 @@ export default function LotPicker({
     ? ([["front", lot.front_setback_m], ["side", lot.side_setback_m], ["rear", lot.rear_setback_m]] as const)
     : [];
   const address = lookup?.steps?.["1_property_identification"].from_city_data?.address;
+  const sideYards = Object.values(standards?.setbacks_by_side ?? {})
+    .filter((v) => v.applies === "interior_side_yard" && v.value != null)
+    .map((v) => v.value!);
   const categories = [...new Set(mapData?.layers.map((layer) => layer.category) ?? [])];
   const workingLot = useMemo(
     () => workingPoint && lotWidth != null && lotDepth != null
@@ -265,6 +268,15 @@ export default function LotPicker({
             }
           }}
         />
+        {!query && !lookup && !loading && (
+          <p className="zr-muted">
+            {/* A lot whose every rule the by-law text supplies, so a first look never lands on a greyed-out one. */}
+            Not sure where to start?{" "}
+            <button type="button" className="zr-more" onClick={() => void choose("650 CHIRON CRES", 43.8305, -79.1252)}>
+              Try an example lot: 650 Chiron Cres
+            </button>
+          </p>
+        )}
         {searchingAddresses && (
           <p className="lot-picker-thinking" role="status">
             <span className="lot-picker-spinner" aria-hidden="true" />
@@ -313,6 +325,9 @@ export default function LotPicker({
                   .filter(([, v]) => v == null)
                   .map(([name]) => name)
                   .join(", ")}.`}{" "}
+              {sideYards.length === 2 && sideYards[0] !== sideYards[1]
+                ? `The by-law sets side yards of ${sideYards.map(u.length).join(" and ")}; the site plan applies the larger to both sides. `
+                : ""}
               {standards?.basis_note && standards.basis !== "yards" ? standards.basis_note : ""}
             </p>
           </div>
