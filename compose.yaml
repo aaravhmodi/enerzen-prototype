@@ -22,8 +22,12 @@ services:
     build:
       context: web
       args:
-        NEXT_PUBLIC_API_URL: http://${TAILSCALE_IP}:8001
+        # The browser calls /api on the web app's own address; the web server forwards to the API.
+        NEXT_PUBLIC_API_URL: /api
+        API_PROXY_TARGET: http://api:8001
         NEXT_PUBLIC_MAPBOX_TOKEN: ${MAPBOX_TOKEN:-}
+    environment:
+      API_PROXY_TARGET: http://api:8001
     restart: unless-stopped
     ports:
       - "${TAILSCALE_IP}:3000:3000"
